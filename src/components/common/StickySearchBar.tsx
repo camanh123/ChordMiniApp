@@ -5,6 +5,7 @@ import { HiUpload } from 'react-icons/hi';
 import Link from 'next/link';
 import { useSharedSearchState } from '@/hooks/search/useSharedSearchState';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface StickySearchBarProps {
   isVisible: boolean;
@@ -18,6 +19,7 @@ const StickySearchBar: React.FC<StickySearchBarProps> = ({
   showUpload = true,
 }) => {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const [showResults, setShowResults] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
@@ -68,14 +70,14 @@ const StickySearchBar: React.FC<StickySearchBarProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => updateSearchQuery(e.target.value)}
-              placeholder="Search music or paste URL..."
+              placeholder={t('home.stickyPlaceholder')}
               className="w-full min-w-[200px] xl:min-w-[300px] pl-2 xl:pl-3 pr-8 xl:pr-10 py-1 xl:py-1.5 text-xs xl:text-sm border border-transparent bg-gray-200/60 text-gray-800 placeholder:text-gray-700/70 dark:bg-gray-600/60 dark:text-gray-100 dark:placeholder:text-gray-100/70 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
             />
             <button
               type="submit"
               disabled={isSearching}
               className="absolute right-1 xl:right-2 top-1/2 transform -translate-y-1/2 p-0.5 xl:p-1 text-gray-800/75 hover:text-blue-600 dark:text-gray-100/75 dark:hover:text-blue-400 transition-colors duration-200 disabled:opacity-50"
-              aria-label="Search"
+              aria-label={t('home.search')}
             >
               {isSearching ? (
                 <div className="animate-spin rounded-full h-3 w-3 xl:h-4 xl:w-4 border-b-2 border-blue-600"></div>
@@ -94,10 +96,10 @@ const StickySearchBar: React.FC<StickySearchBarProps> = ({
           <Link
             href="/analyze"
             className="font-medium py-1 xl:py-1.5 px-2 xl:px-3 rounded-lg transition-all duration-200 whitespace-nowrap flex items-center gap-1 text-xs xl:text-sm xl:gap-2 bg-default-100 dark:bg-gray-800/40 border border-default-300 dark:border-gray-700 text-foreground hover:bg-default-200 dark:hover:bg-gray-700/50"
-            aria-label="Upload audio file"
+            aria-label={t('home.uploadAria')}
           >
             <HiUpload className="w-3 h-3 xl:w-4 xl:h-4" />
-            <span className="hidden lg:inline xl:inline">Upload</span>
+            <span className="hidden lg:inline xl:inline">{t('home.uploadShort')}</span>
           </Link>
         )}
 
@@ -112,7 +114,7 @@ const StickySearchBar: React.FC<StickySearchBarProps> = ({
               <div className="p-3 text-center">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto mb-2"></div>
                 <p className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Searching...
+                  {t('home.searchingShort')}
                 </p>
               </div>
             )}
@@ -168,7 +170,7 @@ const StickySearchBar: React.FC<StickySearchBarProps> = ({
             {searchResults.length === 0 && !isSearching && !searchError && searchQuery.length > 2 && (
               <div className="p-3 text-center">
                 <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  No results found
+                  {t('home.noResults')}
                 </p>
               </div>
             )}

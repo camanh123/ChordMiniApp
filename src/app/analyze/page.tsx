@@ -632,7 +632,7 @@ export default function LocalAudioAnalyzePage() {
       startProcessing();
       setStage('chord-recognition');
       setProgress(0);
-      setStatusMessage('Recognizing chords and synchronizing with beats...');
+      setStatusMessage(t('analyze.recognizing'));
 
       // Use existing object URL from audio element or create new one (track and cleanup)
       let audioUrl = audioRef.current?.src;
