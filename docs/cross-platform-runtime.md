@@ -62,6 +62,12 @@ electron-builder drops a `node_modules` directory that sits at the root of an ex
 
 The workflow uploads the installer, SHA-256, and build metadata before packaged acceptance. Acceptance logs a stage line before each wait, and those waits are bounded. On a timeout it stops only the processes that acceptance started. Acceptance diagnostics are a separate artifact and are uploaded even when that step fails.
 
+## Phase 2C — Installed analysis availability
+
+The installed Windows app can play a selected local file without a chord result. Play, pause, seek, and playback speed use the page's existing audio element and appear as soon as a file is chosen. Guitar diagrams, the chord grid, piano playback, lyrics, and transposition still require an analysis result.
+
+In desktop mode, beat and chord routes check the analysis service before the long model request. A missing or loopback `PYTHON_API_URL` is probed briefly. If nothing is listening, the route returns `ANALYSIS_SERVICE_NOT_CONFIGURED` or `ANALYSIS_SERVICE_UNAVAILABLE` and does not invent chords or beats. The response does not include the service address. A loopback service that answers `/health` is still forwarded, so a developer running Flask is unchanged. Web deployments that are not in desktop mode keep the previous proxy behavior.
+
 ## Phase 4 — iPad PWA
 
 Do not implement this in Phase 1. The future PWA must:

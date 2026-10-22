@@ -12,6 +12,7 @@ import { isFirebaseStorageUrl } from '@/utils/urlValidationUtils';
 
 import { offloadUploadService } from '@/services/storage/offloadUploadService';
 import { detectBeatsFromFile, detectBeatsWithRateLimit } from '@/services/audio/beatDetectionService';
+import { isAnalysisServiceError } from '@/utils/analysisServiceError';
 import { synchronizeChords } from '@/utils/chordSynchronization';
 import { recognizeChordsWithRateLimit } from '@/services/chord-analysis/chordService';
 import type { AnalysisResult, BeatInfo, ChordDetectorType, ChordDetectionResult, BeatDetectionBackendResponse } from '@/types/audioAnalysis';
@@ -389,6 +390,7 @@ export async function analyzeAudioWithRateLimit(
         return results;
       } catch (e) {
         console.error('Error in beat detection with rate limiting:', e);
+        if (isAnalysisServiceError(e)) throw e;
         if (e instanceof Error) {
           if (e.message.includes('Rate limited')) throw new Error(`Beat detection rate limited: ${e.message}`);
           if (e.message.includes('too large')) throw new Error('Audio file is too large for beat detection. Try a shorter clip or the madmom detector.');
@@ -409,6 +411,7 @@ export async function analyzeAudioWithRateLimit(
         return results;
       } catch (e) {
         console.error('Error in chord recognition with rate limiting:', e);
+        if (isAnalysisServiceError(e)) throw e;
         if (e instanceof Error) {
           if (e.message.includes('Rate limited')) throw new Error(`Chord recognition rate limited: ${e.message}`);
           if (e.message.includes('too large')) throw new Error('Audio file is too large for chord recognition. Try a shorter clip.');
@@ -577,6 +580,7 @@ export async function analyzeAudio(
     if (beatResults.beats.length === 0) throw new Error('All detected beats have invalid timestamps');
   } catch (e) {
     console.error('Error in beat detection:', e);
+    if (isAnalysisServiceError(e)) throw e;
     if (e instanceof Error) {
       if (e.message.includes('too large')) throw new Error('Audio file is too large for beat detection. Try a shorter clip or the madmom detector.');
       if (e.message.includes('413')) throw new Error('Audio file size exceeds server limits. Please use a smaller file or try the madmom detector.');
@@ -596,6 +600,7 @@ export async function analyzeAudio(
     chordResults = chordResults.filter(c => c && typeof c.start === 'number' && typeof c.end === 'number' && !isNaN(c.start) && !isNaN(c.end) && c.start >= 0 && c.end >= 0 && c.start < c.end && c.end <= 3600);
   } catch (e) {
     console.error('Error in chord recognition:', e);
+    if (isAnalysisServiceError(e)) throw e;
     if (e instanceof Error) {
       if (e.message.includes('too large')) throw new Error('Audio file is too large for chord recognition. Try a shorter clip.');
       if (e.message.includes('413')) throw new Error('Audio file size exceeds server limits for chord recognition. Please use a smaller file.');

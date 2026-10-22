@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPythonApiUrl } from '@/config/serverBackend';
 import { verifyAppCheckRequest } from '@/utils/serverAppCheck';
+import {
+  analysisServiceGateResponse,
+  desktopAnalysisConnectionResponse,
+} from '@/server/analysisServiceAvailability';
 
 /**
  * API route to recognize chords in an audio file using the BTC Pseudo-Label model
@@ -16,6 +20,11 @@ export async function POST(request: NextRequest) {
     const appCheck = await verifyAppCheckRequest(request);
     if (!appCheck.ok) {
       return NextResponse.json({ success: false, error: appCheck.error }, { status: appCheck.status || 403 });
+    }
+
+    const unavailable = await analysisServiceGateResponse();
+    if (unavailable) {
+      return unavailable;
     }
 
     // Get the form data from the request
@@ -49,6 +58,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error recognizing chords with BTC PL:', error);
+
+    const connectionFailure = desktopAnalysisConnectionResponse(error);
+    if (connectionFailure) {
+      return connectionFailure;
+    }
 
     const errorMessage = error instanceof Error ? error.message : String(error);
 

@@ -9,6 +9,7 @@
 import { createSafeTimeoutSignal } from '@/utils/environmentUtils';
 import { offloadUploadService } from '@/services/storage/offloadUploadService';
 import type { ChordDetectorType, ChordDetectionResult, ChordRecognitionBackendResponse } from '@/types/audioAnalysis';
+import { analysisServiceError, readAnalysisServiceFailure } from '@/utils/analysisServiceError';
 
 /**
  * Recognize chords from a File with rate limiting.
@@ -53,6 +54,10 @@ export async function recognizeChordsWithRateLimit(
     const response = await fetch(endpoint, { method: 'POST', body: formData, signal: abortSignal });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      const availability = readAnalysisServiceFailure(errorData);
+      if (availability) {
+        throw analysisServiceError(availability);
+      }
       if (response.status === 403) {
         console.error(`❌ Chord recognition API returned 403 Forbidden`);
         const responseText = await response.text().catch(() => 'Unable to read response');
