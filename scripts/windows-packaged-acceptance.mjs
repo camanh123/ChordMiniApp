@@ -216,14 +216,37 @@ async function uninstall() {
   const uninstaller = path.join(installDir, 'Uninstall ChordMini.exe');
   const installedExe = path.join(installDir, 'ChordMini.exe');
   if (!fs.existsSync(uninstaller)) {
-    return !fs.existsSync(installedExe);
+    const names = fs.existsSync(installDir) ? fs.readdirSync(installDir) : [];
+    return {
+      removed: !fs.existsSync(installedExe),
+      exitCode: null,
+      uninstallerFound: false,
+      executables: names.filter((name) => name.toLowerCase().endsWith('.exe')).slice(0, 20),
+    };
   }
-  const child = startProcess(uninstaller, ['/S'], { stdio: 'inherit' });
+  assertNoShellMeta(uninstaller, 'Uninstaller path');
+  assertNoShellMeta(installDir, 'Install directory');
+  // NSIS copies the uninstaller to %TEMP% and the process we spawn exits before
+  // files are deleted. _?= disables that copy and must stay last and unquoted,
+  // including the space in the install directory.
+  const command = `"${uninstaller.replace(/"/g, '')}" /S _?=${installDir}`;
+  const child = spawn(command, { shell: true, stdio: 'inherit', windowsHide: true });
   owned.uninstallerPid = child.pid ?? null;
   try {
     const code = await waitForExit(child, 180000, 'uninstall');
     owned.uninstallerPid = null;
-    return code === 0 && !fs.existsSync(installedExe);
+    let remains = fs.existsSync(installedExe);
+    const deadline = Date.now() + (code === 0 && remains ? 10000 : 0);
+    while (remains && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      remains = fs.existsSync(installedExe);
+    }
+    return {
+      removed: code === 0 && !remains,
+      exitCode: code,
+      uninstallerFound: true,
+      executableRemains: remains,
+    };
   } catch (error) {
     killOwnedPid(owned.uninstallerPid);
     owned.uninstallerPid = null;
@@ -300,7 +323,8 @@ async function cleanupOwned() {
     try {
       progress('uninstall-start');
       const removed = await uninstall();
-      record('uninstall', removed, {
+      record('uninstall', removed.removed, {
+        ...removed,
         executableRemains: fs.existsSync(path.join(installDir, 'ChordMini.exe')),
       });
       progress('uninstall-finished', { removed });
@@ -933,7 +957,10 @@ async function main() {
 
   progress('uninstall-start');
   const removed = await uninstall();
-  record('uninstall', removed, { executableRemains: fs.existsSync(installedExe) });
+  record('uninstall', removed.removed, {
+    ...removed,
+    executableRemains: fs.existsSync(installedExe),
+  });
   progress('uninstall-finished', { removed });
 }
 
