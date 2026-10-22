@@ -24,6 +24,8 @@
 # production
 /build
 /dist
+/electron/dist
+/windows-electron-artifacts/
 
 # misc
 .DS_Store
@@ -290,6 +292,7 @@ scripts/*
 !scripts/publish-repowiki-to-github-wiki.sh
 !scripts/post-deployment-verification.sh
 !scripts/prepare-ffmpeg-worker.mjs
+!scripts/windows-electron-acceptance.mjs
 
 __tests__/
 __tests__/*
