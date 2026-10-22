@@ -40,6 +40,9 @@ jobs:
       - name: Scan staged resources
         run: node scripts/scan-desktop-package.mjs desktop-resources/standalone windows-installer-artifacts/staged-scan.json
 
+      - name: Verify staged standalone dependencies
+        run: node scripts/verify-packaged-standalone.mjs desktop-resources/standalone windows-installer-artifacts/staged-runtime.json
+
       - name: Desktop Jest tests
         run: npx jest __tests__/unit/desktop --runInBand --forceExit
 
@@ -50,6 +53,9 @@ jobs:
 
       - name: Scan the unpacked app
         run: node scripts/scan-desktop-package.mjs desktop-dist/win-unpacked windows-installer-artifacts/unpacked-scan.json
+
+      - name: Verify unpacked standalone dependencies
+        run: node scripts/verify-packaged-standalone.mjs desktop-dist/win-unpacked/resources/standalone windows-installer-artifacts/unpacked-runtime.json --boot
 
       - name: Write checksum and build metadata
         shell: pwsh
@@ -85,6 +91,8 @@ jobs:
             windows-installer-artifacts/build-metadata.json
             windows-installer-artifacts/staged-scan.json
             windows-installer-artifacts/unpacked-scan.json
+            windows-installer-artifacts/staged-runtime.json
+            windows-installer-artifacts/unpacked-runtime.json
           retention-days: 14
           if-no-files-found: error
 

@@ -299,6 +299,7 @@ scripts/*
 !scripts/prepare-desktop-resources.mjs
 !scripts/scan-desktop-package.mjs
 !scripts/windows-packaged-acceptance.mjs
+!scripts/verify-packaged-standalone.mjs
 
 __tests__/
 __tests__/*

@@ -18,6 +18,7 @@ const artifactDir = path.join(repoRoot, 'windows-installer-artifacts');
 const installDir = path.join(process.env.USERPROFILE || 'C:\\Users\\Public', 'ChordMini Acceptance');
 const REQUIRED_CHECKS = [
   'install',
+  'packagedDependencies',
   'windowRender',
   'staticAssets',
   'musicUi',
@@ -406,24 +407,26 @@ public static class ChordMiniWin {
   }).filter((entry) => Number.isInteger(entry.pid) && /^[0-9]+$/.test(entry.hwnd) && entry.title);
 }
 
-function listeningLoopbackPorts(pids) {
+function listeningSockets(pids) {
   const result = spawnSync('netstat', ['-ano', '-p', 'tcp'], {
     encoding: 'utf8',
     timeout: 10000,
     windowsHide: true,
   });
   const ports = [];
+  const other = [];
   for (const line of String(result.stdout || '').split(/\r?\n/)) {
-    const match = /^\s*TCP\s+127\.0\.0\.1:(\d+)\s+\S+\s+LISTENING\s+(\d+)\s*$/i.exec(line.trim());
-    if (!match) {
+    const match = /^\s*TCP\s+(\S+):(\d+)\s+\S+\s+LISTENING\s+(\d+)\s*$/i.exec(line.trim());
+    if (!match || !pids.has(Number(match[3]))) {
       continue;
     }
-    const pid = Number(match[2]);
-    if (pids.has(pid)) {
-      ports.push(Number(match[1]));
+    if (match[1] === '127.0.0.1') {
+      ports.push(Number(match[2]));
+    } else {
+      other.push(`${match[1]}:${match[2]}`);
     }
   }
-  return [...new Set(ports)];
+  return { ports: [...new Set(ports)], other: [...new Set(other)] };
 }
 
 function cookieHeader(headers) {
@@ -455,6 +458,11 @@ async function probeLoopback(ports) {
       const logo = await httpRequest({ hostname: '127.0.0.1', port, path: '/chordMiniLogo.webp', method: 'GET' }, {
         Cookie: cookie,
       });
+      const analyze = await httpRequest({ hostname: '127.0.0.1', port, path: '/analyze', method: 'GET' }, {
+        Cookie: cookie,
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Site': 'same-origin',
+      });
       return {
         port,
         readyStatus: ready.status,
@@ -463,6 +471,8 @@ async function probeLoopback(ports) {
         pianoText: home.body.includes('Piano Visualizer'),
         chordGridText: home.body.includes('Beat & Chord Analysis'),
         logoStatus: logo.status,
+        analyzeStatus: analyze.status,
+        analyzeFileInput: analyze.body.includes('Choose Audio File'),
       };
     } catch {
       // Another owned listener is not the Next server.
@@ -486,6 +496,7 @@ async function observeUserLaunch(child, pidFile, diagnosticFile, logFile) {
     processAlive: isAlive(child.pid),
     windows: [],
     ports: [],
+    otherBinds: [],
     server: null,
     serverPid: null,
     diagnostic: '',
@@ -496,12 +507,13 @@ async function observeUserLaunch(child, pidFile, diagnosticFile, logFile) {
       const processes = readProcessTable();
       const ownedPids = descendantPids(child.pid, processes);
       const windows = visibleWindows().filter((entry) => ownedPids.has(entry.pid));
-      const ports = listeningLoopbackPorts(ownedPids);
-      const server = await probeLoopback(ports);
+      const sockets = listeningSockets(ownedPids);
+      const server = await probeLoopback(sockets.ports);
       snapshot = {
         processAlive: snapshot.processAlive,
         windows,
-        ports,
+        ports: sockets.ports,
+        otherBinds: sockets.other,
         server,
         serverPid: fs.existsSync(pidFile) ? Number(fs.readFileSync(pidFile, 'utf8')) : null,
         diagnostic: readRedacted(diagnosticFile, 1000),
@@ -517,6 +529,67 @@ async function observeUserLaunch(child, pidFile, diagnosticFile, logFile) {
   }
   snapshot.logExcerpt = readRedacted(logFile, 2500);
   return snapshot;
+}
+
+function packagedRuntimeProbe(installedExe) {
+  const standalone = path.join(installDir, 'resources', 'standalone');
+  const serverJs = path.join(standalone, 'server.js');
+  const nextPackage = path.join(standalone, 'node_modules', 'next', 'package.json');
+  const detail = {
+    serverExists: fs.existsSync(serverJs),
+    nextPackage,
+  };
+  if (!detail.serverExists || !fs.existsSync(nextPackage)) {
+    return { pass: false, reason: 'missing-file', ...detail };
+  }
+  const nextStat = fs.lstatSync(nextPackage);
+  if (!nextStat.isFile()) {
+    return { pass: false, reason: 'next-package-json-not-a-file', ...detail };
+  }
+  const probe = path.join(artifactDir, 'resolve-packaged-next.cjs');
+  fs.writeFileSync(probe, `
+const { createRequire } = require('module');
+const path = require('path');
+const server = process.argv[2];
+const root = path.resolve(path.dirname(server));
+const req = createRequire(server);
+for (const id of ['next', 'next/dist/server/lib/start-server']) {
+  let resolved;
+  try {
+    resolved = path.resolve(req.resolve(id));
+  } catch (error) {
+    process.stderr.write('MODULE_NOT_FOUND ' + id + '\\n' + (error && error.message ? error.message : error) + '\\n');
+    process.exit(1);
+  }
+  const relative = path.relative(root, resolved);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    process.stderr.write('RESOLVED_OUTSIDE ' + id + ' ' + resolved + '\\n');
+    process.exit(2);
+  }
+  req(id);
+  process.stdout.write('OK\\t' + id + '\\t' + relative + '\\n');
+}
+`);
+  const env = { ELECTRON_RUN_AS_NODE: '1' };
+  for (const key of ['PATH', 'SystemRoot', 'SYSTEMROOT', 'TEMP', 'TMP', 'USERPROFILE', 'PATHEXT', 'ComSpec', 'COMSPEC']) {
+    if (process.env[key]) {
+      env[key] = process.env[key];
+    }
+  }
+  const result = spawnSync(installedExe, [probe, serverJs], {
+    cwd: artifactDir,
+    env,
+    encoding: 'utf8',
+    timeout: 120000,
+    windowsHide: true,
+  });
+  const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim().slice(0, 1500);
+  return {
+    pass: result.status === 0 && output.includes('OK\tnext'),
+    status: result.status,
+    output,
+    ...detail,
+  };
 }
 
 function closeOwnedWindows(hwnds) {
@@ -565,6 +638,13 @@ async function main() {
   if (!fs.existsSync(installedExe)) {
     throw new Error('The installer did not produce ChordMini.exe.');
   }
+  progress('packaged-dependencies-start');
+  const dependencies = packagedRuntimeProbe(installedExe);
+  record('packagedDependencies', dependencies.pass, dependencies);
+  progress('packaged-dependencies-finished', { pass: dependencies.pass });
+  if (!dependencies.pass) {
+    throw new Error(`Installed standalone cannot resolve next. ${dependencies.output || dependencies.reason || ''}`);
+  }
 
   const sentinel = startProcess(process.execPath, ['-e', 'setInterval(() => {}, 1000)']);
   owned.sentinelPid = sentinel.pid ?? null;
@@ -608,6 +688,8 @@ async function main() {
       logoStatus: direct.server.logoStatus,
       pianoText: direct.server.pianoText,
       chordGridText: direct.server.chordGridText,
+      analyzeStatus: direct.server.analyzeStatus,
+      analyzeFileInput: direct.server.analyzeFileInput,
     } : null,
     diagnostic: direct.diagnostic,
     logExcerpt: direct.logExcerpt,
@@ -623,12 +705,15 @@ async function main() {
     source: 'win32',
     titles: direct.windows.map((entry) => entry.title),
   });
-  record('serverStartup', Boolean(direct.server), direct.server ? {
+  record('serverStartup', Boolean(direct.server) && direct.otherBinds.length === 0, direct.server ? {
     status: direct.server.readyStatus,
     role: direct.server.role,
     port: direct.server.port,
+    otherBinds: direct.otherBinds,
+    analyzeStatus: direct.server.analyzeStatus,
+    analyzeFileInput: direct.server.analyzeFileInput,
     source: 'loopback-listen',
-  } : { source: 'loopback-listen' });
+  } : { source: 'loopback-listen', otherBinds: direct.otherBinds });
   if (direct.server) {
     record('staticAssets', direct.server.homeStatus === 200 && direct.server.logoStatus === 200, {
       homeStatus: direct.server.homeStatus,

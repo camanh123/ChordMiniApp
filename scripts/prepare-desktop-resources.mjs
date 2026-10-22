@@ -6,15 +6,12 @@ import { fileURLToPath } from 'url';
 const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const destination = path.join(repoRoot, 'desktop-resources', 'standalone');
-const { prepareStandalone, shouldCopyAsset } = require(path.join(repoRoot, 'electron', 'dist', 'prepareStandalone.js'));
+const { prepareStandalone } = require(path.join(repoRoot, 'electron', 'dist', 'prepareStandalone.js'));
+const { materializeStandaloneDirectory } = require(path.join(repoRoot, 'electron', 'dist', 'standalonePackage.js'));
 
 const layout = prepareStandalone(repoRoot);
 fs.rmSync(path.dirname(destination), { recursive: true, force: true });
-fs.mkdirSync(path.dirname(destination), { recursive: true });
-fs.cpSync(path.dirname(layout.serverEntry), destination, {
-  recursive: true,
-  filter: (source) => shouldCopyAsset(source, path.dirname(layout.serverEntry)),
-});
+materializeStandaloneDirectory(path.dirname(layout.serverEntry), destination);
 
 const sharp = require('sharp');
 const iconDir = path.join(repoRoot, 'build');

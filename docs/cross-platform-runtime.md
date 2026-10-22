@@ -58,6 +58,8 @@ A passing Linux process-lifecycle test is not a Windows pass. The acceptance scr
 
 The packaged server path is `resources/standalone/server.js`. Development still prepares `.next/standalone` from the repository. `CHORDMINI_DESKTOP_PID_FILE` writes a pid only when `CHORDMINI_DESKTOP_ACCEPTANCE=1` and the path is absolute. A normal installation does not set that flag.
 
+electron-builder drops a `node_modules` directory that sits at the root of an extra resource. The staged standalone tree is therefore copied from its parent, `desktop-resources`, so `standalone/node_modules` is nested and included. Staging also follows symlinks and Windows junctions, which keeps traced packages from pointing back at the build checkout. `scripts/verify-packaged-standalone.mjs` resolves `next` from an isolated copy of the staged tree and boots `server.js` from the unpacked app before the installer is uploaded. A successful `next build` is not that check. The installed app still does not receive `.env` files, Firebase Admin credentials, or Python checkpoints.
+
 The workflow uploads the installer, SHA-256, and build metadata before packaged acceptance. Acceptance logs a stage line before each wait, and those waits are bounded. On a timeout it stops only the processes that acceptance started. Acceptance diagnostics are a separate artifact and are uploaded even when that step fails.
 
 ## Phase 4 — iPad PWA
