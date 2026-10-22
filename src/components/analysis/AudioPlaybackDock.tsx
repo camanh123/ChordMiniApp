@@ -109,6 +109,7 @@ const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
             variant="flat"
             className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             isDisabled={disabled}
+            data-testid="playback-speed"
           >
             {playbackRate}x
           </Button>
@@ -125,6 +126,7 @@ const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
                   variant={playbackRate === rate ? 'solid' : 'flat'}
                   color={playbackRate === rate ? 'primary' : 'default'}
                   className={playbackRate === rate ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100'}
+                  data-playback-rate={rate}
                   onPress={() => { onChangePlaybackRate(rate); setOpen(false); }}
                 >
                   {rate}x
