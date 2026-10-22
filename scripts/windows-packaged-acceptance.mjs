@@ -27,6 +27,8 @@ const REQUIRED_CHECKS = [
   'singleInstance',
   'processCleanup',
   'uninstall',
+  'applicationLaunch',
+  'playwrightConnection',
 ];
 
 const report = {
@@ -236,6 +238,7 @@ function httpRequest(options, headers) {
       response.on('end', () => {
         resolve({
           status: response.statusCode,
+          headers: response.headers,
           body: Buffer.concat(chunks).toString('utf8'),
         });
       });
@@ -309,6 +312,233 @@ async function cleanupOwned() {
   progress('cleanup-finished');
 }
 
+function runPowershell(script, timeoutMs = 20000) {
+  fs.mkdirSync(artifactDir, { recursive: true });
+  const file = path.join(artifactDir, `probe-${process.pid}-${Date.now()}.ps1`);
+  fs.writeFileSync(file, script);
+  try {
+    const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', file], {
+      encoding: 'utf8',
+      timeout: timeoutMs,
+      windowsHide: true,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    if (result.error) {
+      throw result.error;
+    }
+    if (result.status !== 0) {
+      throw new Error(redact(result.stderr || 'PowerShell failed').slice(0, 500));
+    }
+    return result.stdout || '';
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
+}
+
+function descendantPids(rootPid, processes) {
+  const children = new Map();
+  for (const entry of processes) {
+    const parent = Number(entry.ParentProcessId);
+    const pid = Number(entry.ProcessId);
+    if (!Number.isInteger(parent) || !Number.isInteger(pid)) {
+      continue;
+    }
+    const list = children.get(parent) || [];
+    list.push(pid);
+    children.set(parent, list);
+  }
+  const found = new Set([rootPid]);
+  const stack = [...(children.get(rootPid) || [])];
+  while (stack.length > 0) {
+    const pid = stack.pop();
+    if (!Number.isInteger(pid) || found.has(pid)) {
+      continue;
+    }
+    found.add(pid);
+    stack.push(...(children.get(pid) || []));
+  }
+  return found;
+}
+
+function readProcessTable() {
+  const stdout = runPowershell('Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name | ConvertTo-Json -Compress');
+  const parsed = JSON.parse(stdout || '[]');
+  return Array.isArray(parsed) ? parsed : [parsed];
+}
+
+function visibleWindows() {
+  const stdout = runPowershell(`
+Add-Type -TypeDefinition @"
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class ChordMiniWin {
+  public delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr lParam);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+  public static string Dump() {
+    var sb = new StringBuilder();
+    EnumWindows((h, l) => {
+      if (!IsWindowVisible(h)) return true;
+      uint pid;
+      GetWindowThreadProcessId(h, out pid);
+      var title = new StringBuilder(512);
+      GetWindowText(h, title, title.Capacity);
+      if (title.Length == 0) return true;
+      sb.Append(pid).Append('\\t').Append(h.ToInt64()).Append('\\t').Append(title.ToString().Replace('\\r', ' ').Replace('\\n', ' ')).Append('\\n');
+      return true;
+    }, IntPtr.Zero);
+    return sb.ToString();
+  }
+}
+"@
+[ChordMiniWin]::Dump()
+`);
+  return stdout.split(/\r?\n/).map((line) => {
+    const [pid, hwnd, ...title] = line.split('\t');
+    return {
+      pid: Number(pid),
+      hwnd: String(hwnd || ''),
+      title: title.join('\t'),
+    };
+  }).filter((entry) => Number.isInteger(entry.pid) && /^[0-9]+$/.test(entry.hwnd) && entry.title);
+}
+
+function listeningLoopbackPorts(pids) {
+  const result = spawnSync('netstat', ['-ano', '-p', 'tcp'], {
+    encoding: 'utf8',
+    timeout: 10000,
+    windowsHide: true,
+  });
+  const ports = [];
+  for (const line of String(result.stdout || '').split(/\r?\n/)) {
+    const match = /^\s*TCP\s+127\.0\.0\.1:(\d+)\s+\S+\s+LISTENING\s+(\d+)\s*$/i.exec(line.trim());
+    if (!match) {
+      continue;
+    }
+    const pid = Number(match[2]);
+    if (pids.has(pid)) {
+      ports.push(Number(match[1]));
+    }
+  }
+  return [...new Set(ports)];
+}
+
+function cookieHeader(headers) {
+  const raw = headers && headers['set-cookie'];
+  const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return values.map((value) => String(value).split(';')[0]).join('; ');
+}
+
+async function probeLoopback(ports) {
+  for (const port of ports) {
+    try {
+      const ready = await httpRequest({ hostname: '127.0.0.1', port, path: '/api/desktop/ready', method: 'GET' }, {
+        'x-chordmini-nonce': 'packaged-direct',
+      });
+      let body = {};
+      try {
+        body = JSON.parse(ready.body);
+      } catch {
+        body = {};
+      }
+      if (ready.status !== 200 || body.role !== 'next-standalone') {
+        continue;
+      }
+      const home = await httpRequest({ hostname: '127.0.0.1', port, path: '/', method: 'GET' }, {
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Site': 'none',
+      });
+      const cookie = cookieHeader(home.headers);
+      const logo = await httpRequest({ hostname: '127.0.0.1', port, path: '/chordMiniLogo.webp', method: 'GET' }, {
+        Cookie: cookie,
+      });
+      return {
+        port,
+        readyStatus: ready.status,
+        role: body.role,
+        homeStatus: home.status,
+        pianoText: home.body.includes('Piano Visualizer'),
+        chordGridText: home.body.includes('Beat & Chord Analysis'),
+        logoStatus: logo.status,
+      };
+    } catch {
+      // Another owned listener is not the Next server.
+    }
+  }
+  return null;
+}
+
+function readRedacted(file, max = 4000) {
+  if (!fs.existsSync(file)) {
+    return '';
+  }
+  const text = redact(fs.readFileSync(file, 'utf8')).slice(0, max);
+  fs.writeFileSync(file, text);
+  return text;
+}
+
+async function observeUserLaunch(child, pidFile, diagnosticFile, logFile) {
+  const deadline = Date.now() + 60000;
+  let snapshot = {
+    processAlive: isAlive(child.pid),
+    windows: [],
+    ports: [],
+    server: null,
+    serverPid: null,
+    diagnostic: '',
+  };
+  while (Date.now() < deadline) {
+    snapshot.processAlive = isAlive(child.pid);
+    try {
+      const processes = readProcessTable();
+      const ownedPids = descendantPids(child.pid, processes);
+      const windows = visibleWindows().filter((entry) => ownedPids.has(entry.pid));
+      const ports = listeningLoopbackPorts(ownedPids);
+      const server = await probeLoopback(ports);
+      snapshot = {
+        processAlive: snapshot.processAlive,
+        windows,
+        ports,
+        server,
+        serverPid: fs.existsSync(pidFile) ? Number(fs.readFileSync(pidFile, 'utf8')) : null,
+        diagnostic: readRedacted(diagnosticFile, 1000),
+      };
+    } catch (error) {
+      snapshot.observeError = redact(error instanceof Error ? error.message : error).slice(0, 400);
+    }
+    const titleReady = snapshot.windows.some((entry) => /chordmini/i.test(entry.title));
+    if ((titleReady && snapshot.server) || snapshot.diagnostic || !snapshot.processAlive) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  snapshot.logExcerpt = readRedacted(logFile, 2500);
+  return snapshot;
+}
+
+function closeOwnedWindows(hwnds) {
+  const handles = hwnds.filter((value) => /^[0-9]+$/.test(String(value)));
+  if (handles.length === 0) {
+    return;
+  }
+  runPowershell(`
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class ChordMiniClose {
+  [DllImport("user32.dll")] public static extern bool PostMessage(System.IntPtr hWnd, uint msg, System.IntPtr wParam, System.IntPtr lParam);
+  public static void Close(long[] hwnds) {
+    foreach (var value in hwnds) PostMessage(new System.IntPtr(value), 0x0010, System.IntPtr.Zero, System.IntPtr.Zero);
+  }
+}
+"@
+[ChordMiniClose]::Close(@(${handles.join(',')}))
+`);
+}
+
 async function main() {
   if (process.platform !== 'win32') {
     report.status = 'NOT_RUN';
@@ -340,6 +570,7 @@ async function main() {
   owned.sentinelPid = sentinel.pid ?? null;
   const pidFile = path.join(artifactDir, 'owned-server.pid');
   const diagnosticFile = path.join(artifactDir, 'startup-failure.txt');
+  const launchLog = path.join(artifactDir, 'packaged-process.log');
   const launchEnv = {
     ...process.env,
     CHORDMINI_DESKTOP_ACCEPTANCE: '1',
@@ -348,124 +579,109 @@ async function main() {
     CHORDMINI_SKIP_ERROR_DIALOG: '1',
   };
   delete launchEnv.PYTHON_API_URL;
-  const { _electron: electron } = require('playwright-core');
-  progress('launch-start');
-  owned.electronApp = await withTimeout('electron-launch', 120000, () => electron.launch({
-    executablePath: installedExe,
+  delete launchEnv.NODE_OPTIONS;
+  delete launchEnv.ELECTRON_RUN_AS_NODE;
+  report.installedExe = installedExe;
+  progress('direct-launch-start', { executable: installedExe });
+  const logFd = fs.openSync(launchLog, 'w');
+  const directChild = spawn(installedExe, [], {
     cwd: installDir,
     env: launchEnv,
-    timeout: 90000,
-  }));
-  owned.electronPid = owned.electronApp.process().pid;
-  progress('launch-finished', { electronPid: owned.electronPid });
-
-  progress('window-wait');
-  const window = await owned.electronApp.firstWindow({ timeout: 120000 });
-  await window.waitForSelector('text=Open source chord & beat detection application.', { timeout: 45000 });
-  await window.waitForSelector('text=Piano Visualizer', { timeout: 20000 });
-  await window.waitForSelector('text=Beat & Chord Analysis & Lyrics', { timeout: 20000 });
-  const pageUrl = new URL(window.url());
-  progress('window-ready', { origin: pageUrl.origin });
-  await withTimeout('homepage-screenshot', 20000, () => window.screenshot({
-    path: path.join(artifactDir, 'packaged-homepage.png'),
-  }));
-
-  progress('assets-start');
-  const assets = await withTimeout('static-assets', 20000, () => window.evaluate(async () => {
-    const logo = await fetch('/chordMiniLogo.webp', { signal: AbortSignal.timeout(8000) });
-    const script = [...document.scripts].map((item) => item.src).find((src) => src.includes('/_next/static/'));
-    const staticResponse = script ? await fetch(script, { signal: AbortSignal.timeout(8000) }) : null;
-    return {
-      logoStatus: logo.status,
-      staticStatus: staticResponse ? staticResponse.status : 0,
-      pianoText: document.body.innerText.includes('Piano Visualizer'),
-      chordGridText: document.body.innerText.includes('Beat & Chord Analysis & Lyrics'),
-    };
-  }));
-  record('windowRender', pageUrl.hostname === '127.0.0.1', { origin: pageUrl.origin });
-  record('staticAssets', assets.logoStatus === 200 && assets.staticStatus === 200, assets);
-  record('musicUi', assets.pianoText && assets.chordGridText, {
-    pianoVisualizer: assets.pianoText,
-    chordGrid: assets.chordGridText,
-    analysisInvoked: false,
+    stdio: ['ignore', logFd, logFd],
+    windowsHide: false,
   });
-  progress('assets-finished', {
-    logoStatus: assets.logoStatus,
-    staticStatus: assets.staticStatus,
+  fs.closeSync(logFd);
+  owned.electronPid = directChild.pid ?? null;
+  const direct = await observeUserLaunch(directChild, pidFile, diagnosticFile, launchLog);
+  owned.serverPid = Number.isInteger(direct.serverPid) ? direct.serverPid : null;
+  report.directLaunch = {
+    electronPid: owned.electronPid,
+    processAlive: direct.processAlive,
+    windows: direct.windows.map((entry) => ({ pid: entry.pid, title: entry.title })),
+    ports: direct.ports,
+    serverPid: direct.serverPid,
+    server: direct.server ? {
+      port: direct.server.port,
+      readyStatus: direct.server.readyStatus,
+      role: direct.server.role,
+      homeStatus: direct.server.homeStatus,
+      logoStatus: direct.server.logoStatus,
+      pianoText: direct.server.pianoText,
+      chordGridText: direct.server.chordGridText,
+    } : null,
+    diagnostic: direct.diagnostic,
+    logExcerpt: direct.logExcerpt,
+    observeError: direct.observeError || '',
+  };
+  const windowSeen = direct.windows.some((entry) => /chordmini/i.test(entry.title));
+  record('applicationLaunch', direct.processAlive && (windowSeen || Boolean(direct.server)), {
+    processAlive: direct.processAlive,
+    windowCount: direct.windows.length,
+    serverReady: Boolean(direct.server),
+  });
+  record('windowRender', windowSeen, {
+    source: 'win32',
+    titles: direct.windows.map((entry) => entry.title),
+  });
+  record('serverStartup', Boolean(direct.server), direct.server ? {
+    status: direct.server.readyStatus,
+    role: direct.server.role,
+    port: direct.server.port,
+    source: 'loopback-listen',
+  } : { source: 'loopback-listen' });
+  if (direct.server) {
+    record('staticAssets', direct.server.homeStatus === 200 && direct.server.logoStatus === 200, {
+      homeStatus: direct.server.homeStatus,
+      logoStatus: direct.server.logoStatus,
+      source: 'loopback-http',
+    });
+    record('musicUi', direct.server.pianoText && direct.server.chordGridText, {
+      pianoVisualizer: direct.server.pianoText,
+      chordGrid: direct.server.chordGridText,
+      analysisInvoked: false,
+      source: 'server-html',
+    });
+  }
+  progress('direct-launch-finished', {
+    processAlive: direct.processAlive,
+    windows: direct.windows.length,
+    server: Boolean(direct.server),
   });
 
-  progress('server-check');
-  const port = Number(pageUrl.port);
-  const ready = await httpRequest({ hostname: '127.0.0.1', port, path: '/api/desktop/ready', method: 'GET' }, {
-    'x-chordmini-nonce': 'packaged-acceptance',
-  });
-  const readyBody = JSON.parse(ready.body);
-  record('serverStartup', ready.status === 200 && readyBody.role === 'next-standalone', {
-    status: ready.status,
-    role: readyBody.role,
-    hostname: pageUrl.hostname,
-  });
-  progress('server-ready', { status: ready.status, role: readyBody.role });
-
-  progress('security-check');
-  const security = await withTimeout('security-preferences', 20000, () => owned.electronApp.evaluate(async ({ BrowserWindow }) => {
-    const win = BrowserWindow.getAllWindows()[0];
-    const readPrefs = win.webContents.getLastWebPreferences;
-    const prefs = typeof readPrefs === 'function' ? readPrefs.call(win.webContents) : null;
-    return prefs ? {
-      nodeIntegration: prefs.nodeIntegration === true,
-      contextIsolation: prefs.contextIsolation === true,
-      sandbox: prefs.sandbox === true,
-      webSecurity: prefs.webSecurity !== false,
-      preload: Boolean(prefs.preload),
-    } : null;
-  }));
-  record('security', Boolean(security) && security.nodeIntegration === false && security.contextIsolation && security.sandbox && security.webSecurity && security.preload === false, {
-    prefs: security,
-  });
-  progress('security-finished', { pass: report.checks.security.pass });
-
-  progress('audio-start');
-  await withTimeout('analyze-navigation', 30000, () => window.goto(`${pageUrl.origin}/analyze`, { timeout: 30000 }));
-  await window.waitForSelector('text=Choose Audio File', { timeout: 30000 });
-  const audioFile = path.join(artifactDir, 'acceptance-tone.wav');
-  writeWav(audioFile);
-  await withTimeout('audio-file-selection', 20000, () => window.locator('input[type="file"]').setInputFiles(audioFile));
-  await window.waitForSelector('text=acceptance-tone.wav', { timeout: 10000 });
-  await withTimeout('audio-screenshot', 20000, () => window.screenshot({
-    path: path.join(artifactDir, 'packaged-audio.png'),
-  }));
-  record('audioInput', true, { filename: 'acceptance-tone.wav', analysisInvoked: false });
-  progress('audio-finished');
-
-  owned.serverPid = Number(fs.readFileSync(pidFile, 'utf8'));
-  progress('single-instance-start', { serverPid: owned.serverPid });
-  const second = startProcess(installedExe, [], { cwd: installDir, env: launchEnv });
-  owned.secondPid = second.pid ?? null;
-  const secondCode = await waitForExit(second, 30000, 'second-instance');
-  owned.secondPid = null;
-  const windowCount = await withTimeout('window-count', 20000, () => owned.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length));
-  record('singleInstance', secondCode === 0 && windowCount === 1, { secondExitCode: secondCode, windowCount });
-  progress('single-instance-finished', { secondExitCode: secondCode, windowCount });
+  if (direct.processAlive) {
+    progress('single-instance-start', { serverPid: owned.serverPid });
+    const second = startProcess(installedExe, [], { cwd: installDir, env: launchEnv });
+    owned.secondPid = second.pid ?? null;
+    try {
+      const secondCode = await waitForExit(second, 20000, 'second-instance');
+      owned.secondPid = null;
+      const after = visibleWindows().filter((entry) => entry.pid === owned.electronPid || (owned.serverPid && entry.pid === owned.serverPid));
+      record('singleInstance', secondCode === 0 && direct.windows.length >= 1 && after.length <= direct.windows.length, {
+        secondExitCode: secondCode,
+        windowTitles: after.map((entry) => entry.title),
+      });
+    } catch (error) {
+      killOwnedPid(owned.secondPid);
+      owned.secondPid = null;
+      record('singleInstance', false, { error: redact(error instanceof Error ? error.message : error) });
+    }
+    progress('single-instance-finished', { pass: report.checks.singleInstance?.pass === true });
+  }
 
   progress('shutdown-start', { electronPid: owned.electronPid, serverPid: owned.serverPid });
-  const app = owned.electronApp;
-  owned.electronApp = null;
-  if (app) {
-    try {
-      await withTimeout('electron-shutdown', 20000, () => app.close());
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!/target closed|has been closed|application exited/i.test(message)) {
-        report.shutdownError = redact(message);
-        killOwnedPid(owned.electronPid);
-        killOwnedPid(owned.serverPid);
-      }
-    }
+  try {
+    closeOwnedWindows(direct.windows.map((entry) => entry.hwnd));
+  } catch (error) {
+    report.shutdownError = redact(error instanceof Error ? error.message : error);
   }
   const deadline = Date.now() + 15000;
   while (Date.now() < deadline && (isAlive(owned.electronPid) || isAlive(owned.serverPid))) {
     await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  if (isAlive(owned.electronPid) || isAlive(owned.serverPid)) {
+    report.shutdownError = report.shutdownError || 'WM_CLOSE did not stop the owned processes';
+    killOwnedPid(owned.electronPid);
+    killOwnedPid(owned.serverPid);
   }
   record('processCleanup', !isAlive(owned.electronPid) && !isAlive(owned.serverPid) && isAlive(owned.sentinelPid) && !report.shutdownError, {
     electronPid: owned.electronPid,
@@ -480,9 +696,154 @@ async function main() {
     serverAlive: isAlive(owned.serverPid),
     sentinelAlive: isAlive(owned.sentinelPid),
   });
-  if (isAlive(owned.electronPid) || isAlive(owned.serverPid)) {
-    killOwnedPid(owned.electronPid);
-    killOwnedPid(owned.serverPid);
+
+  const directReady = windowSeen && Boolean(direct.server);
+  report.launchClassification = !direct.processAlive || direct.diagnostic
+    ? 'A'
+    : directReady
+      ? 'DIRECT_OK'
+      : 'C';
+  if (!directReady) {
+    record('playwrightConnection', false, {
+      skipped: true,
+      reason: 'The installed executable did not show a ChordMini window and a loopback Next server.',
+    });
+    progress('playwright-launch-finished', { connected: false, skipped: true });
+  } else {
+    const { _electron: electron } = require('playwright-core');
+    progress('playwright-launch-start');
+    try {
+      owned.electronApp = await withTimeout('electron-launch', 70000, () => electron.launch({
+        executablePath: installedExe,
+        cwd: installDir,
+        env: launchEnv,
+        timeout: 45000,
+      }));
+      owned.electronPid = owned.electronApp.process().pid;
+      owned.serverPid = null;
+      record('playwrightConnection', true, { electronPid: owned.electronPid });
+      report.launchClassification = 'APP_AND_PLAYWRIGHT_OK';
+      progress('launch-finished', { electronPid: owned.electronPid });
+    } catch (error) {
+      report.launchClassification = 'B';
+      record('playwrightConnection', false, {
+        error: redact(error instanceof Error ? error.message : error).slice(0, 800),
+      });
+      progress('playwright-launch-finished', { connected: false });
+    }
+  }
+  if (owned.electronApp) {
+    const directCleanupPassed = report.checks.processCleanup?.pass === true;
+    try {
+      progress('window-wait');
+      const window = await owned.electronApp.firstWindow({ timeout: 30000 });
+      await window.waitForSelector('text=Open source chord & beat detection application.', { timeout: 45000 });
+      await window.waitForSelector('text=Piano Visualizer', { timeout: 20000 });
+      await window.waitForSelector('text=Beat & Chord Analysis & Lyrics', { timeout: 20000 });
+      const pageUrl = new URL(window.url());
+      progress('window-ready', { origin: pageUrl.origin });
+      await withTimeout('homepage-screenshot', 20000, () => window.screenshot({
+        path: path.join(artifactDir, 'packaged-homepage.png'),
+      }));
+
+      progress('assets-start');
+      const assets = await withTimeout('static-assets', 20000, () => window.evaluate(async () => {
+        const logo = await fetch('/chordMiniLogo.webp', { signal: AbortSignal.timeout(8000) });
+        const script = [...document.scripts].map((item) => item.src).find((src) => src.includes('/_next/static/'));
+        const staticResponse = script ? await fetch(script, { signal: AbortSignal.timeout(8000) }) : null;
+        return {
+          logoStatus: logo.status,
+          staticStatus: staticResponse ? staticResponse.status : 0,
+          pianoText: document.body.innerText.includes('Piano Visualizer'),
+          chordGridText: document.body.innerText.includes('Beat & Chord Analysis & Lyrics'),
+        };
+      }));
+      record('windowRender', pageUrl.hostname === '127.0.0.1', {
+        source: 'playwright',
+        origin: pageUrl.origin,
+        win32Titles: direct.windows.map((entry) => entry.title),
+      });
+      record('staticAssets', assets.logoStatus === 200 && assets.staticStatus === 200, assets);
+      record('musicUi', assets.pianoText && assets.chordGridText, {
+        pianoVisualizer: assets.pianoText,
+        chordGrid: assets.chordGridText,
+        analysisInvoked: false,
+        source: 'playwright',
+      });
+      progress('assets-finished', {
+        logoStatus: assets.logoStatus,
+        staticStatus: assets.staticStatus,
+      });
+
+      progress('security-check');
+      const security = await withTimeout('security-preferences', 20000, () => owned.electronApp.evaluate(async ({ BrowserWindow }) => {
+        const win = BrowserWindow.getAllWindows()[0];
+        const readPrefs = win.webContents.getLastWebPreferences;
+        const prefs = typeof readPrefs === 'function' ? readPrefs.call(win.webContents) : null;
+        return prefs ? {
+          nodeIntegration: prefs.nodeIntegration === true,
+          contextIsolation: prefs.contextIsolation === true,
+          sandbox: prefs.sandbox === true,
+          webSecurity: prefs.webSecurity !== false,
+          preload: Boolean(prefs.preload),
+        } : null;
+      }));
+      record('security', Boolean(security) && security.nodeIntegration === false && security.contextIsolation && security.sandbox && security.webSecurity && security.preload === false, {
+        prefs: security,
+      });
+      progress('security-finished', { pass: report.checks.security.pass });
+
+      progress('audio-start');
+      await withTimeout('analyze-navigation', 30000, () => window.goto(`${pageUrl.origin}/analyze`, { timeout: 30000 }));
+      await window.waitForSelector('text=Choose Audio File', { timeout: 30000 });
+      const audioFile = path.join(artifactDir, 'acceptance-tone.wav');
+      writeWav(audioFile);
+      await withTimeout('audio-file-selection', 20000, () => window.locator('input[type="file"]').setInputFiles(audioFile));
+      await window.waitForSelector('text=acceptance-tone.wav', { timeout: 10000 });
+      await withTimeout('audio-screenshot', 20000, () => window.screenshot({
+        path: path.join(artifactDir, 'packaged-audio.png'),
+      }));
+      record('audioInput', true, { filename: 'acceptance-tone.wav', analysisInvoked: false });
+      progress('audio-finished');
+    } catch (error) {
+      report.playwrightUiError = redact(error instanceof Error ? error.message : error).slice(0, 800);
+      progress('playwright-ui-failed', { message: report.playwrightUiError.split('\n')[0] });
+    }
+
+    progress('playwright-shutdown-start', { electronPid: owned.electronPid });
+    const app = owned.electronApp;
+    owned.electronApp = null;
+    if (fs.existsSync(pidFile)) {
+      owned.serverPid = Number(fs.readFileSync(pidFile, 'utf8'));
+    }
+    if (app) {
+      try {
+        await withTimeout('electron-shutdown', 20000, () => app.close());
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!/target closed|has been closed|application exited/i.test(message)) {
+          report.playwrightShutdownError = redact(message);
+          killOwnedPid(owned.electronPid);
+          killOwnedPid(owned.serverPid);
+        }
+      }
+    }
+    const playwrightDeadline = Date.now() + 15000;
+    while (Date.now() < playwrightDeadline && (isAlive(owned.electronPid) || isAlive(owned.serverPid))) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    if (isAlive(owned.electronPid) || isAlive(owned.serverPid)) {
+      report.playwrightShutdownError = report.playwrightShutdownError || 'Playwright close left an owned process';
+      killOwnedPid(owned.electronPid);
+      killOwnedPid(owned.serverPid);
+    }
+    record('processCleanup', directCleanupPassed && !isAlive(owned.electronPid) && !isAlive(owned.serverPid) && isAlive(owned.sentinelPid) && !report.playwrightShutdownError, {
+      directCleanupPassed,
+      electronAlive: isAlive(owned.electronPid),
+      serverAlive: isAlive(owned.serverPid),
+      sentinelAlive: isAlive(owned.sentinelPid),
+      playwrightShutdownError: report.playwrightShutdownError || '',
+    });
   }
 
   progress('uninstall-start');
