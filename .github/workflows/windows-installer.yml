@@ -74,16 +74,29 @@ jobs:
             commit = "${{ github.sha }}"
           } | ConvertTo-Json | Set-Content windows-installer-artifacts/build-metadata.json
 
-      - name: Install and launch the packaged app
-        run: node scripts/windows-packaged-acceptance.mjs
-
-      - name: Upload installer artifacts
-        if: always()
+      - name: Upload installer, checksum, and build metadata
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: windows-nsis-installer
           path: |
             desktop-dist/ChordMini-Setup-*-x64.exe
-            windows-installer-artifacts/**
+            windows-installer-artifacts/SHA256SUMS.txt
+            windows-installer-artifacts/build-metadata.json
+            windows-installer-artifacts/staged-scan.json
+            windows-installer-artifacts/unpacked-scan.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Install and launch the packaged app
+        timeout-minutes: 25
+        run: node scripts/windows-packaged-acceptance.mjs
+
+      - name: Upload packaged acceptance diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-acceptance
+          path: windows-installer-artifacts/**
           retention-days: 14
           if-no-files-found: warn
