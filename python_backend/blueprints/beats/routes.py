@@ -6,19 +6,17 @@ main detection, Firebase integration, testing, and model information.
 """
 
 import os
-import tempfile
 import traceback
 import requests
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, jsonify, current_app
 from extensions import limiter
 from config import get_config
 from .validators import (
-    validate_beat_detection_request,
     validate_firebase_beat_detection_request,
-    validate_file_size
 )
 from services.audio.tempfiles import temporary_file
 from utils.logging import log_info, log_error, log_debug
+from security.inference_guard import handle_beat_upload
 
 # Create blueprint
 beats_bp = Blueprint('beats', __name__)
@@ -41,82 +39,17 @@ def _download_remote_audio_to_temp_path(file_url: str, temp_path: str, timeout_s
 @limiter.limit(config.get_rate_limit('heavy_processing'))
 def detect_beats():
     """
-    Detect beats in an audio file
+    Detect beats in an uploaded audio file.
 
     Parameters:
     - file: The audio file to analyze (multipart/form-data)
-    - audio_path: Alternative to file, path to an existing audio file on the server
     - detector: 'beat-transformer', 'madmom', 'librosa', or 'auto' (default)
-    - force: Set to 'true' to force using requested detector even for large files
+    - force: Set to 'true' to force using the requested detector
 
-    Returns:
-    - JSON with beat and downbeat information
+    Caller-supplied server paths are rejected. When inference authentication
+    is required, send the server-side token in X-ChordMini-Inference-Token.
     """
-    try:
-        # Validate request
-        is_valid, error_msg, file, params = validate_beat_detection_request()
-        if not is_valid:
-            return jsonify({"error": error_msg}), 400
-
-        # Get beat detection service
-        beat_service = current_app.extensions['services']['beat_detection']
-
-        file_path = None
-        temp_file_path = None
-
-        try:
-            if file:
-                # Validate file size
-                size_valid, size_error = validate_file_size(file, params['detector'], params['force'])
-                if not size_valid:
-                    return jsonify({"error": size_error}), 413
-
-                # Create temporary file
-                with temporary_file(suffix='.mp3') as temp_path:
-                    file.save(temp_path)
-                    file_path = temp_path
-                    temp_file_path = temp_path
-
-                    # Run beat detection
-                    result = beat_service.detect_beats(
-                        file_path=file_path,
-                        detector=params['detector'],
-                        force=params['force']
-                    )
-            else:
-                # Use provided audio path
-                file_path = params['audio_path']
-                if not os.path.exists(file_path):
-                    return jsonify({"error": f"Audio file not found: {file_path}"}), 404
-
-                # Run beat detection
-                result = beat_service.detect_beats(
-                    file_path=file_path,
-                    detector=params['detector'],
-                    force=params['force']
-                )
-
-            # Return result
-            if result.get('success'):
-                return jsonify(result)
-            else:
-                return jsonify(result), 500
-
-        except Exception as e:
-            log_error(f"Error in beat detection: {e}")
-            log_error(traceback.format_exc())
-            return jsonify({
-                "success": False,
-                "error": f"Beat detection failed: {str(e)}"
-            }), 500
-
-    except Exception as e:
-        log_error(f"Unexpected error in detect_beats: {e}")
-        log_error(traceback.format_exc())
-        return jsonify({
-            "success": False,
-            "error": "Internal server error"
-        }), 500
+    return handle_beat_upload()
 
 
 @beats_bp.route('/api/detect-beats-firebase', methods=['POST'])

@@ -5,7 +5,7 @@ This module provides consistent JSON error responses for common HTTP errors
 and application-specific exceptions.
 """
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from werkzeug.exceptions import HTTPException
 import traceback
 
@@ -32,7 +32,7 @@ def register_error_handlers(app: Flask) -> None:
         """Handle 404 Not Found errors."""
         return jsonify({
             "error": "Not Found",
-            "message": f"The requested URL {request.url} was not found on the server.",
+            "message": "The requested URL was not found on the server.",
             "status_code": 404
         }), 404
 

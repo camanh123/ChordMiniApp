@@ -22,21 +22,21 @@ def validate_chord_recognition_request() -> Tuple[bool, Optional[str], Optional[
         - Optional[FileStorage]: Uploaded file if present
         - Dict[str, Any]: Validated parameters
     """
-    # Check if we have either a file upload, audio_path, or JSON data
+    # Server paths and remote audio URLs are not accepted on this route.
     file = request.files.get('file')
     audio_path = request.form.get('audio_path')
-    json_data = None
+    json_data = request.get_json(silent=True) if request.is_json else None
 
-    # Check for JSON data (for URL-based requests)
-    if request.is_json:
-        json_data = request.get_json()
-        audio_url = json_data.get('audioUrl') if json_data else None
-        if audio_url:
-            # Convert relative URL to file path logic will be handled in the route
-            pass
+    if isinstance(audio_path, str) and audio_path.strip():
+        return False, "Server file paths are not accepted. Upload the audio file.", None, {}
+    if isinstance(json_data, dict):
+        for key in ("audioUrl", "audio_path", "audioPath", "file_path", "firebase_url"):
+            value = json_data.get(key)
+            if isinstance(value, str) and value.strip():
+                return False, "Server file paths are not accepted. Upload the audio file.", None, {}
 
-    if not file and not audio_path and not json_data:
-        return False, "No audio file provided. Please upload a file, provide audio_path, or send JSON with audioUrl.", None, {}
+    if not file:
+        return False, "No audio file provided. Upload the audio as multipart form data.", None, {}
 
     # Validate detector parameter
     if json_data:
@@ -73,8 +73,8 @@ def validate_chord_recognition_request() -> Tuple[bool, Optional[str], Optional[
         'chord_dict': chord_dict,
         'force': force,
         'use_spleeter': use_spleeter,
-        'audio_path': audio_path,
-        'json_data': json_data
+        'audio_path': None,
+        'json_data': None
     }
 
     return True, None, file, params
