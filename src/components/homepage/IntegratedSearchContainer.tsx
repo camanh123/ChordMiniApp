@@ -4,6 +4,7 @@ import React, { useState, FormEvent, useEffect, useRef, useCallback } from 'reac
 import Link from 'next/link';
 import { HiUpload } from 'react-icons/hi';
 import { Tooltip } from '@heroui/react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface YouTubeSearchResult {
   id: string;
@@ -44,6 +45,7 @@ const IntegratedSearchContainer: React.FC<IntegratedSearchContainerProps> = ({
   handleVideoSelect,
   containerRef
 }) => {
+  const { t } = useI18n();
   const [visibleResults, setVisibleResults] = useState(5);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const resultsEndRef = useRef<HTMLDivElement>(null);
@@ -121,14 +123,14 @@ const IntegratedSearchContainer: React.FC<IntegratedSearchContainerProps> = ({
                 setError('');
                 setSearchError(null);
               }}
-              placeholder="Search for music or paste YouTube URL..."
+              placeholder={t('home.searchPlaceholder')}
               className="w-full pl-4 pr-12 py-3 text-base bg-gray-50 text-black placeholder:text-gray-500 dark:bg-gray-900/95 dark:backdrop-blur-sm dark:text-slate-100 dark:placeholder:text-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 dark:focus:ring-sky-400/90 focus:outline-none transition-all duration-200 shadow-sm border-0 dark:border dark:border-slate-400/35"            />
             {/* Search Icon Button */}
             <button
               type="submit"
               disabled={isSearching}
               className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-gray-400 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-white transition-colors duration-200 disabled:opacity-50"
-              aria-label="Search"
+              aria-label={t('home.search')}
             >
               {isSearching ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-800 dark:border-zinc-300"></div>
@@ -146,17 +148,17 @@ const IntegratedSearchContainer: React.FC<IntegratedSearchContainerProps> = ({
             <Tooltip
               content={
                 <div className="px-1 py-2">
-                  <div className="text-sm">Upload audio files (MP3, WAV, FLAC) up to 20MB</div>
+                  <div className="text-sm">{t('home.uploadHint')}</div>
                 </div>
               }
             >
               <Link
               href="/analyze"
               className="font-medium py-3 px-4 rounded-lg transition-all duration-200 whitespace-nowrap flex items-center gap-2 bg-default-100 dark:bg-gray-800/40 border border-default-300 dark:border-gray-700 text-foreground hover:bg-default-200 dark:hover:bg-gray-700/50"
-              aria-label="Upload audio file"
+              aria-label={t('home.uploadAria')}
               >
                 <HiUpload className="w-4 h-4" />
-                Upload Song
+                {t('home.upload')}
               </Link>
             </Tooltip>
           </div>
@@ -178,13 +180,13 @@ const IntegratedSearchContainer: React.FC<IntegratedSearchContainerProps> = ({
                   </svg>
                 </div>
               </div>
-              <p className="text-center text-gray-800 dark:text-gray-200 font-medium mt-2">Searching YouTube...</p>
-              <p className="text-center text-gray-600 dark:text-gray-300 text-sm mt-1">Results will appear in a moment</p>
+              <p className="text-center text-gray-800 dark:text-gray-200 font-medium mt-2">{t('home.searching')}</p>
+              <p className="text-center text-gray-600 dark:text-gray-300 text-sm mt-1">{t('home.resultsSoon')}</p>
             </div>
           ) : (
             <>
               <div className="flex justify-between items-center mb-3">
-                <h4 className="text-base font-semibold text-gray-800 dark:text-gray-100">Search Results</h4>
+                <h4 className="text-base font-semibold text-gray-800 dark:text-gray-100">{t('home.searchResults')}</h4>
                 <span className="text-sm text-gray-600 dark:text-gray-300">
                   {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
                 </span>
@@ -234,7 +236,7 @@ const IntegratedSearchContainer: React.FC<IntegratedSearchContainerProps> = ({
                       {isLoadingMore && (
                         <div className="flex items-center gap-2 py-2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Loading more results...</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">{t('home.loadingMore')}</span>
                         </div>
                       )}
                     </div>

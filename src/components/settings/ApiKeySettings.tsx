@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Card, CardBody, Chip, Button, Progress } from '@heroui/react';
 import { ApiCredentialService, ApiKeySettingsProps, API_KEY_HELP_URLS } from '@/types/apiKeyTypes';
 import ApiKeyModal from './ApiKeyModal';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const SEGMENTATION_ACCESS_REQUEST_EMAIL = process.env.NEXT_PUBLIC_SEGMENTATION_ACCESS_REQUEST_EMAIL || 'phantrongnghia510@gmail.com';
 
@@ -11,6 +12,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
   onApiKeyUpdate,
   apiKeyStatus
 }) => {
+  const { t } = useI18n();
   const [activeModal, setActiveModal] = useState<ApiCredentialService | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
@@ -95,7 +97,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
                   isDisabled={isUpdating === 'musicAi'}
                   onPress={() => handleRemoveKey('musicAi')}
                 >
-                  Remove
+                  {t('settings.remove')}
                 </Button>
               )}
             </div>
@@ -131,7 +133,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="font-semibold text-gray-900 dark:text-white">Song Segmentation</h4>
+                <h4 className="font-semibold text-gray-900 dark:text-white">{t('settings.segmentation')}</h4>
                 <Chip size="sm" variant="flat" color="warning">Restricted</Chip>
                 <div className="flex items-center gap-1.5 ml-1">
                   <StatusDot valid={apiKeyStatus.songformerAccess.isValid} hasKey={apiKeyStatus.songformerAccess.hasKey} />
@@ -168,7 +170,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
                   isDisabled={isUpdating === 'songformerAccess'}
                   onPress={() => handleRemoveKey('songformerAccess')}
                 >
-                  Remove
+                  {t('settings.remove')}
                 </Button>
               )}
             </div>
@@ -212,7 +214,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
                   isDisabled={isUpdating === 'gemini'}
                   onPress={() => handleRemoveKey('gemini')}
                 >
-                  Remove
+                  {t('settings.remove')}
                 </Button>
               )}
             </div>

@@ -6,10 +6,13 @@ import { useApiKeys } from '@/hooks/settings/useApiKeys';
 import ApiKeySettings from '@/components/settings/ApiKeySettings';
 import Navigation from '@/components/common/Navigation';
 import { Card, CardBody, Switch, Tabs, Tab, Spinner, Divider } from '@heroui/react';
-import { FiSettings, FiKey, FiLock, FiMoon, FiShield, FiDatabase, FiBarChart2 } from 'react-icons/fi';
+import { FiSettings, FiKey, FiLock, FiMoon, FiShield, FiDatabase, FiBarChart2, FiGlobe } from 'react-icons/fi';
 import { ApiCredentialService } from '@/types/apiKeyTypes';
+import { useI18n } from '@/i18n/I18nProvider';
+import { APP_LOCALES, LOCALE_LABELS } from '@/i18n/locales';
 
 export default function SettingsPage() {
+  const { t, locale, setLocale } = useI18n();
   const { theme, toggleTheme } = useTheme();
   const {
     apiKeyStatus,
@@ -44,10 +47,9 @@ export default function SettingsPage() {
         <div className="container mx-auto px-4 py-8">
           <Card className="max-w-2xl mx-auto" shadow="sm">
             <CardBody className="gap-2">
-              <h1 className="text-xl font-bold text-danger">Encryption Not Supported</h1>
+              <h1 className="text-xl font-bold text-danger">{t('settings.encryptionTitle')}</h1>
               <p className="text-sm text-danger-600 dark:text-danger-400">
-                Your browser does not support the Web Crypto API, which is required for secure API key storage.
-                Please use a modern browser.
+                {t('settings.encryptionBody')}
               </p>
             </CardBody>
           </Card>
@@ -61,9 +63,9 @@ export default function SettingsPage() {
       <Navigation />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 text-foreground">Settings</h1>
+          <h1 className="text-3xl font-bold mb-2 text-foreground">{t('settings.title')}</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Manage your preferences and API configurations
+            {t('settings.subtitle')}
           </p>
         </div>
 
@@ -85,11 +87,44 @@ export default function SettingsPage() {
               title={
                 <div className="flex items-center space-x-2">
                   <FiSettings className="w-4 h-4" />
-                  <span>General</span>
+                  <span>{t('settings.general')}</span>
                 </div>
               }
             >
               <div className="space-y-4 pt-1">
+                <Card shadow="sm" className="border border-gray-200 dark:border-gray-700">
+                  <CardBody className="p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary-50 dark:bg-primary-900/20">
+                          <FiGlobe className="w-4 h-4 text-blue" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{t('settings.language')}</h4>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{t('settings.languageHelp')}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('settings.language')}>
+                        {APP_LOCALES.map((code) => (
+                          <button
+                            key={code}
+                            type="button"
+                            role="radio"
+                            aria-checked={locale === code}
+                            onClick={() => setLocale(code)}
+                            className={`rounded-full border px-3 py-1 text-sm ${
+                              locale === code
+                                ? 'border-blue-600 bg-blue-600 text-white'
+                                : 'border-gray-300 text-gray-800 dark:border-gray-600 dark:text-gray-100'
+                            }`}
+                          >
+                            {LOCALE_LABELS[code]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </CardBody>
+                </Card>
                 <Card shadow="sm" className="border border-gray-200 dark:border-gray-700">
                   <CardBody className="p-4">
                     <div className="flex items-center justify-between">
@@ -98,12 +133,12 @@ export default function SettingsPage() {
                           <FiMoon className="w-4 h-4 text-blue" />
                         </div>
                         <div>
-                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Dark Mode</h4>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Toggle between light and dark themes</p>
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{t('settings.darkMode')}</h4>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{t('settings.darkModeHelp')}</p>
                         </div>
                       </div>
                       <Switch
-                        aria-label="Dark Mode"
+                        aria-label={t('settings.darkMode')}
                         isSelected={theme === 'dark'}
                         onValueChange={toggleTheme}
                         color="primary"
@@ -121,7 +156,7 @@ export default function SettingsPage() {
               title={
                 <div className="flex items-center space-x-2">
                   <FiKey className="w-4 h-4" />
-                  <span>API Keys</span>
+                  <span>{t('settings.apiKeys')}</span>
                 </div>
               }
             >
@@ -131,7 +166,7 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-center py-8">
                       <Spinner color="primary" size="sm" />
                       <span className="ml-3 text-sm text-gray-500 dark:text-gray-400">
-                        Loading API key status...
+                        {t('settings.loadingKeys')}
                       </span>
                     </div>
                   </CardBody>
@@ -152,7 +187,7 @@ export default function SettingsPage() {
               title={
                 <div className="flex items-center space-x-2">
                   <FiLock className="w-4 h-4" />
-                  <span>Privacy</span>
+                  <span>{t('settings.privacy')}</span>
                 </div>
               }
             >
@@ -162,22 +197,22 @@ export default function SettingsPage() {
                     <PrivacyItem
                       icon={<FiShield className="w-4 h-4 text-success" />}
                       iconBg="bg-success-50 dark:bg-success-900/20"
-                      title="API Key Storage"
-                      description="Encrypted locally via Web Crypto API. Keys never leave your device."
+                      title={t('settings.apiStorage')}
+                      description={t('settings.apiStorageHelp')}
                     />
                     <Divider />
                     <PrivacyItem
                       icon={<FiDatabase className="w-4 h-4 text-blue" />}
                       iconBg="bg-primary-50 dark:bg-primary-900/20"
-                      title="Cache Data"
-                      description="Analysis results are cached in Firebase for performance. No personal data is stored."
+                      title={t('settings.cache')}
+                      description={t('settings.cacheHelp')}
                     />
                     <Divider />
                     <PrivacyItem
                       icon={<FiBarChart2 className="w-4 h-4 text-warning" />}
                       iconBg="bg-warning-50 dark:bg-warning-900/20"
-                      title="Analytics"
-                      description="Anonymous usage statistics only. No personal data or API keys included."
+                      title={t('settings.analytics')}
+                      description={t('settings.analyticsHelp')}
                     />
                   </CardBody>
                 </Card>

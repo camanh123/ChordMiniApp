@@ -6,14 +6,16 @@ import { HeroUIProvider, ToastProvider } from '@heroui/react';
 import { ProcessingProvider } from '../contexts/ProcessingContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { getBrowserQueryClient } from '@/lib/queryClient';
+import { I18nProvider } from '@/i18n/I18nProvider';
 
 import { defaultToastClassNames } from '@/utils/toastStyles';
 
 interface ProvidersProps {
   children: React.ReactNode;
+  initialLocale?: string | null;
 }
 
-export function Providers({ children }: ProvidersProps) {
+export function Providers({ children, initialLocale }: ProvidersProps) {
   const [queryClient] = React.useState(() => getBrowserQueryClient());
 
   return (
@@ -31,7 +33,9 @@ export function Providers({ children }: ProvidersProps) {
         />
         <ProcessingProvider>
           <ThemeProvider>
-            {children}
+            <I18nProvider initialLocale={initialLocale}>
+              {children}
+            </I18nProvider>
           </ThemeProvider>
         </ProcessingProvider>
       </HeroUIProvider>

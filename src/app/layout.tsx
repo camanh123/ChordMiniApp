@@ -15,6 +15,7 @@ import CriticalCSS from '@/components/layout/CriticalCSS';
 import CorsErrorSuppression from '@/components/layout/CorsErrorSuppression';
 import DevIndicatorHider from '@/components/layout/DevIndicatorHider';
 import { getFrontendBaseUrl } from '@/config/serverBackend';
+import { getRequestLocale } from '@/i18n/requestLocale';
 
 // Configure Google Fonts
 const robotoMono = Roboto_Mono({
@@ -25,7 +26,7 @@ const robotoMono = Roboto_Mono({
 
 // Reference-inspired primary sans (closest supported match to Google Sans)
 const dmSans = DM_Sans({
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext'],
   variable: '--font-brand-sans',
   display: 'swap',
   weight: ['400', '500', '600', '700'],
@@ -140,13 +141,15 @@ export const metadata: Metadata = {
 };
 
 // Root layout component that wraps all pages
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getRequestLocale();
+
   return (
-    <html lang="en" className={`${robotoMono.variable} ${dmSans.variable} ${varelaRound.variable}`} suppressHydrationWarning>
+    <html lang={locale} data-locale={locale} className={`${robotoMono.variable} ${dmSans.variable} ${varelaRound.variable}`} suppressHydrationWarning>
       <head>
         {/* Blocking script: apply dark class BEFORE first paint to prevent theme flash */}
         <script
@@ -164,6 +167,9 @@ export default function RootLayout({
           __html: `
             /* Critical above-the-fold styles */
             html { font-family: var(--font-brand-sans), ui-sans-serif, system-ui, sans-serif; }
+            html[data-locale="zh-CN"] { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", var(--font-brand-sans), ui-sans-serif, sans-serif; }
+            html[data-locale="ja-JP"] { font-family: "Yu Gothic UI", "Yu Gothic", Meiryo, "Hiragino Sans", "Noto Sans JP", var(--font-brand-sans), ui-sans-serif, sans-serif; }
+            html[data-locale="ko-KR"] { font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", var(--font-brand-sans), ui-sans-serif, sans-serif; }
             body { margin: 0; padding: 0; background: #f8fafc; visibility: hidden; }
             body.theme-ready { visibility: visible; }
             .dark body { background: #1e252e; }
@@ -217,7 +223,7 @@ export default function RootLayout({
         <CriticalCSS />
       </head>
       <body className="font-sans min-h-screen flex flex-col" suppressHydrationWarning>
-        <Providers>
+        <Providers initialLocale={locale}>
           <ClientErrorBoundary>
             <CriticalPerformanceOptimizer />
             <DesktopPerformanceOptimizer />

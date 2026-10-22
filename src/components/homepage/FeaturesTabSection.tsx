@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Tabs, Tab, Tooltip } from '@heroui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useI18n } from '@/i18n/I18nProvider';
+import type { MessageKey } from '@/i18n/catalog';
 import HeroPianoVisualizerMock from '@/components/homepage/HeroPianoVisualizerMock';
 
 // ============================================================
@@ -76,48 +78,69 @@ const LYRIC_LINES: MockLyricLine[] = [
 
 const TAB_CONTENT = {
   'chord-grid': {
-    title: 'Beat & Chord Grid',
-    description: 'Real-time chord progression visualization synchronized with audio playback and optional song section overlays.',
+    titleKey: 'features.gridTitle' as const,
+    bodyKey: 'features.gridBody' as const,
     features: [
-      { text: 'AI-powered chord detection with multiple models (Chord-CNN-LSTM, BTC)', color: 'blue' },
-      { text: 'Beat-aligned grid with automatic time signature detection', color: 'blue' },
-      { text: 'Roman numeral analysis & key detection via Gemini AI', color: 'blue' },
-      { text: 'Song segmentation overlay for intro, verse, chorus, bridge, and outro', color: 'blue' },
-      { text: 'Interactive click-to-seek playback navigation', color: 'blue' },
+      { textKey: 'features.bullet.grid1' as const, color: 'blue' },
+      { textKey: 'features.bullet.grid2' as const, color: 'blue' },
+      { textKey: 'features.bullet.grid3' as const, color: 'blue' },
+      { textKey: 'features.bullet.grid4' as const, color: 'blue' },
+      { textKey: 'features.bullet.grid5' as const, color: 'blue' },
     ],
   },
   guitar: {
-    title: 'Guitar Chord Diagrams',
-    description: 'Interactive guitar fingering charts with accurate voicings from the official chord database.',
+    titleKey: 'features.guitarTitle' as const,
+    bodyKey: 'features.guitarBody' as const,
     features: [
-      { text: 'Verified fingering patterns with multiple chord positions', color: 'green' },
-      { text: 'Animated chord progression synced with audio playback', color: 'green' },
-      { text: 'Responsive layout adapting to any screen size', color: 'green' },
-      { text: 'To be updated ...', color: 'green' },
+      { textKey: 'features.bullet.guitar1' as const, color: 'green' },
+      { textKey: 'features.bullet.guitar2' as const, color: 'green' },
+      { textKey: 'features.bullet.guitar3' as const, color: 'green' },
+      { textKey: 'features.bullet.todo' as const, color: 'green' },
     ],
   },
   lyrics: {
-    title: 'Lead Sheet & Lyrics',
-    description: 'Synchronized lyrics with chord annotations and external-AI translation support.',
+    titleKey: 'features.lyricsTitle' as const,
+    bodyKey: 'features.lyricsBody' as const,
     features: [
-      { text: 'Word-level timing synchronization via Music.ai', color: 'purple' },
-      { text: 'Chords positioned precisely above corresponding words', color: 'purple' },
-      { text: 'Multi-language translation powered by Gemini AI', color: 'purple' },
-      { text: 'AI chat assistant for contextual music theory Q&A', color: 'purple' },
+      { textKey: 'features.bullet.lyrics1' as const, color: 'purple' },
+      { textKey: 'features.bullet.lyrics2' as const, color: 'purple' },
+      { textKey: 'features.bullet.lyrics3' as const, color: 'purple' },
+      { textKey: 'features.bullet.lyrics4' as const, color: 'purple' },
     ],
   },
   'piano-visualizer': {
-    title: 'Piano Visualizer & MIDI Export',
-    description: 'Interactive piano roll visualization with falling notes synced to chord progressions and multi-instrument support.',
+    titleKey: 'features.pianoTitle' as const,
+    bodyKey: 'features.pianoBody' as const,
     features: [
-      { text: 'Falling notes visualization with real-time chord playback', color: 'orange' },
-      { text: 'Full 88-key piano keyboard with active note highlighting', color: 'orange' },
-      { text: 'Multi-instrument support: Piano, Guitar, Violin, Flute, Bass', color: 'orange' },
-      { text: 'One-click MIDI export of chord progressions', color: 'orange' },
-      { text: 'To be updated ...', color: 'orange' },
+      { textKey: 'features.bullet.piano1' as const, color: 'orange' },
+      { textKey: 'features.bullet.piano2' as const, color: 'orange' },
+      { textKey: 'features.bullet.piano3' as const, color: 'orange' },
+      { textKey: 'features.bullet.piano4' as const, color: 'orange' },
+      { textKey: 'features.bullet.todo' as const, color: 'orange' },
     ],
   },
 };
+
+function useFeatureTabs() {
+  const { t } = useI18n();
+  return {
+    'chord-grid': localizeFeature(t, TAB_CONTENT['chord-grid']),
+    guitar: localizeFeature(t, TAB_CONTENT.guitar),
+    lyrics: localizeFeature(t, TAB_CONTENT.lyrics),
+    'piano-visualizer': localizeFeature(t, TAB_CONTENT['piano-visualizer']),
+  };
+}
+
+function localizeFeature(
+  t: (key: MessageKey) => string,
+  item: { titleKey: MessageKey; bodyKey: MessageKey; features: { textKey: MessageKey; color: string }[] },
+) {
+  return {
+    title: t(item.titleKey),
+    description: t(item.bodyKey),
+    features: item.features.map((feature) => ({ text: t(feature.textKey), color: feature.color })),
+  };
+}
 
 const SEGMENT_DEMO_SECTIONS = [
   { key: 'intro', label: 'Intro', startMeasure: 0, endMeasure: 1, badge: 'border-slate-400/50 bg-slate-100 text-slate-700 dark:border-slate-500/40 dark:bg-slate-500/15 dark:text-slate-200', cell: 'bg-slate-100/80 dark:bg-slate-500/10' },
@@ -165,6 +188,7 @@ function ChordGrid({
 }: {
   isDark: boolean; currentBeat: number; showRomanNumerals: boolean; measures: string[][]; showSegmentation?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="grid grid-cols-2 gap-x-1 gap-y-1 md:grid-cols-3 lg:grid-cols-4">
       {measures.map((measure, mIdx) => {
@@ -177,7 +201,7 @@ function ChordGrid({
               <div className="mb-1 flex h-6 items-center">
                 {section && showSectionBadge ? (
                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${section.badge}`}>
-                    {section.label}
+                    {t(`features.section.${section.key}` as MessageKey)}
                   </span>
                 ) : null}
               </div>
@@ -241,6 +265,7 @@ function ChordGrid({
 // ============================================================
 
 function ChordGridMockup({ isDark, currentBeat }: { isDark: boolean; currentBeat: number }) {
+  const { t } = useI18n();
   const [showRoman, setShowRoman] = useState(false);
   const [showSegmentation, setShowSegmentation] = useState(false);
 
@@ -255,10 +280,10 @@ function ChordGridMockup({ isDark, currentBeat }: { isDark: boolean; currentBeat
     >
       <div className="flex flex-wrap justify-between items-center mb-3 gap-2">
         <h4 className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-          Chord Progression
+          {t('features.progression')}
         </h4>
         <div className="flex items-center gap-2">
-          <Tooltip content="Toggle Roman Numeral Analysis" placement="top">
+          <Tooltip content={t('features.romanTip')} placement="top">
             <button
               onClick={() => setShowRoman((v) => !v)}
               className={`rounded-lg px-2 py-0.5 text-xs font-medium border transition-colors cursor-pointer ${
@@ -270,9 +295,9 @@ function ChordGridMockup({ isDark, currentBeat }: { isDark: boolean; currentBeat
                     ? 'bg-gray-700/40 border-gray-500 text-gray-400 hover:border-purple-400 hover:text-purple-300'
                     : 'bg-gray-50 border-gray-300 text-gray-500 hover:border-purple-300 hover:text-purple-700'
               }`}
-            >Roman</button>
+            >{t('features.roman')}</button>
           </Tooltip>
-          <Tooltip content="Preview song segmentation overlays" placement="top">
+          <Tooltip content={t('features.segmentTip')} placement="top">
             <button
               onClick={() => setShowSegmentation((v) => !v)}
               className={`rounded-lg px-2 py-0.5 text-xs font-medium border transition-colors cursor-pointer ${
@@ -284,14 +309,14 @@ function ChordGridMockup({ isDark, currentBeat }: { isDark: boolean; currentBeat
                     ? 'bg-gray-700/40 border-gray-500 text-gray-400 hover:border-emerald-400 hover:text-emerald-300'
                     : 'bg-gray-50 border-gray-300 text-gray-500 hover:border-emerald-300 hover:text-emerald-700'
               }`}
-            >Segments</button>
+            >{t('features.segments')}</button>
           </Tooltip>
           <span className={`rounded-lg px-2 py-0.5 text-xs font-medium ${
             isDark ? 'bg-blue-800/40 border border-blue-400 text-blue-50' : 'bg-blue-50 border border-blue-200 text-blue-800'
-          }`}>Time: 4/4</span>
+          }`}>{t('features.time', { value: '4/4' })}</span>
           <span className={`rounded-lg px-2 py-0.5 text-xs font-medium ${
             isDark ? 'bg-green-800/40 border border-green-400 text-green-50' : 'bg-green-50 border border-green-200 text-green-800'
-          }`}>Key: C Major</span>
+          }`}>{t('features.key', { value: 'C Major' })}</span>
         </div>
       </div>
       <ChordGrid
@@ -305,7 +330,7 @@ function ChordGridMockup({ isDark, currentBeat }: { isDark: boolean; currentBeat
         <div className="mt-3 flex flex-wrap gap-2">
           {SEGMENT_DEMO_SECTIONS.map((section) => (
             <span key={section.key} className={`inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${section.badge}`}>
-              {section.label}
+              {t(`features.section.${section.key}` as MessageKey)}
             </span>
           ))}
         </div>
@@ -359,6 +384,7 @@ function MiniChordDiagram({ frets, name, isActive, isDark }: {
 }
 
 function GuitarMockup({ isDark, currentBeat }: { isDark: boolean; currentBeat: number }) {
+  const { t } = useI18n();
   const progIdx = useProgressionIndex(currentBeat);
 
   const VISIBLE_COUNT = 5;
@@ -381,7 +407,7 @@ function GuitarMockup({ isDark, currentBeat }: { isDark: boolean; currentBeat: n
     >
       <div>
         <h4 className={`text-sm font-semibold mb-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-          Chord Progression
+          {t('features.progression')}
         </h4>
         <ChordGrid isDark={isDark} currentBeat={currentBeat} showRomanNumerals={false} measures={MEASURES} />
       </div>
@@ -582,6 +608,8 @@ function FeatureContent({ title, description, features }: {
 // ============================================================
 
 export default function FeaturesTabSection() {
+  const { t } = useI18n();
+  const featureTabs = useFeatureTabs();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState<string>('chord-grid');
@@ -605,14 +633,14 @@ export default function FeaturesTabSection() {
           transition={{ duration: 0.4 }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">Features</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">{t('features.heading')}</h2>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Music analysis tools for chord recognition, beat detection, and lyrics synchronization
+            {t('features.intro')}
           </p>
         </motion.div>
 
         <Tabs
-          aria-label="Feature tabs"
+          aria-label={t('features.tabs')}
           selectedKey={activeTab}
           onSelectionChange={(key) => setActiveTab(key as string)}
           variant="light"
@@ -624,28 +652,28 @@ export default function FeaturesTabSection() {
             panel: 'pt-0',
           }}
         >
-          <Tab key="chord-grid" title="Beat & Chord Grid">
+          <Tab key="chord-grid" title={t('features.gridTab')}>
             <div className={FEATURE_PANEL_CLASS}>
               <div className="lg:col-span-3"><ChordGridMockup isDark={isDark} currentBeat={beat} /></div>
-              <div className="lg:col-span-2"><FeatureContent {...TAB_CONTENT['chord-grid']} /></div>
+              <div className="lg:col-span-2"><FeatureContent {...featureTabs['chord-grid']} /></div>
             </div>
           </Tab>
-          <Tab key="guitar" title="Guitar Tab">
+          <Tab key="guitar" title={t('features.guitarTab')}>
             <div className={FEATURE_PANEL_CLASS}>
               <div className="lg:col-span-3"><GuitarMockup isDark={isDark} currentBeat={beat} /></div>
-              <div className="lg:col-span-2"><FeatureContent {...TAB_CONTENT.guitar} /></div>
+              <div className="lg:col-span-2"><FeatureContent {...featureTabs.guitar} /></div>
             </div>
           </Tab>
-          <Tab key="lyrics" title="Lyrics Sync">
+          <Tab key="lyrics" title={t('features.lyricsTab')}>
             <div className={FEATURE_PANEL_CLASS}>
               <div className="lg:col-span-3"><LyricsMockup isDark={isDark} currentBeat={beat} /></div>
-              <div className="lg:col-span-2"><FeatureContent {...TAB_CONTENT.lyrics} /></div>
+              <div className="lg:col-span-2"><FeatureContent {...featureTabs.lyrics} /></div>
             </div>
           </Tab>
-          <Tab key="piano-visualizer" title="Piano Visualizer">
+          <Tab key="piano-visualizer" title={t('features.pianoTab')}>
             <div className={FEATURE_PANEL_CLASS}>
               <div className="lg:col-span-3"><PianoVisualizerMockup /></div>
-              <div className="lg:col-span-2"><FeatureContent {...TAB_CONTENT['piano-visualizer']} /></div>
+              <div className="lg:col-span-2"><FeatureContent {...featureTabs['piano-visualizer']} /></div>
             </div>
           </Tab>
         </Tabs>

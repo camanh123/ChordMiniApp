@@ -3,9 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import AppTooltip from '@/components/common/AppTooltip';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const ThemeToggle: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
+  const { t } = useI18n();
+  const modeLabel = t('theme.toggle');
   const [mounted, setMounted] = useState(false);
 
   // Track when component has mounted to prevent hydration mismatch
@@ -17,11 +20,11 @@ const ThemeToggle: React.FC = () => {
   // Show a neutral icon during SSR and before hydration
   if (!mounted) {
     return (
-      <AppTooltip content="Toggle theme">
+      <AppTooltip content={modeLabel}>
         <button
           onClick={toggleTheme}
           className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
-          aria-label="Toggle theme"
+          aria-label={modeLabel}
           suppressHydrationWarning
         >
           {/* Neutral sun icon for SSR */}
@@ -43,8 +46,6 @@ const ThemeToggle: React.FC = () => {
       </AppTooltip>
     );
   }
-
-  const modeLabel = `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`;
 
   return (
     <AppTooltip content={modeLabel}>

@@ -14,6 +14,7 @@ import {
   getSafeBeatModel,
   isDevelopmentEnvironment,
 } from '@/utils/modelFiltering';
+import { useI18n } from '@/i18n/I18nProvider';
 
 type ModelType = 'madmom' | 'beat-transformer';
 
@@ -37,6 +38,7 @@ const HeroUIBeatModelSelector = ({
   className = '',
   disabled = false,
 }: HeroUIBeatModelSelectorProps) => {
+  const { t } = useI18n();
   const [selectedModel, setSelectedModel] = useState<ModelType>(getSafeBeatModel(defaultValue));
   const { data: queriedModelInfo, isFetching } = useModelInfoQuery({
     select: buildBeatModelInfoResult,
@@ -113,9 +115,9 @@ const HeroUIBeatModelSelector = ({
   }, [availableModels, onChange, selectedModel]);
 
   const selectedModelObject = modelOptions.find(model => model.id === selectedModel);
-  const baseDescription = selectedModelObject?.description || "Choose the beat detection model for audio analysis";
+  const baseDescription = selectedModelObject?.description || t('models.beatHelp');
   const selectedModelDescription = isFetching && !modelInfo
-    ? `${baseDescription} (Loading detailed info...)`
+    ? t('models.beatLoading', { description: baseDescription })
     : baseDescription;
 
   const getModelIcon = (modelId: ModelType) => {
@@ -134,7 +136,7 @@ const HeroUIBeatModelSelector = ({
       <div className="mb-2">
         <div className="flex items-center">
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">
-            Beat Detection Models
+            {t('models.beat')}
           </h3>
           <div className="ml-1 text-gray-400 dark:text-gray-500 relative group transition-colors duration-300">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 cursor-help">
@@ -150,7 +152,7 @@ const HeroUIBeatModelSelector = ({
       <Select
         selectedKeys={[selectedModel]}
         onSelectionChange={handleSelectionChange}
-        placeholder="Select a beat detection model"
+        placeholder={t('models.beatPlaceholder')}
         className="w-full"
         variant="bordered"
         color="primary"
@@ -158,7 +160,7 @@ const HeroUIBeatModelSelector = ({
         isDisabled={disabled}
         startContent={getModelIcon(selectedModel)}
         description={selectedModelDescription}
-        aria-label="Beat detection model selector"
+        aria-label={t('models.beatAria')}
       >
         {availableModels.map((model) => (
           <SelectItem
