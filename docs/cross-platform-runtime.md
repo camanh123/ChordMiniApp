@@ -34,7 +34,7 @@ No shell receives Firebase Admin credentials, Gemini, Genius, Music.ai, or the P
 
 ## Phase 2 — Windows Electron
 
-Phase 2A adds the Electron shell. It does not add an NSIS installer, a Windows CI job, or offline analysis.
+Phase 2A adds the Electron shell. Phase 2B packages that shell as an unsigned Windows x64 NSIS installer. It does not add offline analysis or automatic updates.
 
 The shell entry is `electron/main.cjs`. `npm run desktop:compile` writes `electron/dist`, and `npm run desktop` launches that main process. There is no preload script. The window is created with `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, and `webSecurity: true`.
 
@@ -51,6 +51,12 @@ Desktop mode (`CHORDMINI_DESKTOP_MODE=1`) rejects a Host other than `127.0.0.1`,
 `.github/workflows/windows-electron.yml` runs on `windows-latest`. It installs dependencies, builds the standalone server, compiles the Electron main process, runs the desktop Jest suite, and launches the installed Windows Electron executable through Playwright. The job uploads `windows-electron-artifacts`, including the window screenshots and a redacted `report.json`.
 
 A passing Linux process-lifecycle test is not a Windows pass. The acceptance script exits 2 on any other operating system. YouTube playback and ffmpeg.wasm transcoding stay unverified unless that Windows report says they were exercised. The page keeps `Cross-Origin-Embedder-Policy: unsafe-none` so YouTube frames can load; that header leaves `crossOriginIsolated` false, which blocks the multithreaded ffmpeg.wasm core.
+
+## Phase 2B — Windows installer
+
+`.github/workflows/windows-installer.yml` builds an unsigned NSIS x64 installer with electron-builder. The installer contains the Electron shell and the Next.js standalone server. The packaged server runs through `ELECTRON_RUN_AS_NODE`, so the installed app does not need a separate Node.js or Python installation. Automatic updates are disabled. The build does not publish a GitHub Release.
+
+The packaged server path is `resources/standalone/server.js`. Development still prepares `.next/standalone` from the repository. `CHORDMINI_DESKTOP_PID_FILE` writes a pid only when `CHORDMINI_DESKTOP_ACCEPTANCE=1` and the path is absolute. A normal installation does not set that flag.
 
 ## Phase 4 — iPad PWA
 
