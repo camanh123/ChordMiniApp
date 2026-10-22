@@ -8,6 +8,7 @@ import {
   fallbackBeatModelInfo,
   fetchModelInfoPayload,
 } from '@/services/query/modelInfo';
+import { analysisServiceError, readAnalysisServiceFailure } from '@/utils/analysisServiceError';
 
 // Interface for Python backend beat detection response
 export interface BeatDetectionBackendResponse {
@@ -189,6 +190,10 @@ export async function detectBeatsWithRateLimit(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      const availability = readAnalysisServiceFailure(errorData);
+      if (availability) {
+        throw analysisServiceError(availability);
+      }
 
       // Handle 403 Forbidden errors - likely port conflict or backend unavailable
       if (response.status === 403) {

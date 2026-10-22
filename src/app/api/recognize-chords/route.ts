@@ -3,6 +3,10 @@ import { getAudioDurationFromFile } from '@/utils/audioDurationUtils';
 import { createSafeTimeoutSignal } from '@/utils/environmentUtils';
 import { getPythonApiUrl } from '@/config/serverBackend';
 import { verifyAppCheckRequest } from '@/utils/serverAppCheck';
+import {
+  analysisServiceGateResponse,
+  desktopAnalysisConnectionResponse,
+} from '@/server/analysisServiceAvailability';
 
 
 
@@ -20,6 +24,11 @@ export async function POST(request: NextRequest) {
     const appCheck = await verifyAppCheckRequest(request);
     if (!appCheck.ok) {
       return NextResponse.json({ success: false, error: appCheck.error }, { status: appCheck.status || 403 });
+    }
+
+    const unavailable = await analysisServiceGateResponse();
+    if (unavailable) {
+      return unavailable;
     }
 
     // Get the backend URL
@@ -178,6 +187,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error('Error recognizing chords:', error);
+
+    const connectionFailure = desktopAnalysisConnectionResponse(error);
+    if (connectionFailure) {
+      return connectionFailure;
+    }
 
     const errorMessage = error instanceof Error ? error.message : String(error);
 

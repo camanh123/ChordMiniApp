@@ -103,6 +103,7 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <Switch
+                        aria-label="Dark Mode"
                         isSelected={theme === 'dark'}
                         onValueChange={toggleTheme}
                         color="primary"

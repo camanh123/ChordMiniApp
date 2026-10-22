@@ -5,9 +5,11 @@ on:
   push:
     branches:
       - cursor/phase-2b-windows-installer-393f
+      - cursor/phase-2c-functional-recovery-393f
   pull_request:
     branches:
       - cursor/phase-2a-electron-shell-393f
+      - cursor/phase-2b-windows-installer-393f
 
 permissions:
   contents: read

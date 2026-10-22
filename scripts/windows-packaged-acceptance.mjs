@@ -25,6 +25,10 @@ const REQUIRED_CHECKS = [
   'serverStartup',
   'security',
   'audioInput',
+  'localPlayback',
+  'analysisService',
+  'settingsPersistence',
+  'localGame',
   'singleInstance',
   'processCleanup',
   'uninstall',
@@ -275,7 +279,7 @@ function httpRequest(options, headers) {
 
 function writeWav(file) {
   const sampleRate = 8000;
-  const samples = Math.floor(sampleRate / 10);
+  const samples = sampleRate * 2;
   const dataSize = samples * 2;
   const buffer = Buffer.alloc(44 + dataSize);
   buffer.write('RIFF', 0);
@@ -909,11 +913,135 @@ async function main() {
       writeWav(audioFile);
       await withTimeout('audio-file-selection', 20000, () => window.locator('input[type="file"]').setInputFiles(audioFile));
       await window.waitForSelector('text=acceptance-tone.wav', { timeout: 10000 });
-      await withTimeout('audio-screenshot', 20000, () => window.screenshot({
-        path: path.join(artifactDir, 'packaged-audio.png'),
-      }));
-      record('audioInput', true, { filename: 'acceptance-tone.wav', analysisInvoked: false });
+      record('audioInput', true, { filename: 'acceptance-tone.wav', decodedBy: 'file-input' });
       progress('audio-finished');
+
+      try {
+        progress('local-playback-start');
+        await window.waitForSelector('button[aria-label="Play"]', { timeout: 15000 });
+        await window.locator('button[aria-label="Play"]').click();
+        await window.waitForFunction(() => {
+          const audio = document.querySelector('audio');
+          return Boolean(audio && Number.isFinite(audio.duration) && audio.duration > 1 && audio.currentTime > 0.3);
+        }, undefined, { timeout: 8000 });
+        await window.getByRole('button', { name: '1x' }).click();
+        await window.getByRole('button', { name: '1.5x' }).click();
+        await window.waitForFunction(() => {
+          const audio = document.querySelector('audio');
+          return Boolean(audio && Math.abs(audio.playbackRate - 1.5) < 0.01);
+        }, undefined, { timeout: 5000 });
+        const beforeSeek = await window.evaluate(() => document.querySelector('audio')?.currentTime ?? 0);
+        await window.getByRole('slider', { name: 'Playback position' }).focus();
+        await window.keyboard.press('Home');
+        await window.waitForFunction((previous) => {
+          const audio = document.querySelector('audio');
+          return Boolean(audio && audio.currentTime + 0.05 < previous);
+        }, beforeSeek, { timeout: 5000 });
+        const playback = await window.evaluate(() => {
+          const audio = document.querySelector('audio');
+          return {
+            currentTime: audio?.currentTime ?? null,
+            duration: audio?.duration ?? null,
+            playbackRate: audio?.playbackRate ?? null,
+            paused: audio?.paused ?? null,
+          };
+        });
+        await window.screenshot({ path: path.join(artifactDir, 'packaged-playback.png') });
+        record('localPlayback', playback.currentTime > 0 && playback.duration > 1 && Math.abs(playback.playbackRate - 1.5) < 0.01 && playback.currentTime + 0.05 < beforeSeek, playback);
+      } catch (error) {
+        record('localPlayback', false, { error: redact(error instanceof Error ? error.message : error).slice(0, 500) });
+      }
+      progress('local-playback-finished', { pass: report.checks.localPlayback?.pass === true });
+
+      try {
+        progress('analysis-service-start');
+        await window.getByRole('button', { name: 'Analyze Audio' }).click();
+        await window.waitForSelector('text=/Required service configuration missing|Analysis service unavailable/', { timeout: 20000 });
+        const analysis = await window.evaluate(() => {
+          const diagnostics = document.querySelector('[data-testid="analysis-diagnostics"]')?.textContent || '';
+          const error = document.querySelector('[data-testid="analysis-diagnostics"]')?.parentElement?.innerText || '';
+          return { error, diagnostics };
+        });
+        const leaked = /localhost:\d+|127\.0\.0\.1:\d+|https?:\/\//i.test(`${analysis.error}\n${analysis.diagnostics}`);
+        await window.screenshot({ path: path.join(artifactDir, 'packaged-audio.png') });
+        record('analysisService', !leaked && /Required service configuration missing|Analysis service unavailable/.test(analysis.error), {
+          leakedAddress: leaked,
+          diagnostics: analysis.diagnostics.slice(0, 400),
+          mockedInference: false,
+        });
+      } catch (error) {
+        record('analysisService', false, { error: redact(error instanceof Error ? error.message : error).slice(0, 500) });
+      }
+      progress('analysis-service-finished', { pass: report.checks.analysisService?.pass === true });
+
+      try {
+        progress('settings-start');
+        await window.goto(`${pageUrl.origin}/settings`, { timeout: 30000 });
+        await window.waitForSelector('text=Dark Mode', { timeout: 20000 });
+        const beforeTheme = await window.evaluate(() => localStorage.getItem('theme'));
+        await window.getByRole('switch', { name: 'Dark Mode' }).click();
+        await window.waitForFunction((previous) => localStorage.getItem('theme') !== previous, beforeTheme, { timeout: 5000 });
+        const nextTheme = await window.evaluate(() => localStorage.getItem('theme'));
+        await window.reload({ timeout: 30000 });
+        await window.waitForSelector('text=Settings', { timeout: 20000 });
+        const reloadedTheme = await window.evaluate(() => localStorage.getItem('theme'));
+        const { _electron: electronAgain } = require('playwright-core');
+        await withTimeout('settings-close', 20000, () => owned.electronApp.close());
+        owned.electronApp = await withTimeout('settings-reopen', 70000, () => electronAgain.launch({
+          executablePath: installedExe,
+          cwd: installDir,
+          env: launchEnv,
+          timeout: 45000,
+        }));
+        owned.electronPid = owned.electronApp.process().pid;
+        const reopened = await owned.electronApp.firstWindow({ timeout: 30000 });
+        await reopened.waitForSelector('text=Open source chord & beat detection application.', { timeout: 45000 });
+        const reopenedOrigin = new URL(reopened.url()).origin;
+        await reopened.goto(`${reopenedOrigin}/settings`, { timeout: 30000 });
+        await reopened.waitForSelector('text=Settings', { timeout: 20000 });
+        const reopenedTheme = await reopened.evaluate(() => localStorage.getItem('theme'));
+        record('settingsPersistence', Boolean(nextTheme) && reloadedTheme === nextTheme && reopenedTheme === nextTheme, {
+          beforeTheme,
+          nextTheme,
+          reloadedTheme,
+          reopenedTheme,
+        });
+        await reopened.goto(`${reopenedOrigin}/games`, { timeout: 30000 });
+        await reopened.waitForSelector('text=Mini Games', { timeout: 20000 });
+        await reopened.getByRole('button', { name: 'X/O' }).click();
+        await reopened.waitForSelector('button[aria-label="Cell 1"]', { timeout: 10000 });
+        await reopened.waitForFunction(() => (
+          [...document.querySelectorAll('button[aria-label^="Cell "]')].some((button) => (
+            button.getAttribute('aria-disabled') !== 'true' && !button.hasAttribute('disabled')
+          ))
+        ), undefined, { timeout: 8000 });
+        const cells = reopened.locator('button[aria-label^="Cell "]');
+        const cellCount = await cells.count();
+        let clicked = false;
+        for (let index = 0; index < cellCount; index += 1) {
+          if (await cells.nth(index).isEnabled()) {
+            await cells.nth(index).click();
+            clicked = true;
+            break;
+          }
+        }
+        await reopened.waitForFunction(() => (
+          [...document.querySelectorAll('button[aria-label^="Cell "]')]
+            .some((button) => (button.textContent || '').includes('X'))
+        ), undefined, { timeout: 8000 });
+        record('localGame', clicked, { cellCount });
+      } catch (error) {
+        if (!report.checks.settingsPersistence) {
+          record('settingsPersistence', false, { error: redact(error instanceof Error ? error.message : error).slice(0, 500) });
+        }
+        if (!report.checks.localGame) {
+          record('localGame', false, { error: redact(error instanceof Error ? error.message : error).slice(0, 500) });
+        }
+      }
+      progress('settings-finished', {
+        settings: report.checks.settingsPersistence?.pass === true,
+        game: report.checks.localGame?.pass === true,
+      });
     } catch (error) {
       report.playwrightUiError = redact(error instanceof Error ? error.message : error).slice(0, 800);
       progress('playwright-ui-failed', { message: report.playwrightUiError.split('\n')[0] });

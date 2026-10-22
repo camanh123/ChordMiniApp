@@ -101,6 +101,10 @@ import { requestSheetSageTranscription } from '@/services/sheetsage/sheetSageTra
 import { useSheetSageBackendAvailability } from '@/hooks/sheetsage/useSheetSageBackendAvailability';
 import { getSafeBeatModel, getSafeChordModel } from '@/utils/modelFiltering';
 import { MAX_ANALYSIS_DURATION_MINUTES, getAnalysisDurationLimitReason } from '@/utils/analysisDurationLimit';
+import {
+  analysisServiceCodeFrom,
+  buildPrivacySafeDiagnostics,
+} from '@/utils/analysisServiceError';
 import MelodyTranscriptionStatusToast from '@/components/analysis/MelodyTranscriptionStatusToast';
 
 export default function LocalAudioAnalyzePage() {
@@ -111,6 +115,10 @@ export default function LocalAudioAnalyzePage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [analysisErrorCode, setAnalysisErrorCode] = useState<string | null>(null);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
+  const [diagnosticsFallback, setDiagnosticsFallback] = useState<string | null>(null);
   const [lyricSearchTitle, setLyricSearchTitle] = useState('');
   const [lyricSearchArtist, setLyricSearchArtist] = useState('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -579,6 +587,10 @@ export default function LocalAudioAnalyzePage() {
       audioUrl: null,
     });
     setAnalysisResults(null);
+    setAnalysisErrorCode(null);
+    setPlaybackError(null);
+    setDiagnosticsCopied(false);
+    setDiagnosticsFallback(null);
     setKeyDetectionAttempted(false);
     setSequenceCorrections(null);
 
@@ -707,6 +719,9 @@ export default function LocalAudioAnalyzePage() {
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
+      setAnalysisErrorCode(analysisServiceCodeFrom(error));
+      setDiagnosticsCopied(false);
+      setDiagnosticsFallback(null);
 
       setAudioProcessingState(prev => ({
         ...prev,
@@ -721,8 +736,13 @@ export default function LocalAudioAnalyzePage() {
   };
 
   // Audio player controls
+  const reportPlaybackFailure = () => {
+    setPlaybackError('Local playback could not start. The audio format may be unsupported or the file is still loading.');
+  };
+
   const playPause = () => {
     if (!audioRef.current) return;
+    setPlaybackError(null);
 
     if (isPlaying) {
       audioRef.current.pause();
@@ -735,12 +755,21 @@ export default function LocalAudioAnalyzePage() {
           const ok = await runCountdown();
           if (ok) {
             countdownStateRef.current.completed = false; // consume
-            try { await audioRef.current?.play(); } catch {}
+            try {
+              await audioRef.current?.play();
+            } catch {
+              reportPlaybackFailure();
+            }
           }
         })();
         return;
       }
-      audioRef.current.play();
+      const started = audioRef.current.play();
+      if (started && typeof started.catch === 'function') {
+        void started.catch(() => {
+          reportPlaybackFailure();
+        });
+      }
     }
   };
 
@@ -1228,11 +1257,58 @@ const simplifiedChordGridData = useMemo(() => {
                   )}
 
                   {audioProcessingState.error && (
-                    <div className="text-red-500 flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                      </svg>
-                      <span>{audioProcessingState.error}</span>
+                    <div className="w-full text-left text-red-600 dark:text-red-400">
+                      <div className="flex items-start gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                        <div className="min-w-0">
+                          <p>{audioProcessingState.error}</p>
+                          <button
+                            type="button"
+                            className="mt-2 text-xs font-medium text-gray-700 underline dark:text-gray-200"
+                            onClick={() => {
+                              const payload = buildPrivacySafeDiagnostics({
+                                code: analysisErrorCode,
+                                message: audioProcessingState.error || '',
+                                runtime: process.env.NEXT_PUBLIC_APP_RUNTIME || 'web',
+                                version: '0.6.5',
+                              });
+                              const write = navigator.clipboard?.writeText(payload);
+                              if (!write) {
+                                setDiagnosticsCopied(false);
+                                setDiagnosticsFallback(payload);
+                                return;
+                              }
+                              void write.then(() => {
+                                setDiagnosticsCopied(true);
+                                setDiagnosticsFallback(null);
+                              }).catch(() => {
+                                setDiagnosticsCopied(false);
+                                setDiagnosticsFallback(payload);
+                              });
+                            }}
+                          >
+                            {diagnosticsCopied ? 'Diagnostics copied' : 'Copy diagnostics'}
+                          </button>
+                          <pre className="sr-only" data-testid="analysis-diagnostics">
+                            {buildPrivacySafeDiagnostics({
+                              code: analysisErrorCode,
+                              message: audioProcessingState.error || '',
+                              runtime: process.env.NEXT_PUBLIC_APP_RUNTIME || 'web',
+                              version: '0.6.5',
+                            })}
+                          </pre>
+                          {diagnosticsFallback && (
+                            <textarea
+                              readOnly
+                              aria-label="Analysis diagnostics"
+                              className="mt-2 w-full rounded border border-gray-300 bg-white p-2 text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                              value={diagnosticsFallback}
+                            />
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -1384,10 +1460,12 @@ const simplifiedChordGridData = useMemo(() => {
                 </div>
               )}
 
-              {/* Inline UtilityBar + AudioPlaybackDock (side-by-side, inline flow) */}
-              {analysisResults && (
+              {/* Local playback is available as soon as a file is selected.
+                  Analysis-only controls stay behind a successful analysis. */}
+              {(audioFile || analysisResults) && (
                 <div className="mt-4">
                   <div className="flex flex-col md:flex-row md:items-center gap-3">
+                    {analysisResults && (
                     <div className="flex-1 min-w-[280px] overflow-x-auto">
                       <div className="inline-flex w-max min-w-full">
                         <UtilityBar
@@ -1433,25 +1511,34 @@ const simplifiedChordGridData = useMemo(() => {
                         />
                       </div>
                     </div>
+                    )}
 
-                    <AudioPlaybackDock
-                      isPlaying={isPlaying}
-                      onTogglePlayPause={playPause}
-                      playbackRate={playbackRate}
-                      onChangePlaybackRate={changePlaybackRate}
-                      currentTime={currentTime}
-                      duration={duration}
-                      onSeek={(t: number) => {
-                        if (audioRef.current) {
-                          try { audioRef.current.currentTime = t; } catch {}
-                        }
-                      }}
-                      disabled={!audioFile}
-                      bpm={analysisResults?.beatDetectionResult?.bpm}
-                    />
+                    {audioFile && (
+                      <div>
+                        <AudioPlaybackDock
+                          isPlaying={isPlaying}
+                          onTogglePlayPause={playPause}
+                          playbackRate={playbackRate}
+                          onChangePlaybackRate={changePlaybackRate}
+                          currentTime={currentTime}
+                          duration={duration}
+                          onSeek={(t: number) => {
+                            if (audioRef.current) {
+                              try { audioRef.current.currentTime = t; } catch {}
+                            }
+                          }}
+                          disabled={!audioFile}
+                          bpm={analysisResults?.beatDetectionResult?.bpm}
+                        />
+                        {playbackError && (
+                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{playbackError}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Chord Playback Manager: manages state for UtilityBar mixer */}
+                  {analysisResults && (
                   <div className="mt-3">
                     <ChordPlaybackManager
                       currentBeatIndex={currentBeatIndex}
@@ -1465,6 +1552,7 @@ const simplifiedChordGridData = useMemo(() => {
                       onChordPlaybackChange={handleChordPlaybackChange}
                     />
                   </div>
+                  )}
 
                 </div>
               )}
