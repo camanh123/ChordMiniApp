@@ -145,6 +145,7 @@ async function verifyStartupFailure(electronPath) {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...process.env,
+      CHORDMINI_DESKTOP_ACCEPTANCE: '1',
       CHORDMINI_SKIP_ERROR_DIALOG: '1',
       CHORDMINI_DESKTOP_DIAGNOSTIC_FILE: diagnosticFile,
       CHORDMINI_TEST_LEAK: '1',
@@ -207,6 +208,7 @@ async function main() {
     delete launchEnv.CHORDMINI_TEST_LEAK;
     delete launchEnv.PYTHON_API_URL;
     const ownedPidFile = path.join(artifactDir, 'owned-server.pid');
+    launchEnv.CHORDMINI_DESKTOP_ACCEPTANCE = '1';
     launchEnv.CHORDMINI_DESKTOP_PID_FILE = ownedPidFile;
 
     electronApp = await electron.launch({

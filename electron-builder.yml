@@ -1,0 +1,50 @@
+appId: app.chordmini.desktop
+productName: ChordMini
+copyright: Copyright ChordMini
+asar: true
+npmRebuild: false
+generateUpdatesFilesForAllChannels: false
+directories:
+  output: desktop-dist
+  buildResources: build
+files:
+  - package.json
+  - electron/main.cjs
+  - electron/dist/**/*
+  - "!**/*.map"
+extraMetadata:
+  main: electron/main.cjs
+  description: Chord recognition and beat tracking
+  author: ChordMini
+# The copy filter omits a node_modules directory at the root of an extraResources
+# source. Copying the parent keeps standalone/node_modules in the installer.
+extraResources:
+  - from: desktop-resources
+    to: "."
+    filter:
+      - "standalone/**/*"
+      - "!standalone/**/.env"
+      - "!standalone/**/.env.*"
+      - "!standalone/**/python_backend/**"
+      - "!manifest.json"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: ChordMini-Setup-${version}-x64.${ext}
+  verifyUpdateCodeSignature: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: true
+  uninstallDisplayName: ChordMini
+  shortcutName: ChordMini
+publish: null

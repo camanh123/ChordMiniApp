@@ -26,6 +26,9 @@
 /dist
 /electron/dist
 /windows-electron-artifacts/
+/windows-installer-artifacts/
+/desktop-resources/
+/desktop-dist/
 
 # misc
 .DS_Store
@@ -293,6 +296,10 @@ scripts/*
 !scripts/post-deployment-verification.sh
 !scripts/prepare-ffmpeg-worker.mjs
 !scripts/windows-electron-acceptance.mjs
+!scripts/prepare-desktop-resources.mjs
+!scripts/scan-desktop-package.mjs
+!scripts/windows-packaged-acceptance.mjs
+!scripts/verify-packaged-standalone.mjs
 
 __tests__/
 __tests__/*

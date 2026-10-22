@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { sanitizeDiagnostic, secretsFromEnv } from './diagnostics';
 import { startOwnedServer, stopOwnedServer, type OwnedServer } from './ownedServer';
+import { acceptanceDiagnosticFile, acceptancePidFile, isDesktopAcceptance, resolveDesktopLaunch } from './packagedApp';
 import { prepareStandalone } from './prepareStandalone';
 import {
   classifyNavigation,
@@ -37,7 +38,7 @@ function showStartupFailure(error: unknown): void {
   const message = error instanceof Error ? error.message : 'The desktop shell failed to start.';
   const safe = sanitizeDiagnostic(message, diagnosticSecrets()).slice(0, 2000);
   writeDiagnostic(safe);
-  const diagnosticFile = process.env.CHORDMINI_DESKTOP_DIAGNOSTIC_FILE;
+  const diagnosticFile = acceptanceDiagnosticFile(process.env);
   if (diagnosticFile) {
     try {
       fs.mkdirSync(path.dirname(diagnosticFile), { recursive: true });
@@ -46,7 +47,7 @@ function showStartupFailure(error: unknown): void {
       // The dialog remains the user-facing report.
     }
   }
-  if (process.env.CHORDMINI_SKIP_ERROR_DIALOG === '1') {
+  if (isDesktopAcceptance(process.env) && process.env.CHORDMINI_SKIP_ERROR_DIALOG === '1') {
     return;
   }
   dialog.showErrorBox('ChordMini could not start', safe);
@@ -79,9 +80,16 @@ function attachNavigationGuards(window: BrowserWindow, appOrigin: string): void 
 }
 
 async function openOwnedWindow(): Promise<void> {
-  const layout = prepareStandalone(repoRoot);
-  owned = await startOwnedServer({ serverEntry: layout.serverEntry });
-  const pidFile = process.env.CHORDMINI_DESKTOP_PID_FILE;
+  const launch = resolveDesktopLaunch({
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    repoRoot,
+  });
+  if (launch.prepareFromRepo) {
+    prepareStandalone(repoRoot);
+  }
+  owned = await startOwnedServer({ serverEntry: launch.serverEntry });
+  const pidFile = acceptancePidFile(process.env);
   if (pidFile && owned.child.pid) {
     fs.mkdirSync(path.dirname(pidFile), { recursive: true });
     fs.writeFileSync(pidFile, String(owned.child.pid));

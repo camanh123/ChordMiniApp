@@ -1,0 +1,110 @@
+name: Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - cursor/phase-2b-windows-installer-393f
+  pull_request:
+    branches:
+      - cursor/phase-2a-electron-shell-393f
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    name: Windows NSIS installer
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js standalone server
+        run: npm run build
+
+      - name: Compile and stage the desktop app
+        run: npm run desktop:pack:prepare
+
+      - name: Scan staged resources
+        run: node scripts/scan-desktop-package.mjs desktop-resources/standalone windows-installer-artifacts/staged-scan.json
+
+      - name: Verify staged standalone dependencies
+        run: node scripts/verify-packaged-standalone.mjs desktop-resources/standalone windows-installer-artifacts/staged-runtime.json
+
+      - name: Desktop Jest tests
+        run: npx jest __tests__/unit/desktop --runInBand --forceExit
+
+      - name: Build the unsigned NSIS installer
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npx electron-builder --win nsis --x64 --publish never
+
+      - name: Scan the unpacked app
+        run: node scripts/scan-desktop-package.mjs desktop-dist/win-unpacked windows-installer-artifacts/unpacked-scan.json
+
+      - name: Verify unpacked standalone dependencies
+        run: node scripts/verify-packaged-standalone.mjs desktop-dist/win-unpacked/resources/standalone windows-installer-artifacts/unpacked-runtime.json --boot
+
+      - name: Write checksum and build metadata
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path windows-installer-artifacts | Out-Null
+          $installer = Get-ChildItem desktop-dist -Filter "ChordMini-Setup-*-x64.exe" | Select-Object -First 1
+          $hash = Get-FileHash -Algorithm SHA256 $installer.FullName
+          "$($hash.Hash.ToLower())  $($installer.Name)" | Set-Content -NoNewline windows-installer-artifacts/SHA256SUMS.txt
+          Add-Content windows-installer-artifacts/SHA256SUMS.txt ""
+          @{
+            name = "ChordMini"
+            version = (Get-Content package.json | ConvertFrom-Json).version
+            filename = $installer.Name
+            bytes = $installer.Length
+            sha256 = $hash.Hash.ToLower()
+            arch = "x64"
+            target = "nsis"
+            signed = $false
+            autoUpdate = $false
+            nodeRuntime = "electron-run-as-node"
+            pythonBundled = $false
+            commit = "${{ github.sha }}"
+          } | ConvertTo-Json | Set-Content windows-installer-artifacts/build-metadata.json
+
+      - name: Upload installer, checksum, and build metadata
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-nsis-installer
+          path: |
+            desktop-dist/ChordMini-Setup-*-x64.exe
+            windows-installer-artifacts/SHA256SUMS.txt
+            windows-installer-artifacts/build-metadata.json
+            windows-installer-artifacts/staged-scan.json
+            windows-installer-artifacts/unpacked-scan.json
+            windows-installer-artifacts/staged-runtime.json
+            windows-installer-artifacts/unpacked-runtime.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Install and launch the packaged app
+        timeout-minutes: 25
+        run: node scripts/windows-packaged-acceptance.mjs
+
+      - name: Upload packaged acceptance diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-acceptance
+          path: windows-installer-artifacts/**
+          retention-days: 14
+          if-no-files-found: warn
