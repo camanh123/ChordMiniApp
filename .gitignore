@@ -248,6 +248,7 @@ python_backend/cloudbuild.yaml
 # Development and testing files
 test_*.html
 test_*.py
+!python_backend/tests/test_chord_cnn_lstm_fail_closed.py
 **/test_output/
 **/test_results/
 task.md

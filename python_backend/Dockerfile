@@ -28,8 +28,8 @@ COPY requirements.txt .
 # Pin setuptools to the pre-upgrade version observed in Cloud Build logs so
 # pkg_resources remains available for madmom/librosa runtime paths.
 RUN pip install --no-cache-dir --upgrade pip "setuptools==79.0.1" wheel
-RUN pip install --no-cache-dir Cython>=0.29.0 numpy==1.26.4
-RUN pip install --no-cache-dir git+https://github.com/CPJKU/madmom
+RUN pip install --no-cache-dir Cython==3.3.0 numpy==1.26.4
+RUN pip install --no-cache-dir --no-build-isolation "madmom @ git+https://github.com/CPJKU/madmom.git@27f032e8947204902c675e5e341a3faf5dc86dae"
 # Install all requirements except Spleeter first, then install Spleeter without deps to avoid resolver conflicts with librosa/httpx
 RUN grep -v '^spleeter==' requirements.txt | grep -v '^typer==' > requirements_nospleeter.txt \
     && pip install --no-cache-dir -r requirements_nospleeter.txt \
