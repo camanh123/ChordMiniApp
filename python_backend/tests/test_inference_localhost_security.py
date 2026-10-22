@@ -43,6 +43,16 @@ FROZEN_PATHS = [
     "package.json",
     "package-lock.json",
 ]
+# BACKEND-04A may change only the server-side forwarder and the desktop
+# secret boundary. i18n, the Electron shell, and Windows packaging stay frozen.
+ALLOWED_INTEGRATION_PATHS = {
+    "src/app/api/detect-beats/route.ts",
+    "src/app/api/recognize-chords/route.ts",
+    "src/server/inferenceUpstream.ts",
+    "src/desktop/diagnostics.ts",
+    "src/desktop/ownedServer.ts",
+    "src/desktop/inferenceBoundary.ts",
+}
 
 
 def wav_bytes(frames: int = 32) -> bytes:
@@ -557,7 +567,11 @@ class InferenceSecurityTests(unittest.TestCase):
             capture_output=True,
             text=True,
         )
-        self.assertEqual(diff.stdout.strip(), "")
+        unexpected = [
+            line for line in diff.stdout.splitlines()
+            if line and line not in ALLOWED_INTEGRATION_PATHS
+        ]
+        self.assertEqual(unexpected, [])
 
     def test_real_inference_regression_when_isolated_environment_exists(self):
         python = Path("/tmp/chordmini-bt02-venv/bin/python")

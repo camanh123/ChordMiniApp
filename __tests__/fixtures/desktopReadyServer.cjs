@@ -16,7 +16,7 @@ if (process.env.CHORDMINI_TEST_FAIL === 'EADDRINUSE') {
 
 if (process.env.CHORDMINI_TEST_LEAK === '1') {
   process.stderr.write(
-    `CHORDMINI_READY_TOKEN=${process.env.CHORDMINI_READY_TOKEN} PYTHON_API_URL=${process.env.PYTHON_API_URL}\n`,
+    `CHORDMINI_READY_TOKEN=${process.env.CHORDMINI_READY_TOKEN} PYTHON_API_URL=${process.env.PYTHON_API_URL} CHORDMINI_INFERENCE_SECRET=${process.env.CHORDMINI_INFERENCE_SECRET || ''}\n`,
   );
   process.exit(1);
 }
@@ -36,6 +36,7 @@ if (process.env.CHORDMINI_TEST_ENVFILE) {
     desktopMode: process.env.CHORDMINI_DESKTOP_MODE,
     electronRunAsNode: process.env.ELECTRON_RUN_AS_NODE || '',
     hasPythonUrl: Boolean(process.env.PYTHON_API_URL),
+    hasInferenceSecret: Boolean(process.env.CHORDMINI_INFERENCE_SECRET),
   }));
 }
 
