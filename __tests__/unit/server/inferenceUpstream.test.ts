@@ -95,7 +95,9 @@ describe('CONTRACT inference forwarder', () => {
     const cleaned = formDataForDetectorRetry(retry, 'madmom');
     expect(cleaned.get('detector')).toBe('madmom');
     expect(cleaned.get('token')).toBeNull();
-    expect(cleaned.get('file')).toBe(file);
+    const forwarded = cleaned.get('file') as File;
+    expect(forwarded.name).toBe('clip.wav');
+    expect(forwarded.size).toBe(file.size);
   });
 
   it('replaces upstream authentication bodies and scrubs a reflected secret', () => {

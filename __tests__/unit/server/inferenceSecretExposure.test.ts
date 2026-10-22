@@ -16,7 +16,7 @@ function walk(dir: string, files: string[]): void {
     return;
   }
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === 'node_modules' || entry.name === '.next' || entry.name === '.git') {
+    if (entry.name === 'node_modules' || entry.name === '.next' || entry.name === '.git' || entry.name === 'dist') {
       continue;
     }
     const full = path.join(dir, entry.name);

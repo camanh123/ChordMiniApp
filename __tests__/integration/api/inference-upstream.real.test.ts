@@ -10,7 +10,11 @@ import { randomBytes } from 'crypto';
 import fs from 'fs';
 import net from 'net';
 import path from 'path';
-import { fetch as undiciFetch } from 'undici';
+jest.mock('@/utils/environmentUtils', () => ({
+  createSafeTimeoutSignal: () => new AbortController().signal,
+}));
+
+import undici from 'undici';
 import { POST as postBeats } from '@/app/api/detect-beats/route';
 import { POST as postChords } from '@/app/api/recognize-chords/route';
 
@@ -22,7 +26,27 @@ const WEIGHT = path.join(
 );
 const EVIDENCE = path.join(ROOT, 'python_backend/research/backend_02_inference_evidence.json');
 const READY = fs.existsSync(PYTHON) && fs.existsSync(WEIGHT) && fs.existsSync(EVIDENCE);
-const realFetch = undiciFetch as typeof fetch;
+
+/**
+ * Jest replaces the process fetch. The bundled undici copy only serializes
+ * its own FormData, so a Node FormData would be sent as the text
+ * "[object FormData]". Convert it before forwarding. This is the same
+ * multipart body Node's native fetch produces.
+ */
+const realFetch: typeof fetch = async (input, init) => {
+  if (init?.body instanceof FormData) {
+    const converted = new undici.FormData();
+    for (const [key, value] of init.body.entries()) {
+      if (typeof value === 'string') {
+        converted.append(key, value);
+      } else {
+        converted.append(key, value, value.name);
+      }
+    }
+    return undici.fetch(input, { ...init, body: converted }) as Promise<Response>;
+  }
+  return undici.fetch(input, init) as Promise<Response>;
+};
 
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
