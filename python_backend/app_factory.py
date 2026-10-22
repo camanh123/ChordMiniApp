@@ -56,6 +56,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     # Register blueprints
     register_blueprints(app, config)
+    register_inference_guard(app)
 
     # Initialize service container
     init_services(app, config)
@@ -98,6 +99,15 @@ def register_blueprints(app: Flask, config) -> None:
         log_info("Debug blueprint skipped (production mode)")
 
     log_info("Blueprints registered successfully")
+
+
+def register_inference_guard(app: Flask) -> None:
+    """Apply localhost inference authentication before any view runs."""
+    from security.inference_guard import guard_before_request
+
+    @app.before_request
+    def enforce_localhost_inference_policy():
+        return guard_before_request()
 
 
 def init_services(app: Flask, config) -> None:

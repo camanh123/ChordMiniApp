@@ -181,6 +181,7 @@ if __name__ == '__main__':
     # Get port from environment variable or default to 5001 for localhost to avoid macOS AirTunes/AirPlay conflicts
     # Production deployments (Cloud Run) will override this with PORT environment variable
     port = int(os.environ.get('PORT', 5001))
-    log_info(f"Starting Flask app on port {port}")
+    log_info(f"Starting Flask app on 127.0.0.1:{port}")
     log_info("App is ready to serve requests")
-    app.run(host='0.0.0.0', port=port, debug=False)  # Disable debug for production
+    # This process is local-only. Container publish rules are a separate deployment gate.
+    app.run(host='127.0.0.1', port=port, debug=False)

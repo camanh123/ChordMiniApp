@@ -23,7 +23,7 @@ def validate_debug_request() -> Tuple[bool, Optional[str]]:
         - Optional[str]: Error message if not allowed
     """
     # Check if we're in production mode
-    if config.get('PRODUCTION_MODE', False):
+    if getattr(config, 'PRODUCTION_MODE', False):
         return False, "Debug endpoints disabled in production"
     
     return True, None
@@ -113,7 +113,7 @@ def is_production_mode() -> bool:
     Returns:
         bool: True if in production mode
     """
-    return config.get('PRODUCTION_MODE', False)
+    return bool(getattr(config, 'PRODUCTION_MODE', False))
 
 
 def get_debug_rate_limit() -> str:

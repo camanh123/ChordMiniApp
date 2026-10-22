@@ -16,7 +16,9 @@ from typing import List, Optional
 class Config:
     """Base configuration class with common settings."""
 
-    # Flask settings
+    # Flask session key. This is not the inference credential and must not be
+    # copied into a client. Inference auth reads CHORDMINI_INFERENCE_SECRET
+    # per request inside security/inference_guard.py.
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
     # Production mode detection

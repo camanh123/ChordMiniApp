@@ -6,20 +6,16 @@ and information endpoints.
 """
 
 import os
-import tempfile
 import traceback
 import requests
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, jsonify, current_app
 from config import get_config
 from extensions import limiter
 from utils.logging import log_info, log_error, log_debug
-from utils.paths import AUDIO_DIR
 from services.audio.tempfiles import temporary_file
+from security.inference_guard import handle_chord_upload
 from .validators import (
-    validate_chord_recognition_request,
     validate_firebase_chord_recognition_request,
-    validate_file_size,
-    normalize_audio_url_to_path,
     get_detector_display_name
 )
 
@@ -44,102 +40,19 @@ def _download_remote_audio_to_temp_path(file_url: str, temp_path: str, timeout_s
 @limiter.limit(config.get_rate_limit('heavy_processing'))
 def recognize_chords():
     """
-    Recognize chords in an audio file using various models.
+    Recognize chords in an uploaded audio file.
 
     Parameters:
     - file: The audio file to analyze (multipart/form-data)
-    - audio_path: Alternative to file, path to an existing audio file on the server
     - detector: Model to use ('chord-cnn-lstm', 'btc-sl', 'btc-pl', 'auto')
     - chord_dict: Optional chord dictionary to use
-    - force: Force use of detector even if file is large
+    - force: Set to 'true' to force using the requested detector
     - use_spleeter: Use Spleeter for audio separation
 
-    Returns:
-    - JSON with chord recognition results
+    Caller-supplied server paths are rejected. When inference authentication
+    is required, send the server-side token in X-ChordMini-Inference-Token.
     """
-    temp_file_path = None
-
-    try:
-        # Validate request
-        is_valid, error_msg, file, params = validate_chord_recognition_request()
-        if not is_valid:
-            return jsonify({"error": error_msg}), 400
-
-        # Get chord recognition service
-        chord_service = current_app.extensions['services']['chord_recognition']
-
-        # Handle different input types
-        if params['json_data']:
-            # JSON request with audioUrl
-            data = params['json_data']
-            audio_url = data.get('audioUrl')
-
-            if audio_url and audio_url.startswith('/audio/'):
-                file_path = normalize_audio_url_to_path(audio_url, str(AUDIO_DIR))
-                if not os.path.exists(file_path):
-                    return jsonify({"error": f"Audio file not found: {audio_url}"}), 404
-            else:
-                return jsonify({"error": "Invalid audioUrl format"}), 400
-
-        elif file:
-            # File upload
-            # Validate file size
-            size_valid, size_error = validate_file_size(file, params['detector'], params['force'])
-            if not size_valid:
-                return jsonify({"error": size_error}), 413
-
-            # Save uploaded file temporarily
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
-            file.save(temp_file.name)
-            temp_file_path = temp_file.name
-            file_path = temp_file_path
-
-        elif params['audio_path']:
-            # Existing file path
-            file_path = params['audio_path']
-            if not os.path.exists(file_path):
-                return jsonify({"error": f"Audio file not found: {file_path}"}), 404
-        else:
-            return jsonify({"error": "No valid audio input provided"}), 400
-
-        log_info(f"Processing chord recognition request: detector={params['detector']}, "
-                f"chord_dict={params['chord_dict']}, force={params['force']}, "
-                f"use_spleeter={params['use_spleeter']}")
-
-        # Run chord recognition
-        result = chord_service.recognize_chords(
-            file_path=file_path,
-            detector=params['detector'],
-            chord_dict=params['chord_dict'],
-            force=params['force'],
-            use_spleeter=params['use_spleeter']
-        )
-
-        if result.get('success'):
-            log_info(f"Chord recognition successful: {result['total_chords']} chords detected "
-                    f"using {result['model_used']} with {result['chord_dict']} dictionary")
-        else:
-            log_error(f"Chord recognition failed: {result.get('error', 'Unknown error')}")
-
-        return jsonify(result)
-
-    except Exception as e:
-        error_msg = f"Chord recognition error: {str(e)}"
-        log_error(error_msg)
-        log_error(traceback.format_exc())
-        return jsonify({
-            "success": False,
-            "error": error_msg,
-            "traceback": traceback.format_exc() if not config.PRODUCTION_MODE else None
-        }), 500
-    finally:
-        # Clean up temporary file
-        if temp_file_path and os.path.exists(temp_file_path):
-            try:
-                os.unlink(temp_file_path)
-                log_debug(f"Cleaned up temporary file: {temp_file_path}")
-            except Exception as cleanup_error:
-                log_error(f"Failed to clean up temporary file {temp_file_path}: {cleanup_error}")
+    return handle_chord_upload()
 
 
 @chords_bp.route('/api/recognize-chords-firebase', methods=['POST'])
@@ -156,6 +69,7 @@ def recognize_chords_firebase():
     Returns:
     - JSON with chord recognition results
     """
+    temp_file_path = None
     try:
         # Validate request
         is_valid, error_msg, params = validate_firebase_chord_recognition_request()

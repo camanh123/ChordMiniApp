@@ -21,12 +21,15 @@ def validate_beat_detection_request() -> Tuple[bool, Optional[str], Optional[Fil
         - Optional[FileStorage]: Uploaded file if present
         - Dict[str, Any]: Validated parameters
     """
-    # Check if we have either a file upload or audio_path
+    # Server paths are not an accepted input. Callers upload the audio bytes.
     file = request.files.get('file')
     audio_path = request.form.get('audio_path')
 
-    if not file and not audio_path:
-        return False, "No audio file provided. Please upload a file or provide audio_path.", None, {}
+    if isinstance(audio_path, str) and audio_path.strip():
+        return False, "Server file paths are not accepted. Upload the audio file.", None, {}
+
+    if not file:
+        return False, "No audio file provided. Upload the audio as multipart form data.", None, {}
 
     # Validate detector parameter
     detector = request.form.get('detector', 'auto').lower()
@@ -45,7 +48,7 @@ def validate_beat_detection_request() -> Tuple[bool, Optional[str], Optional[Fil
     params = {
         'detector': detector,
         'force': force,
-        'audio_path': audio_path
+        'audio_path': None
     }
 
     return True, None, file, params

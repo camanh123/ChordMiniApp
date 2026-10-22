@@ -21,6 +21,21 @@ from .validators import (
     get_debug_rate_limit
 )
 
+_SENSITIVE_ENV_PARTS = ("SECRET", "TOKEN", "PASSWORD", "CREDENTIAL", "PRIVATE_KEY", "API_KEY")
+
+
+def _redacted_environment() -> dict:
+    """Return diagnostic environment entries without credentials."""
+    visible = {}
+    for key, value in os.environ.items():
+        upper = key.upper()
+        if any(part in upper for part in _SENSITIVE_ENV_PARTS):
+            continue
+        if any(keyword in upper for keyword in ("PYTHON", "PATH", "TORCH", "CUDA", "MODEL", "CHORD")):
+            visible[key] = value
+    return visible
+
+
 # Create blueprint
 debug_bp = Blueprint('debug', __name__)
 
@@ -457,11 +472,7 @@ def debug_environment():
                 "working_directory": os.getcwd(),
                 "sys_path_length": len(sys.path),
                 "sys_path_first_5": sys.path[:5],
-                "environment_variables": {
-                    key: value for key, value in os.environ.items()
-                    if any(keyword in key.upper() for keyword in
-                          ['PYTHON', 'PATH', 'TORCH', 'CUDA', 'MODEL', 'CHORD'])
-                }
+                "environment_variables": _redacted_environment()
             },
             "models": get_all_model_availability(),
             "memory": {},

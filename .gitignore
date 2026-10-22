@@ -249,6 +249,7 @@ python_backend/cloudbuild.yaml
 test_*.html
 test_*.py
 !python_backend/tests/test_chord_cnn_lstm_fail_closed.py
+!python_backend/tests/test_inference_localhost_security.py
 **/test_output/
 **/test_results/
 task.md
@@ -262,6 +263,7 @@ tasks.md
 !CONTRIBUTING.md
 !.github/pull_request_template.md
 !docs/cross-platform-runtime.md
+!python_backend/research/backend_03_localhost_auth.md
 !.qoder/
 !.qoder/repowiki/
 !.qoder/repowiki/en/
