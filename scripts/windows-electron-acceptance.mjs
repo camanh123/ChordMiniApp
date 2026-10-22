@@ -84,11 +84,31 @@ function windowsProcesses() {
   return Array.isArray(parsed) ? parsed : [parsed];
 }
 
-function ownedServerPids(electronPid) {
-  return windowsProcesses()
-    .filter((entry) => Number(entry.ParentProcessId) === electronPid)
-    .filter((entry) => typeof entry.CommandLine === 'string' && entry.CommandLine.includes(`${path.sep}standalone${path.sep}server.js`))
-    .map((entry) => ({ pid: Number(entry.ProcessId), name: String(entry.Name || '') }));
+function descendantsOf(rootPid, processes) {
+  const children = new Map();
+  for (const entry of processes) {
+    const parent = Number(entry.ParentProcessId);
+    const pid = Number(entry.ProcessId);
+    if (!Number.isInteger(parent) || !Number.isInteger(pid)) {
+      continue;
+    }
+    const list = children.get(parent) || [];
+    list.push({ pid, name: String(entry.Name || '') });
+    children.set(parent, list);
+  }
+  const found = [];
+  const stack = [...(children.get(rootPid) || [])];
+  const seen = new Set();
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || seen.has(current.pid)) {
+      continue;
+    }
+    seen.add(current.pid);
+    found.push(current);
+    stack.push(...(children.get(current.pid) || []));
+  }
+  return found;
 }
 
 function waitForExit(child, timeoutMs) {
@@ -186,6 +206,8 @@ async function main() {
     delete launchEnv.CHORDMINI_DESKTOP_DIAGNOSTIC_FILE;
     delete launchEnv.CHORDMINI_TEST_LEAK;
     delete launchEnv.PYTHON_API_URL;
+    const ownedPidFile = path.join(artifactDir, 'owned-server.pid');
+    launchEnv.CHORDMINI_DESKTOP_PID_FILE = ownedPidFile;
 
     electronApp = await electron.launch({
       executablePath: electronPath,
@@ -328,8 +350,21 @@ async function main() {
       coop: headerValue(homepage.headers, 'cross-origin-opener-policy'),
     });
 
-    const serversBefore = ownedServerPids(electronPid);
-    record('ownedServerObserved', serversBefore.length > 0, { servers: serversBefore });
+    const serverPid = Number(fs.readFileSync(ownedPidFile, 'utf8'));
+    const processesBefore = windowsProcesses();
+    const serverProcess = processesBefore.find((entry) => Number(entry.ProcessId) === serverPid);
+    const serverDescendants = descendantsOf(serverPid, processesBefore);
+    const ownedServerOk = Number.isInteger(serverPid)
+      && serverPid > 1
+      && serverPid !== electronPid
+      && serverPid !== sentinel.pid
+      && isAlive(serverPid);
+    record('ownedServerObserved', ownedServerOk, {
+      serverPid,
+      parentPid: serverProcess ? Number(serverProcess.ParentProcessId) : null,
+      name: serverProcess ? String(serverProcess.Name || '') : '',
+      descendants: serverDescendants,
+    });
 
     const second = spawn(electronPath, [mainScript], {
       cwd: repoRoot,
@@ -354,11 +389,14 @@ async function main() {
     while (Date.now() < deadline && isAlive(electronPid)) {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
-    const serversAfter = serversBefore.filter((entry) => isAlive(entry.pid));
-    record('processTreeCleanup', !isAlive(electronPid) && serversAfter.length === 0 && isAlive(sentinel.pid), {
+    const remainingDescendants = serverDescendants.filter((entry) => isAlive(entry.pid));
+    record('processTreeCleanup', !isAlive(electronPid) && !isAlive(serverPid) && remainingDescendants.length === 0 && isAlive(sentinel.pid), {
       electronAlive: isAlive(electronPid),
-      remainingServers: serversAfter,
+      serverAlive: isAlive(serverPid),
+      serverPid,
+      remainingDescendants,
       sentinelAlive: isAlive(sentinel.pid),
+      sentinelPid: sentinel.pid,
     });
 
     const failed = Object.values(report.checks).some((check) => check.pass === false);

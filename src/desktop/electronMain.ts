@@ -81,6 +81,11 @@ function attachNavigationGuards(window: BrowserWindow, appOrigin: string): void 
 async function openOwnedWindow(): Promise<void> {
   const layout = prepareStandalone(repoRoot);
   owned = await startOwnedServer({ serverEntry: layout.serverEntry });
+  const pidFile = process.env.CHORDMINI_DESKTOP_PID_FILE;
+  if (pidFile && owned.child.pid) {
+    fs.mkdirSync(path.dirname(pidFile), { recursive: true });
+    fs.writeFileSync(pidFile, String(owned.child.pid));
+  }
   const window = new BrowserWindow(createBrowserWindowOptions());
   attachNavigationGuards(window, owned.origin);
   window.once('ready-to-show', () => {
