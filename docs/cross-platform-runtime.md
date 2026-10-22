@@ -46,18 +46,11 @@ Before static files are served, `public` and `.next/static` are copied next to t
 
 Desktop mode (`CHORDMINI_DESKTOP_MODE=1`) rejects a Host other than `127.0.0.1`, `Sec-Fetch-Site` values other than `none` or `same-origin`, and an `Origin` that is not the exact loopback origin. Document navigations set an HttpOnly `SameSite=Strict` cookie. Other routes require that cookie. `/api/desktop/ready` is the exception and relies on the proof header. The production website leaves this gate bypassed. A non-browser process on the same machine can still open a TCP connection to the loopback port; it does not receive the cookie or the ready token.
 
-### Windows CI plan
+### Windows CI
 
-These checks were not executed in the Linux cloud agent. A `windows-latest` job should:
+`.github/workflows/windows-electron.yml` runs on `windows-latest`. It installs dependencies, builds the standalone server, compiles the Electron main process, runs the desktop Jest suite, and launches the installed Windows Electron executable through Playwright. The job uploads `windows-electron-artifacts`, including the window screenshots and a redacted `report.json`.
 
-1. Run `npm ci`, `npm run build`, and `npm run desktop:compile`.
-2. Run `npx jest __tests__/unit/desktop --runInBand`.
-3. Launch `npx electron electron/main.cjs` and confirm the window loads `http://127.0.0.1:<port>/`.
-4. Launch a second process and confirm it exits while the first window focuses.
-5. Quit and confirm the server pid and its descendant processes are gone.
-6. Confirm `taskkill /T` is the cleanup command and that YouTube embeds and `ffmpeg.wasm` still work with `sandbox: true`.
-
-A passing Linux process-lifecycle test is not a Windows pass.
+A passing Linux process-lifecycle test is not a Windows pass. The acceptance script exits 2 on any other operating system. YouTube playback and ffmpeg.wasm transcoding stay unverified unless that Windows report says they were exercised. The page keeps `Cross-Origin-Embedder-Policy: unsafe-none` so YouTube frames can load; that header leaves `crossOriginIsolated` false, which blocks the multithreaded ffmpeg.wasm core.
 
 ## Phase 4 — iPad PWA
 

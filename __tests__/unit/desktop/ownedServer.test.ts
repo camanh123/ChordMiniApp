@@ -72,6 +72,21 @@ function loopbackFetch(url: string, init?: RequestInit): Promise<Response> {
   });
 }
 
+async function waitUntilGone(pid: number): Promise<void> {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(pid, 0);
+    } catch {
+      return;
+    }
+    await new Promise((resolve) => {
+      setTimeout(resolve, 100);
+    });
+  }
+  throw new Error(`Owned process ${pid} was still running.`);
+}
+
 async function listen(server: http.Server): Promise<number> {
   return new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -120,6 +135,18 @@ describe('owned Next.js server lifecycle', () => {
       },
     });
     expect(taskkill).toEqual([['/PID', '43210', '/T', '/F']]);
+    await expect(stopOwnedServer(fakeOwned(43210), {
+      platform: 'win32',
+      execFileImpl: async () => {
+        throw new Error('ERROR: The process "43210" not found.');
+      },
+    })).resolves.toBeUndefined();
+    await expect(stopOwnedServer(fakeOwned(43211), {
+      platform: 'win32',
+      execFileImpl: async () => {
+        throw new Error('Access is denied.');
+      },
+    })).rejects.toThrow(/Access is denied/);
 
     const signals: Array<[number, NodeJS.Signals]> = [];
     await stopOwnedServer(fakeOwned(43210), {
@@ -178,11 +205,8 @@ describe('owned Next.js server lifecycle', () => {
       const grandchildPid = Number(fs.readFileSync(pidFile, 'utf8'));
       expect(process.kill(grandchildPid, 0)).toBe(true);
       await stopOwnedServer(owned, { graceMs: 100 });
-      await new Promise((resolve) => {
-        setTimeout(resolve, 300);
-      });
-      expect(() => process.kill(grandchildPid, 0)).toThrow();
-      expect(() => process.kill(owned.child.pid ?? 0, 0)).toThrow();
+      await waitUntilGone(grandchildPid);
+      await waitUntilGone(owned.child.pid ?? 0);
     } finally {
       await stopOwnedServer(owned, { graceMs: 50 });
       fs.rmSync(dir, { recursive: true, force: true });

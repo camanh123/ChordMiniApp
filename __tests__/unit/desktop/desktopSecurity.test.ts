@@ -74,6 +74,44 @@ describe('desktop request gate', () => {
     })).toEqual({ action: 'allow-document' });
   });
 
+  it('preserves the hosted web proxy when desktop mode is off', () => {
+    delete process.env.CHORDMINI_DESKTOP_MODE;
+    delete process.env.CHORDMINI_DESKTOP_COOKIE;
+
+    const home = new NextRequest('https://chordmini.example/', {
+      headers: {
+        host: 'chordmini.example',
+        origin: 'https://evil.example',
+        'sec-fetch-site': 'cross-site',
+      },
+    });
+    const homeResponse = proxy(home);
+    expect(homeResponse.status).not.toBe(403);
+    expect(homeResponse.cookies.get(DESKTOP_COOKIE_NAME)).toBeUndefined();
+
+    const post = new NextRequest('https://chordmini.example/api/recognize-chords', {
+      method: 'POST',
+      headers: {
+        host: 'chordmini.example',
+        origin: 'https://chordmini.example',
+      },
+    });
+    const postResponse = proxy(post);
+    expect(postResponse.status).not.toBe(403);
+    expect(postResponse.status).not.toBe(404);
+
+    const action = new NextRequest('https://chordmini.example/', {
+      method: 'POST',
+      headers: {
+        host: 'chordmini.example',
+        'next-action': 'existing-action',
+      },
+    });
+    const actionResponse = proxy(action);
+    expect(actionResponse.status).toBe(404);
+    expect(actionResponse.headers.get('x-nextjs-action-not-found')).toBe('1');
+  });
+
   it('sets the desktop cookie on a document and blocks a cross-site API call', () => {
     process.env.CHORDMINI_DESKTOP_MODE = '1';
     process.env.CHORDMINI_DESKTOP_COOKIE = 'desktop-cookie-value';

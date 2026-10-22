@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { sanitizeDiagnostic } from './diagnostics';
+import { sanitizeDiagnostic, secretsFromEnv } from './diagnostics';
 import { startOwnedServer, stopOwnedServer, type OwnedServer } from './ownedServer';
 import { prepareStandalone } from './prepareStandalone';
 import {
@@ -15,9 +15,15 @@ const repoRoot = path.join(__dirname, '..', '..');
 let owned: OwnedServer | null = null;
 let quitting = false;
 
+function diagnosticSecrets(): string[] {
+  return [
+    ...(owned ? [owned.readyToken, owned.cookieToken] : []),
+    ...secretsFromEnv(process.env),
+  ];
+}
+
 function writeDiagnostic(message: string): void {
-  const secrets = owned ? [owned.readyToken, owned.cookieToken] : [];
-  const line = sanitizeDiagnostic(message, secrets);
+  const line = sanitizeDiagnostic(message, diagnosticSecrets());
   try {
     const logPath = path.join(app.getPath('userData'), 'desktop.log');
     fs.mkdirSync(path.dirname(logPath), { recursive: true });
@@ -29,8 +35,20 @@ function writeDiagnostic(message: string): void {
 
 function showStartupFailure(error: unknown): void {
   const message = error instanceof Error ? error.message : 'The desktop shell failed to start.';
-  const safe = sanitizeDiagnostic(message, owned ? [owned.readyToken, owned.cookieToken] : []).slice(0, 2000);
+  const safe = sanitizeDiagnostic(message, diagnosticSecrets()).slice(0, 2000);
   writeDiagnostic(safe);
+  const diagnosticFile = process.env.CHORDMINI_DESKTOP_DIAGNOSTIC_FILE;
+  if (diagnosticFile) {
+    try {
+      fs.mkdirSync(path.dirname(diagnosticFile), { recursive: true });
+      fs.writeFileSync(diagnosticFile, safe);
+    } catch {
+      // The dialog remains the user-facing report.
+    }
+  }
+  if (process.env.CHORDMINI_SKIP_ERROR_DIALOG === '1') {
+    return;
+  }
   dialog.showErrorBox('ChordMini could not start', safe);
 }
 
@@ -98,7 +116,7 @@ if (instance === 'quit') {
     }
     event.preventDefault();
     quitting = true;
-    void shutdownOwnedServer().finally(() => {
+    void shutdownOwnedServer().catch(() => undefined).finally(() => {
       app.quit();
     });
   });

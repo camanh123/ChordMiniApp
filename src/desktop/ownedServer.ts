@@ -3,7 +3,7 @@ import fs from 'fs';
 import net from 'net';
 import path from 'path';
 import { promisify } from 'util';
-import { sanitizeDiagnostic } from './diagnostics';
+import { sanitizeDiagnostic, secretsFromEnv } from './diagnostics';
 import { createDesktopSecret, createReadyNonce, readyProofMatches } from './readyProof';
 
 const execFileAsync = promisify(execFile);
@@ -94,25 +94,8 @@ function delay(ms: number): Promise<void> {
   });
 }
 
-const DIAGNOSTIC_SECRET_KEYS = [
-  'PYTHON_API_URL',
-  'SONGFORMER_API_URL',
-  'SHEETSAGE_API_URL',
-  'FIREBASE_SERVICE_ACCOUNT_KEY',
-  'GEMINI_API_KEY',
-  'GENIUS_API_KEY',
-  'MUSIC_AI_API_KEY',
-  'CRON_SECRET',
-  'CHORDMINI_READY_TOKEN',
-  'CHORDMINI_DESKTOP_COOKIE',
-] as const;
-
 function diagnosticSecrets(env: NodeJS.ProcessEnv, tokens: readonly string[]): string[] {
-  const values = DIAGNOSTIC_SECRET_KEYS.flatMap((key) => {
-    const value = env[key];
-    return value ? [value] : [];
-  });
-  return [...tokens, ...values];
+  return [...tokens, ...secretsFromEnv(env)];
 }
 
 function buildChildEnv(
@@ -276,7 +259,15 @@ export async function stopOwnedServer(
   try {
     if (plan.kind === 'taskkill') {
       const execFileImpl = options.execFileImpl ?? ((command, args) => execFileAsync(command, args));
-      await execFileImpl(plan.command, plan.args);
+      try {
+        await execFileImpl(plan.command, plan.args);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const alreadyGone = /not found|no running instance|no such process/i.test(message);
+        if (!alreadyGone) {
+          throw error;
+        }
+      }
       return;
     }
 

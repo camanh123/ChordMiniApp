@@ -1,0 +1,65 @@
+name: Windows Electron acceptance
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - cursor/phase-2a-electron-shell-393f
+  pull_request:
+    branches:
+      - cursor/phase-1-runtime-foundation-393f
+      - main
+    paths:
+      - 'electron/**'
+      - 'src/desktop/**'
+      - 'src/app/api/desktop/**'
+      - 'src/proxy.ts'
+      - 'scripts/windows-electron-acceptance.mjs'
+      - '.github/workflows/windows-electron.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - '__tests__/unit/desktop/**'
+      - '__tests__/fixtures/desktopReadyServer.cjs'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-electron:
+    name: Windows Electron acceptance
+    runs-on: windows-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js standalone server
+        run: npm run build
+
+      - name: Compile Electron main process
+        run: npm run desktop:compile
+
+      - name: Desktop Jest tests
+        run: npx jest __tests__/unit/desktop --runInBand --forceExit
+
+      - name: Launch the Windows Electron binary
+        run: node scripts/windows-electron-acceptance.mjs
+
+      - name: Upload Windows acceptance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-electron-acceptance
+          path: windows-electron-artifacts/
+          retention-days: 14
+          if-no-files-found: warn
