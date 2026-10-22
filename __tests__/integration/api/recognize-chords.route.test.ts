@@ -83,6 +83,9 @@ describe('POST /api/recognize-chords', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...originalEnv };
+    delete process.env.CHORDMINI_INFERENCE_AUTH;
+    delete process.env.CHORDMINI_INFERENCE_SECRET;
+    delete process.env.CHORDMINI_DESKTOP_MODE;
     global.fetch = fetchMock as any;
     mockCreateSafeTimeoutSignal.mockReturnValue(new AbortController().signal);
     mockGetAudioDurationFromFile.mockResolvedValue(87.4);

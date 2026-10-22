@@ -7,6 +7,14 @@ import {
   analysisServiceGateResponse,
   desktopAnalysisConnectionResponse,
 } from '@/server/analysisServiceAvailability';
+import {
+  formDataForDetectorRetry,
+  inferenceForwardPlan,
+  redactInferenceSecret,
+  scrubInferencePayload,
+  stripUntrustedInferenceFields,
+  upstreamAuthFailure,
+} from '@/server/inferenceUpstream';
 
 /**
  * Beat Detection API Route
@@ -79,62 +87,56 @@ export async function POST(request: NextRequest) {
 
     const abortSignal = createSafeTimeoutSignal(timeoutValue);
 
-    // Log detailed request information
-    const targetUrl = `${backendUrl}/api/detect-beats`;
-    console.log(`🚀 Forwarding beat detection request to: ${targetUrl}`);
-    console.log(`📁 FormData contents:`);
-    for (const [key, value] of formData.entries()) {
-      if (value instanceof File) {
-        console.log(`  - ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
-      } else {
-        console.log(`  - ${key}: ${value}`);
-      }
+    stripUntrustedInferenceFields(formData);
+    const forward = inferenceForwardPlan();
+    if (!forward.ok) {
+      return NextResponse.json(forward.body, { status: forward.status });
     }
 
-    // Forward the request to the backend with extended timeout
+    const targetUrl = `${backendUrl}/api/detect-beats`;
+    console.log(`🚀 Forwarding beat detection request to: ${targetUrl}`);
+
     console.log(`📡 Making fetch request to Python backend...`);
     const requestedDetector = (formData.get('detector') as string) || 'madmom';
     let response = await fetch(targetUrl, {
       method: 'POST',
       body: formData,
-      headers: {
-        // Don't set Content-Type - let the browser set it with boundary for FormData
-      },
+      headers: forward.headers,
       signal: abortSignal,
     });
 
     console.log(`📊 Python backend response: ${response.status} ${response.statusText}`);
-    console.log(`📋 Response headers:`, Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       let errorText = await response.text();
-      console.error(`❌ Backend beat detection failed: ${response.status} ${response.statusText} - ${errorText}`);
+      const authFailure = upstreamAuthFailure(response.status, errorText);
+      if (authFailure) {
+        return NextResponse.json(authFailure.body, { status: authFailure.status });
+      }
+      console.error(`❌ Backend beat detection failed: ${response.status} ${response.statusText}`);
 
       // Retry with madmom if Beat-Transformer checkpoint is unavailable
       const isCheckpointError = errorText.includes("Can't load save_path") || errorText.includes('Beat Transformer is not available');
       if (requestedDetector === 'beat-transformer' && isCheckpointError) {
         console.warn('⚠️ Beat-Transformer checkpoint unavailable. Retrying with madmom...');
-        const fd = new FormData();
-        for (const [k, v] of formData.entries()) {
-          if (k === 'detector') continue;
-          if (typeof v === 'string') {
-            fd.append(k, v);
-          } else if (v instanceof File) {
-            fd.append(k, v, v.name ?? undefined);
-          } else {
-            // Fallback: append as Blob
-            fd.append(k, v as Blob);
-          }
-        }
-        fd.append('detector', 'madmom');
-        response = await fetch(targetUrl, { method: 'POST', body: fd, signal: abortSignal });
+        const fd = formDataForDetectorRetry(formData, 'madmom');
+        response = await fetch(targetUrl, {
+          method: 'POST',
+          body: fd,
+          headers: forward.headers,
+          signal: abortSignal,
+        });
         if (!response.ok) {
           errorText = await response.text();
-          console.error(`❌ Fallback to madmom also failed: ${response.status} ${response.statusText} - ${errorText}`);
+          const fallbackAuthFailure = upstreamAuthFailure(response.status, errorText);
+          if (fallbackAuthFailure) {
+            return NextResponse.json(fallbackAuthFailure.body, { status: fallbackAuthFailure.status });
+          }
+          console.error(`❌ Fallback to madmom also failed: ${response.status} ${response.statusText}`);
         } else {
           const result = await response.json();
           console.log(`✅ Beat detection successful after fallback to madmom`);
-          return NextResponse.json(result);
+          return NextResponse.json(scrubInferencePayload(result));
         }
       }
 
@@ -154,8 +156,6 @@ export async function POST(request: NextRequest) {
       // Check if this is a 403 error - likely port conflict or backend unavailable
       if (response.status === 403) {
         console.error(`❌ Beat detection API returned 403 Forbidden`);
-        console.error(`📄 Error response: ${errorText}`);
-        console.error(`📋 Response headers:`, Object.fromEntries(response.headers.entries()));
 
         // Check if this is Apple AirTunes intercepting port 5000
         const serverHeader = response.headers.get('server');
@@ -198,17 +198,18 @@ export async function POST(request: NextRequest) {
     const result = await response.json();
     console.log(`✅ Beat detection successful`);
 
-    return NextResponse.json(result);
+    return NextResponse.json(scrubInferencePayload(result));
 
   } catch (error: unknown) {
-    console.error('❌ Beat detection API error:', error);
+    const safeError = redactInferenceSecret(error instanceof Error ? error.message : String(error));
+    console.error('❌ Beat detection API error:', safeError);
 
     const connectionFailure = desktopAnalysisConnectionResponse(error);
     if (connectionFailure) {
       return connectionFailure;
     }
 
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = safeError;
     
     // Handle timeout errors specifically
     if (errorMessage.includes('timeout') || errorMessage.includes('aborted')) {

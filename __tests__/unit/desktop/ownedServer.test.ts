@@ -172,12 +172,18 @@ describe('owned Next.js server lifecycle', () => {
     const envFile = path.join(dir, 'env.json');
     const owned = await startOwnedServer({
       serverEntry: FIXTURE,
-      parentEnv: { ...process.env, PYTHON_API_URL: BACKEND },
+      parentEnv: {
+        ...process.env,
+        PYTHON_API_URL: BACKEND,
+        CHORDMINI_INFERENCE_SECRET: 'parent-inference-secret-0123456789abcdef',
+        NEXT_PUBLIC_CHORDMINI_INFERENCE_SECRET: 'public-inference-secret-0123456789abcdef',
+      },
       extraEnv: {
         HOSTNAME: '0.0.0.0',
         CHORDMINI_TEST_GRANDCHILD: '1',
         CHORDMINI_TEST_PIDFILE: pidFile,
         CHORDMINI_TEST_ENVFILE: envFile,
+        CHORDMINI_INFERENCE_SECRET: 'extra-inference-secret-0123456789abcdef',
       },
       timeoutMs: 8000,
       intervalMs: 40,
@@ -191,6 +197,7 @@ describe('owned Next.js server lifecycle', () => {
         desktopMode: string;
         electronRunAsNode: string;
         hasPythonUrl: boolean;
+        hasInferenceSecret: boolean;
       };
       expect(recorded).toEqual({
         hostname: '127.0.0.1',
@@ -198,8 +205,11 @@ describe('owned Next.js server lifecycle', () => {
         desktopMode: '1',
         electronRunAsNode: '',
         hasPythonUrl: true,
+        hasInferenceSecret: false,
       });
       expect(JSON.stringify(recorded)).not.toContain(BACKEND);
+      expect(JSON.stringify(recorded)).not.toContain('parent-inference-secret');
+      expect(JSON.stringify(recorded)).not.toContain('public-inference-secret');
       expect(owned.origin).toBe(`http://127.0.0.1:${owned.port}`);
 
       const grandchildPid = Number(fs.readFileSync(pidFile, 'utf8'));
@@ -267,8 +277,15 @@ describe('owned Next.js server lifecycle', () => {
 
     await expect(startOwnedServer({
       serverEntry: FIXTURE,
-      parentEnv: { ...process.env, PYTHON_API_URL: BACKEND },
-      extraEnv: { CHORDMINI_TEST_LEAK: '1' },
+      parentEnv: {
+        ...process.env,
+        PYTHON_API_URL: BACKEND,
+        CHORDMINI_INFERENCE_SECRET: 'leak-inference-secret-0123456789abcdef',
+      },
+      extraEnv: {
+        CHORDMINI_TEST_LEAK: '1',
+        CHORDMINI_INFERENCE_SECRET: 'leak-inference-secret-0123456789abcdef',
+      },
       timeoutMs: 2000,
       intervalMs: 20,
       maxAttempts: 1,
@@ -277,8 +294,15 @@ describe('owned Next.js server lifecycle', () => {
     try {
       await startOwnedServer({
         serverEntry: FIXTURE,
-        parentEnv: { ...process.env, PYTHON_API_URL: BACKEND },
-        extraEnv: { CHORDMINI_TEST_LEAK: '1' },
+        parentEnv: {
+          ...process.env,
+          PYTHON_API_URL: BACKEND,
+          CHORDMINI_INFERENCE_SECRET: 'leak-inference-secret-0123456789abcdef',
+        },
+        extraEnv: {
+          CHORDMINI_TEST_LEAK: '1',
+          CHORDMINI_INFERENCE_SECRET: 'leak-inference-secret-0123456789abcdef',
+        },
         timeoutMs: 2000,
         intervalMs: 20,
         maxAttempts: 1,
@@ -287,6 +311,7 @@ describe('owned Next.js server lifecycle', () => {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       expect(message).not.toContain(BACKEND);
+      expect(message).not.toContain('leak-inference-secret-0123456789abcdef');
       expect(message).not.toContain('private-token-value');
       expect(message).not.toMatch(/CHORDMINI_READY_TOKEN=[0-9a-f]{16,}/);
     }

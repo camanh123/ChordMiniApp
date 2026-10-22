@@ -77,8 +77,15 @@ const makeResponse = ({
 });
 
 describe('POST /api/detect-beats', () => {
+  const originalAuth = process.env.CHORDMINI_INFERENCE_AUTH;
+  const originalSecret = process.env.CHORDMINI_INFERENCE_SECRET;
+  const originalDesktop = process.env.CHORDMINI_DESKTOP_MODE;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.CHORDMINI_INFERENCE_AUTH;
+    delete process.env.CHORDMINI_INFERENCE_SECRET;
+    delete process.env.CHORDMINI_DESKTOP_MODE;
     global.fetch = fetchMock as any;
     mockCreateSafeTimeoutSignal.mockReturnValue(new AbortController().signal);
     mockGetAudioDurationFromFile.mockResolvedValue(42.1);
@@ -90,6 +97,15 @@ describe('POST /api/detect-beats', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  afterAll(() => {
+    if (originalAuth === undefined) delete process.env.CHORDMINI_INFERENCE_AUTH;
+    else process.env.CHORDMINI_INFERENCE_AUTH = originalAuth;
+    if (originalSecret === undefined) delete process.env.CHORDMINI_INFERENCE_SECRET;
+    else process.env.CHORDMINI_INFERENCE_SECRET = originalSecret;
+    if (originalDesktop === undefined) delete process.env.CHORDMINI_DESKTOP_MODE;
+    else process.env.CHORDMINI_DESKTOP_MODE = originalDesktop;
   });
 
   it('returns 400 when the request has no audio file', async () => {

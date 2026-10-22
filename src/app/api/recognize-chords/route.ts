@@ -7,6 +7,13 @@ import {
   analysisServiceGateResponse,
   desktopAnalysisConnectionResponse,
 } from '@/server/analysisServiceAvailability';
+import {
+  inferenceForwardPlan,
+  redactInferenceSecret,
+  scrubInferencePayload,
+  stripUntrustedInferenceFields,
+  upstreamAuthFailure,
+} from '@/server/inferenceUpstream';
 
 
 
@@ -92,37 +99,32 @@ export async function POST(request: NextRequest) {
 
     const abortSignal = createSafeTimeoutSignal(timeoutValue);
 
-    // Log detailed request information
-    const targetUrl = `${backendUrl}/api/recognize-chords`;
-    console.log(`🚀 Forwarding chord recognition request to: ${targetUrl}`);
-    console.log(`📁 FormData contents:`);
-    for (const [key, value] of formData.entries()) {
-      if (value instanceof File) {
-        console.log(`  - ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
-      } else {
-        console.log(`  - ${key}: ${value}`);
-      }
+    stripUntrustedInferenceFields(formData);
+    const forward = inferenceForwardPlan();
+    if (!forward.ok) {
+      return NextResponse.json(forward.body, { status: forward.status });
     }
 
-    // Forward the request to the backend with extended timeout
+    const targetUrl = `${backendUrl}/api/recognize-chords`;
+    console.log(`🚀 Forwarding chord recognition request to: ${targetUrl}`);
+
     console.log(`📡 Making fetch request to Python backend...`);
     const response = await fetch(targetUrl, {
       method: 'POST',
       body: formData,
-      headers: {
-        // Don't set Content-Type - let the browser set it with boundary for FormData
-      },
+      headers: forward.headers,
       signal: abortSignal,
     });
 
     console.log(`📊 Python backend response: ${response.status} ${response.statusText}`);
-    console.log(`📋 Response headers:`, Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
+      const authFailure = upstreamAuthFailure(response.status, errorText);
+      if (authFailure) {
+        return NextResponse.json(authFailure.body, { status: authFailure.status });
+      }
       console.error(`❌ Backend chord recognition failed: ${response.status} ${response.statusText}`);
-      console.error(`📄 Error response body: ${errorText}`);
-      console.error(`🔍 Request details: ${targetUrl} with ${formData.get('file') ? 'file' : 'no file'} and model: ${formData.get('model')}`);
 
       // Check if this is a 413 error (payload too large)
       if (response.status === 413) {
@@ -140,8 +142,6 @@ export async function POST(request: NextRequest) {
       // Check if this is a 403 error - likely port conflict or backend unavailable
       if (response.status === 403) {
         console.error(`❌ Chord recognition API returned 403 Forbidden`);
-        console.error(`📄 Error response: ${errorText}`);
-        console.error(`📋 Response headers:`, Object.fromEntries(response.headers.entries()));
 
         // Check if this is Apple AirTunes intercepting port 5000
         const serverHeader = response.headers.get('server');
@@ -184,16 +184,17 @@ export async function POST(request: NextRequest) {
     const result = await response.json();
     console.log(`✅ Chord recognition successful`);
 
-    return NextResponse.json(result);
+    return NextResponse.json(scrubInferencePayload(result));
   } catch (error) {
-    console.error('Error recognizing chords:', error);
+    const safeError = redactInferenceSecret(error instanceof Error ? error.message : String(error));
+    console.error('Error recognizing chords:', safeError);
 
     const connectionFailure = desktopAnalysisConnectionResponse(error);
     if (connectionFailure) {
       return connectionFailure;
     }
 
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = safeError;
 
     // Handle timeout errors specifically
     if (errorMessage.includes('timeout') || errorMessage.includes('aborted')) {
@@ -213,7 +214,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error recognizing chords',
+        error: safeError || 'Unknown error recognizing chords',
       },
       { status: 500 }
     );

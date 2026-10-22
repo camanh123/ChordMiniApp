@@ -4,6 +4,7 @@ import net from 'net';
 import path from 'path';
 import { promisify } from 'util';
 import { sanitizeDiagnostic, secretsFromEnv } from './diagnostics';
+import { omitDesktopInferenceSecret } from './inferenceBoundary';
 import { createDesktopSecret, createReadyNonce, readyProofMatches } from './readyProof';
 
 const execFileAsync = promisify(execFile);
@@ -106,7 +107,7 @@ function buildChildEnv(
   extraEnv: NodeJS.ProcessEnv | undefined,
   runningInElectron: boolean,
 ): NodeJS.ProcessEnv {
-  return {
+  return omitDesktopInferenceSecret({
     ...parentEnv,
     ...extraEnv,
     HOSTNAME: LOOPBACK_HOST,
@@ -116,7 +117,7 @@ function buildChildEnv(
     CHORDMINI_READY_TOKEN: readyToken,
     CHORDMINI_DESKTOP_COOKIE: cookieToken,
     ...(runningInElectron ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
-  };
+  });
 }
 
 async function waitForOwnedReady(
