@@ -280,7 +280,7 @@ function httpRequest(options, headers) {
 
 function writeWav(file) {
   const sampleRate = 8000;
-  const samples = sampleRate * 2;
+  const samples = sampleRate * 8;
   const dataSize = samples * 2;
   const buffer = Buffer.alloc(44 + dataSize);
   buffer.write('RIFF', 0);
@@ -945,9 +945,19 @@ async function main() {
             return Boolean(audio && Math.abs(audio.playbackRate - 1.5) < 0.01);
           }, undefined, { timeout: 5000 });
         }
+        await window.waitForFunction(() => {
+          const audio = document.querySelector('audio');
+          return Boolean(audio && audio.currentTime > 1);
+        }, undefined, { timeout: 8000 });
         const beforeSeek = await window.evaluate(() => document.querySelector('audio')?.currentTime ?? 0);
-        await window.getByRole('slider', { name: 'Vị trí phát' }).focus();
-        await window.keyboard.press('Home');
+        await window.screenshot({ path: path.join(artifactDir, 'packaged-playback.png') });
+        const thumb = window.getByRole('slider', { name: 'Vị trí phát' });
+        const track = thumb.locator('xpath=ancestor::*[@data-slot="track"][1]');
+        const box = await track.boundingBox();
+        if (!box || beforeSeek <= 0.5) {
+          throw new Error(`playback seek not ready time=${beforeSeek} box=${Boolean(box)}`);
+        }
+        await window.mouse.click(box.x + Math.min(8, box.width * 0.03), box.y + box.height / 2);
         await window.waitForFunction((previous) => {
           const audio = document.querySelector('audio');
           return Boolean(audio && audio.currentTime + 0.05 < previous);

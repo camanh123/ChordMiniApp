@@ -114,8 +114,13 @@ const HeroUIBeatModelSelector = ({
     return () => window.clearTimeout(timer);
   }, [availableModels, onChange, selectedModel]);
 
+  const describeBeat = (id: ModelType, fallback: string) => {
+    if (id === 'madmom') return t('models.madmom');
+    if (id === 'beat-transformer') return t('models.beatTransformer');
+    return fallback;
+  };
   const selectedModelObject = modelOptions.find(model => model.id === selectedModel);
-  const baseDescription = selectedModelObject?.description || t('models.beatHelp');
+  const baseDescription = describeBeat(selectedModel, selectedModelObject?.description || t('models.beatHelp'));
   const selectedModelDescription = isFetching && !modelInfo
     ? t('models.beatLoading', { description: baseDescription })
     : baseDescription;
@@ -166,7 +171,7 @@ const HeroUIBeatModelSelector = ({
           <SelectItem
             key={model.id}
             startContent={getModelIcon(model.id)}
-            description={model.description}
+            description={describeBeat(model.id, model.description)}
             className="text-left"
             textValue={model.name}
           >

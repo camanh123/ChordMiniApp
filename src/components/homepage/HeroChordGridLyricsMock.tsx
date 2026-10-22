@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Tooltip } from '@heroui/react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useI18n } from '@/i18n/I18nProvider';
 
 // ─── Chord Grid Data (8 measures, 2 rows, key change C→D) ──────────────────
 
@@ -48,6 +49,7 @@ interface Props { className?: string }
 
 export default function HeroChordGridLyricsMock({ className = '' }: Props) {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const isDark = theme === 'dark';
   const [isHovered, setIsHovered] = useState(false);
   const [beat, setBeat] = useState(0);
@@ -87,10 +89,10 @@ export default function HeroChordGridLyricsMock({ className = '' }: Props) {
       {/* Header */}
       <div className="flex flex-wrap justify-between items-center mb-2 gap-2">
         <h4 className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-          Chord Progression &amp; Lyrics
+          {t('features.progressionAndLyrics')}
         </h4>
         <div className="flex items-center gap-2">
-          <Tooltip content="Toggle Roman Numeral Analysis" placement="top">
+          <Tooltip content={t('features.romanTip')} placement="top">
             <button
               onClick={() => setShowRoman(v => !v)}
               className={`rounded-lg px-2 py-0.5 text-xs font-medium border transition-colors cursor-pointer ${
@@ -98,7 +100,7 @@ export default function HeroChordGridLyricsMock({ className = '' }: Props) {
                   ? isDark ? 'bg-purple-800/40 border-purple-400 text-purple-100' : 'bg-purple-50 border-purple-300 text-purple-800'
                   : isDark ? 'bg-gray-700/40 border-gray-500 text-gray-400' : 'bg-gray-50 border-gray-300 text-gray-500'
               }`}
-            >Roman</button>
+            >{t('features.roman')}</button>
           </Tooltip>
           <span className={`rounded-lg px-2 py-0.5 text-xs font-medium ${
             isDark ? 'bg-blue-800/40 border border-blue-400 text-blue-50' : 'bg-blue-50 border border-blue-200 text-blue-800'
@@ -163,7 +165,7 @@ export default function HeroChordGridLyricsMock({ className = '' }: Props) {
 
                   if (isModulationCell) {
                     return (
-                      <Tooltip key={bIdx} content="Key change: C Major → D Major" placement="top" size="sm">
+                      <Tooltip key={bIdx} content={t('features.keyChange', { from: 'C Major', to: 'D Major' })} placement="top" size="sm">
                         {cell}
                       </Tooltip>
                     );
