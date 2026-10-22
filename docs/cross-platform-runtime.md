@@ -1,6 +1,6 @@
 # Cross-platform runtime foundation
 
-Phase 1 records how ChordMini chooses a shell and how every shell reaches the existing analysis API. It does not add Electron, Capacitor, an installer, or a service worker.
+Phase 1 records how ChordMini chooses a shell and how every shell reaches the existing analysis API. Phase 2A adds the Electron window that hosts the existing Next.js server. This document does not add Capacitor, an installer, or a service worker.
 
 ## Runtime contract
 
@@ -27,24 +27,37 @@ Browser and Electron renderer code keep calling the existing same-origin routes 
 | Platform | Who serves the UI | Who runs Flask |
 | --- | --- | --- |
 | Web | Hosted Next.js | The private `PYTHON_API_URL` configured on that server |
-| Electron, Phase 2 | Loopback Next.js standalone process | The same remote Flask URL, injected into the Node process only |
+| Electron, Phase 2A | Loopback Next.js standalone process | The same remote Flask URL, injected into the Node process only when it is already configured |
 | iPad PWA, Phase 4 | The existing hosted Next.js origin | That origin's `/api/*` routes, which proxy to the remote Flask URL |
 
 No shell receives Firebase Admin credentials, Gemini, Genius, Music.ai, or the Python URL in renderer code.
 
 ## Phase 2 — Windows Electron
 
-Do not implement this in Phase 1. The future shell must:
+Phase 2A adds the Electron shell. It does not add an NSIS installer, a Windows CI job, or offline analysis.
 
-- Bind the Next.js standalone server to `127.0.0.1` only. Do not bind `0.0.0.0` or a LAN address.
-- Choose an ephemeral free port on that loopback interface and pass it to the server.
-- Wait until `GET /api/health` succeeds before showing the window.
-- On quit, stop the Node process and any `yt-dlp` or `ffmpeg` children it spawned.
-- Copy `public` and `.next/static` next to the standalone `server.js`, matching the frontend Dockerfile.
-- Keep `PYTHON_API_URL` in the Node process environment. Do not place it in the Electron renderer or in `NEXT_PUBLIC_*`.
-- Do not ship `.env` secrets, Firebase Admin JSON, or Python model checkpoints in the Phase 2 installer. Analysis stays on the current remote Flask service.
+The shell entry is `electron/main.cjs`. `npm run desktop:compile` writes `electron/dist`, and `npm run desktop` launches that main process. There is no preload script. The window is created with `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, and `webSecurity: true`.
 
-`getLoopbackServerPlan()` in `src/runtime/packagingContract.ts` records the host and health path. It does not open a socket.
+The main process starts `.next/standalone/server.js` as a child. `HOSTNAME` is forced to `127.0.0.1` and `PORT` is an ephemeral loopback port. The port is reserved with an exclusive listen and then released; a process that wins the race cannot satisfy the readiness proof. The window opens only after `GET /api/desktop/ready` returns a proof of `sha256(ready token + ":" + nonce)`. `/api/health` still proxies to Flask, so a missing analysis backend does not block the window. `getLoopbackServerPlan()` still records `/api/health` as the Flask probe from Phase 1.
+
+On quit, Linux sends `SIGTERM` and then `SIGKILL` to the owned process group. Windows uses `taskkill /PID <pid> /T /F`. The shell refuses to signal pid 1 or its own pid. A second launch quits and asks the first instance to focus its window.
+
+Before static files are served, `public` and `.next/static` are copied next to the standalone server. The copy skips `.env` files and any `python_backend` directory. `PYTHON_API_URL` is forwarded only in the Node child environment when it is already set. Startup failures are shown in a dialog and appended to `desktop.log` after secret values are redacted.
+
+Desktop mode (`CHORDMINI_DESKTOP_MODE=1`) rejects a Host other than `127.0.0.1`, `Sec-Fetch-Site` values other than `none` or `same-origin`, and an `Origin` that is not the exact loopback origin. Document navigations set an HttpOnly `SameSite=Strict` cookie. Other routes require that cookie. `/api/desktop/ready` is the exception and relies on the proof header. The production website leaves this gate bypassed. A non-browser process on the same machine can still open a TCP connection to the loopback port; it does not receive the cookie or the ready token.
+
+### Windows CI plan
+
+These checks were not executed in the Linux cloud agent. A `windows-latest` job should:
+
+1. Run `npm ci`, `npm run build`, and `npm run desktop:compile`.
+2. Run `npx jest __tests__/unit/desktop --runInBand`.
+3. Launch `npx electron electron/main.cjs` and confirm the window loads `http://127.0.0.1:<port>/`.
+4. Launch a second process and confirm it exits while the first window focuses.
+5. Quit and confirm the server pid and its descendant processes are gone.
+6. Confirm `taskkill /T` is the cleanup command and that YouTube embeds and `ffmpeg.wasm` still work with `sandbox: true`.
+
+A passing Linux process-lifecycle test is not a Windows pass.
 
 ## Phase 4 — iPad PWA
 
