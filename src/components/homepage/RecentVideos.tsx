@@ -10,6 +10,7 @@ import {
   ALL_KEYS_VALUE,
   RECENT_VIDEOS_PAGE_SIZE,
 } from '@/services/query/recentVideos';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const KEY_OPTIONS = [
   { value: ALL_KEYS_VALUE, label: 'All Keys' },
@@ -40,6 +41,7 @@ const KEY_OPTIONS = [
 ];
 
 export default function RecentVideos() {
+  const { t } = useI18n();
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedKey, setSelectedKey] = useState(ALL_KEYS_VALUE);
 
@@ -102,7 +104,7 @@ export default function RecentVideos() {
         ? usageCount
         : 0;
 
-    return `${normalizedUsageCount} use${normalizedUsageCount === 1 ? '' : 's'}`;
+    return t(normalizedUsageCount === 1 ? 'home.useOne' : 'home.uses', { count: normalizedUsageCount });
   };
 
   const selectedKeyLabel = KEY_OPTIONS.find((option) => option.value === selectedKey)?.label ?? selectedKey;
@@ -110,15 +112,15 @@ export default function RecentVideos() {
   const renderHeader = (status: React.ReactNode) => (
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Recently Transcribed Songs</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('home.recentSongs')}</h3>
           {status}
         </div>
         <div className="flex items-center gap-2 md:min-w-[250px]">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Key
+            {t('home.keyWord')}
           </span>
           <Select
-            aria-label="Filter recent analyses by key"
+            aria-label={t('home.filterKey')}
             selectedKeys={[selectedKey]}
             onSelectionChange={(keys) => {
               if (keys === 'all') return;
@@ -136,11 +138,14 @@ export default function RecentVideos() {
             color="default"
             disallowEmptySelection
           >
-            {KEY_OPTIONS.map((option) => (
-              <SelectItem key={option.value} textValue={option.label}>
-                {option.label}
+            {KEY_OPTIONS.map((option) => {
+              const label = option.value === ALL_KEYS_VALUE ? t('home.allKeys') : option.label;
+              return (
+              <SelectItem key={option.value} textValue={label}>
+                {label}
               </SelectItem>
-            ))}
+              );
+            })}
           </Select>
         </div>
       </div>
@@ -149,7 +154,7 @@ export default function RecentVideos() {
   if (loading) {
     return (
       <div ref={containerRef} style={{ contentVisibility: 'auto', containIntrinsicSize: '384px' }} className="w-full">
-        {renderHeader(<Chip size="sm" variant="flat" color="default">Loading...</Chip>)}
+        {renderHeader(<Chip size="sm" variant="flat" color="default">{t('home.loading')}</Chip>)}
         <div className="max-h-96 overflow-y-auto scrollbar-thin">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(RECENT_VIDEOS_PAGE_SIZE)].map((_, index) => (
@@ -258,7 +263,7 @@ export default function RecentVideos() {
         {/* "Load More" button and loading indicator */}
         <div className="flex justify-center mt-6">
           {hasNextPage && !isFetchingNextPage && (
-            <Button onPress={() => void fetchNextPage()} color="primary" variant="flat">Load More</Button>
+            <Button onPress={() => void fetchNextPage()} color="primary" variant="flat">{t('home.loadMore')}</Button>
           )}
           {isFetchingNextPage && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">

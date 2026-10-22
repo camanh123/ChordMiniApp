@@ -68,6 +68,12 @@ The installed Windows app can play a selected local file without a chord result.
 
 In desktop mode, beat and chord routes check the analysis service before the long model request. A missing or loopback `PYTHON_API_URL` is probed briefly. If nothing is listening, the route returns `ANALYSIS_SERVICE_NOT_CONFIGURED` or `ANALYSIS_SERVICE_UNAVAILABLE` and does not invent chords or beats. The response does not include the service address. A loopback service that answers `/health` is still forwarded, so a developer running Flask is unchanged. Web deployments that are not in desktop mode keep the previous proxy behavior.
 
+## Phase I18N-01 — Offline interface languages
+
+The interface ships five dictionaries in `src/i18n/`: Vietnamese (`vi-VN`), English (`en-US`), Simplified Chinese (`zh-CN`), Japanese (`ja-JP`), and Korean (`ko-KR`). A fresh installation has no language cookie, so the server renders Vietnamese. Settings → Language changes the text immediately. The choice is stored in the `chordmini_locale` cookie (`Path=/`, `SameSite=Strict`, not tied to a port) and in `localStorage` for the same origin. Chord symbols, song titles, lyrics, note names, and model names stay as musical data.
+
+CJK text uses the operating-system fonts already on Windows (Microsoft YaHei, Yu Gothic, Malgun Gothic). Vietnamese uses the bundled DM Sans Latin Extended subset, with the system font filling any missing glyph. Nothing is fetched at runtime to translate the interface.
+
 ## Phase 4 — iPad PWA
 
 Do not implement this in Phase 1. The future PWA must:

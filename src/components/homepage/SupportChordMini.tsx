@@ -6,6 +6,7 @@ import { Button } from '@heroui/react';
 import { FaGithub, FaCoffee, FaStar } from 'react-icons/fa';
 import { HiSparkles, HiChevronDown, HiChevronUp } from 'react-icons/hi2';
 import { HiMail } from 'react-icons/hi';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const AnimatedBorderText = dynamic(() => import('@/components/homepage/AnimatedBorderText'), {
   loading: () => <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>,
@@ -13,6 +14,7 @@ const AnimatedBorderText = dynamic(() => import('@/components/homepage/AnimatedB
 });
 
 const SupportChordMini: React.FC = () => {
+  const { t } = useI18n();
   const [isExpanded, setIsExpanded] = useState(true);
   
   return (
@@ -28,7 +30,7 @@ const SupportChordMini: React.FC = () => {
             aria-controls="support-actions-content"
             type="button"
           >
-            <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">Support Actions</h4>
+            <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">{t('support.actions')}</h4>
             {isExpanded ? (
               <HiChevronUp className="w-5 h-5 text-gray-700 dark:text-gray-300" />
             ) : (
@@ -49,7 +51,7 @@ const SupportChordMini: React.FC = () => {
                 startContent={<FaStar className="w-4 h-4 text-yellow-500" />}
                 className="w-full justify-start text-sm text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300"
               >
-                Star on GitHub
+                {t('support.star')}
               </Button>
               <Button
                 as="a"
@@ -61,7 +63,7 @@ const SupportChordMini: React.FC = () => {
                 startContent={<FaGithub className="w-4 h-4" />}
                 className="w-full justify-start text-sm text-gray-800 dark:text-gray-200 hover:text-primary"
               >
-                Report Issues & Feedback
+                {t('support.issues')}
               </Button>
               <Button
                 as="a"
@@ -71,7 +73,7 @@ const SupportChordMini: React.FC = () => {
                 startContent={<HiMail className="w-4 h-4" />}
                 className="w-full justify-start text-sm text-gray-800 dark:text-gray-200 hover:text-primary"
               >
-                Contact Developer
+                {t('support.contact')}
               </Button>
               <Button
                 as="a"
@@ -83,7 +85,7 @@ const SupportChordMini: React.FC = () => {
                 startContent={<FaCoffee className="w-4 h-4" />}
                 className="w-full justify-start text-sm text-gray-800 dark:text-gray-200 hover:text-primary"
               >
-                Donation
+                {t('support.donation')}
               </Button>
             </div>
           )}
@@ -95,8 +97,8 @@ const SupportChordMini: React.FC = () => {
         <div className="flex items-start gap-3">
           <HiSparkles className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
           <div className="text-xs text-amber-700 dark:text-amber-200">
-            <p className="font-medium text-amber-800 dark:text-amber-100 mb-1">Research Project</p>
-            <p>ChordMini is part of research at California State University, Fullerton. Your support helps advance music technology research.</p>
+            <p className="font-medium text-amber-800 dark:text-amber-100 mb-1">{t('support.research')}</p>
+            <p>{t('support.researchBody')}</p>
           </div>
         </div>
       </div>

@@ -26,6 +26,59 @@ import AppTooltip from '@/components/common/AppTooltip';
 import { formatChordWithMusicalSymbols } from '@/utils/chordFormatting';
 import { defaultToastClassNames, mergeToastClassNames } from '@/utils/toastStyles';
 import { HiOutlineTrash } from 'react-icons/hi2';
+import { englishTranslator, useI18n, type MessageKey, type Translator } from '@/i18n';
+
+let activeTranslator: Translator = englishTranslator;
+
+function gt(key: MessageKey, vars?: Record<string, string | number>): string {
+  return activeTranslator(key, vars);
+}
+
+function withTranslator<T>(translator: Translator | undefined, run: () => T): T {
+  const previous = activeTranslator;
+  activeTranslator = translator ?? englishTranslator;
+  try {
+    return run();
+  } finally {
+    activeTranslator = previous;
+  }
+}
+
+const MAJOR_DEGREE_MESSAGE_KEYS = [
+  'games.degree.tonic',
+  'games.degree.supertonic',
+  'games.degree.mediant',
+  'games.degree.subdominant',
+  'games.degree.dominant',
+  'games.degree.submediant',
+  'games.degree.leadingTone',
+] as const;
+
+const MINOR_DEGREE_MESSAGE_KEYS = [
+  'games.degree.tonic',
+  'games.degree.supertonic',
+  'games.degree.mediant',
+  'games.degree.subdominant',
+  'games.degree.dominant',
+  'games.degree.submediant',
+  'games.degree.subtonic',
+] as const;
+
+function majorChordStatement(roman: string, keyName: string): string {
+  return gt('games.prompt.chordOfMajor', { roman, key: keyName });
+}
+
+function accidentCount(count: number, singular: string, plural: string): string {
+  return gt('games.prompt.countUnit', { count, unit: count === 1 ? singular : plural });
+}
+
+function namedInstrument(instrument: string): string {
+  if (instrument === 'composite') return gt('games.instrument.multiple');
+  if (instrument === 'piano' || instrument === 'guitar' || instrument === 'violin' || instrument === 'flute') {
+    return gt(`games.instrument.${instrument}` as MessageKey);
+  }
+  return instrument;
+}
 
 export interface MiniGamesContainerProps {
   layoutMode?: 'embed' | 'standalone';
@@ -273,9 +326,6 @@ const MELODIC_MINOR_SCALE_STEPS = [0, 2, 3, 5, 7, 9, 11];
 const MAJOR_KEY_QUALITIES = ['M', 'm', 'm', 'M', 'M', 'm', 'dim'] as const;
 const NATURAL_MINOR_KEY_QUALITIES = ['m', 'dim', 'M', 'm', 'm', 'M', 'M'] as const;
 const ROMAN_BASES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
-const SCALE_DEGREE_NAMES = ['tonic', 'supertonic', 'mediant', 'subdominant', 'dominant', 'submediant', 'leading tone'];
-const NATURAL_MINOR_DEGREE_NAMES = ['tonic', 'supertonic', 'mediant', 'subdominant', 'dominant', 'submediant', 'subtonic'];
-
 const CHORD_QUALITIES: Record<string, ChordQualitySpec> = {
   major: { suffix: '', qualityText: 'major', intervals: [0, 4, 7], labelDistractors: ['m', 'sus4', 'dim'] },
   minor: { suffix: 'm', qualityText: 'minor', intervals: [0, 3, 7], labelDistractors: ['', 'sus2', '7'] },
@@ -314,24 +364,24 @@ const EAR_PROGRESSIONS = [
 ];
 const EAR_QUALITY_KEYS = ['major', 'minor', 'dominant7', 'maj7', 'minor7', 'diminished', 'sus4'];
 
-const MINI_GAME_TABS: Array<[GameMode, string, string]> = [
-  ['quiz', 'Quiz', 'Short music theory questions: scales, chord labels, roman numerals, and tonicization.'],
-  ['ear', 'Ear', 'Play a reference sound, then identify scale degrees, progressions, or chord quality.'],
-  ['guitar', 'Guitar', 'Read the guitar chord diagram and choose the matching chord name.'],
-  ['xo', 'X/O', 'A quick single-player X/O board. You play X; O responds automatically.'],
-];
+const MINI_GAME_TABS = [
+  ['quiz', 'games.quiz', 'games.quizHelp'],
+  ['ear', 'games.ear', 'games.earHelp'],
+  ['guitar', 'games.guitar', 'games.guitarHelp'],
+  ['xo', 'games.xo', 'games.xoHelp'],
+] as const;
 
 const MINI_GAME_NOTICES = [
   {
     id: 'intro' as MiniGameNoticeId,
-    title: 'Mini Games While You Wait',
-    description: 'Play inside the empty analysis area while extraction or inference finishes.',
+    titleKey: 'games.noticeIntroTitle' as const,
+    bodyKey: 'games.noticeIntroBody' as const,
     color: 'primary' as const,
   },
   {
     id: 'modes' as MiniGameNoticeId,
-    title: 'Choose a Mode',
-    description: 'Quiz covers theory, Ear plays sounds, Guitar shows chord shapes, and X/O is a quick board game.',
+    titleKey: 'games.noticeModesTitle' as const,
+    bodyKey: 'games.noticeModesBody' as const,
     color: 'success' as const,
   },
 ];
@@ -559,10 +609,8 @@ function getScaleSteps(scaleType: ScaleType): number[] {
 }
 
 function getScaleDegreeNames(scaleType: ScaleType): string[] {
-  if (scaleType === 'natural minor' || scaleType === 'harmonic minor' || scaleType === 'melodic minor') {
-    return NATURAL_MINOR_DEGREE_NAMES;
-  }
-  return SCALE_DEGREE_NAMES;
+  const keys = scaleType === 'major' ? MAJOR_DEGREE_MESSAGE_KEYS : MINOR_DEGREE_MESSAGE_KEYS;
+  return keys.map((key) => gt(key));
 }
 
 function getScaleNotes(root: string, scaleType: ScaleType): string[] {
@@ -570,7 +618,14 @@ function getScaleNotes(root: string, scaleType: ScaleType): string[] {
 }
 
 function getScaleDisplayName(root: string, scaleType: ScaleType): string {
-  return `${getFormattedChordText(root)} ${scaleType}`;
+  const scaleLabel = scaleType === 'major'
+    ? gt('games.scale.major')
+    : scaleType === 'natural minor'
+      ? gt('games.scale.naturalMinor')
+      : scaleType === 'harmonic minor'
+        ? gt('games.scale.harmonicMinor')
+        : gt('games.scale.melodicMinor');
+  return `${getFormattedChordText(root)} ${scaleLabel}`;
 }
 
 function getChordLabel(root: string, quality: ChordQualitySpec, inversion?: string): string {
@@ -656,7 +711,7 @@ function createRandomScaleQuestion(): ScaleNoteQuizQuestion {
 
   return {
     type: 'scale',
-    prompt: `Degree ${degree} (${degreeName}) in ${getScaleDisplayName(tonic, scaleType)}`,
+    prompt: gt('games.prompt.degreeInScale', { degree, degreeName, scale: getScaleDisplayName(tonic, scaleType) }),
     tonic,
     scaleType,
     answer,
@@ -751,7 +806,7 @@ function createRandomDegreeQuestion(): ScaleDegreeQuizQuestion {
   const roman = getRomanForDegree(degree, quality, extensionKey);
   
   const isAllWrong = Math.random() < 0.25;
-  const answer = isAllWrong ? 'All are wrong' : `${roman} chord of ${key} major`;
+  const answer = isAllWrong ? gt('games.prompt.allWrong') : majorChordStatement(roman, key);
   
   const wrongCaseRoman = quality === 'm'
     ? roman.toUpperCase()
@@ -763,24 +818,24 @@ function createRandomDegreeQuestion(): ScaleDegreeQuizQuestion {
   if (isAllWrong) {
     const wrongDegree2 = ((degree + 3) % 7) + 1;
     allOptions = uniqueValues([
-      'All are wrong',
-      `${wrongCaseRoman} chord of ${key} major`,
-      `${getRomanForDegree(wrongDegree, MAJOR_KEY_QUALITIES[wrongDegree - 1], extensionKey)} chord of ${wrongKey} major`,
-      `${getRomanForDegree(wrongDegree2, MAJOR_KEY_QUALITIES[wrongDegree2 - 1], extensionKey)} chord of ${key} major`,
+      gt('games.prompt.allWrong'),
+      majorChordStatement(wrongCaseRoman, key),
+      majorChordStatement(getRomanForDegree(wrongDegree, MAJOR_KEY_QUALITIES[wrongDegree - 1], extensionKey), wrongKey),
+      majorChordStatement(getRomanForDegree(wrongDegree2, MAJOR_KEY_QUALITIES[wrongDegree2 - 1], extensionKey), key),
     ]);
   } else {
     allOptions = uniqueValues([
       answer,
-      `${wrongCaseRoman} chord of ${key} major`,
-      `${getRomanForDegree(wrongDegree, MAJOR_KEY_QUALITIES[wrongDegree - 1], extensionKey)} chord of ${wrongKey} major`,
-      'All are wrong',
+      majorChordStatement(wrongCaseRoman, key),
+      majorChordStatement(getRomanForDegree(wrongDegree, MAJOR_KEY_QUALITIES[wrongDegree - 1], extensionKey), wrongKey),
+      gt('games.prompt.allWrong'),
     ]);
   }
 
   return {
     type: 'degree',
     chord,
-    qualityText: `${getFormattedChordText(chord)} in ${key} major`,
+    qualityText: gt('games.prompt.chordInMajor', { chord: getFormattedChordText(chord), key }),
     answer,
     options: shuffleArray(allOptions).slice(0, 4),
     roman,
@@ -816,12 +871,12 @@ function createRandomSecondaryQuestion(): SecondaryDominantQuizQuestion {
       answer,
       `V7/${wrongTargetRoman} tonicizing ${wrongTargetRoman}`,
       `${getRomanForDegree(targetDegree, targetQuality, '7')} borrowed from ${key} minor`,
-      'No tonicization is present',
+      gt('games.noTonicization'),
     ]);
   } else {
     const subdominantChord = `${keyNotes[3]}${getDegreeChordSuffix(MAJOR_KEY_QUALITIES[3], 'triad', 4)}`;
     progression = [tonicChord, subdominantChord, targetChord, dominantChord, tonicChord];
-    answer = 'No tonicization is present';
+    answer = gt('games.noTonicization');
     allOptions = uniqueValues([
       answer,
       `V7/${targetRoman} tonicizing ${targetRoman}`,
@@ -1053,20 +1108,20 @@ function createRandomRelativeKeyQuestion(): RelativeKeyQuizQuestion {
 
   if (isMajorToMinor) {
     const formattedMajor = formatChordWithMusicalSymbols(pair.major).replace(/<[^>]*>/g, '');
-    const formattedMinor = formatChordWithMusicalSymbols(pair.minor).replace(/<[^>]*>/g, '') + ' minor';
-    prompt = `What is the relative minor of ${formattedMajor} major?`;
+    const formattedMinor = `${formatChordWithMusicalSymbols(pair.minor).replace(/<[^>]*>/g, '')} ${gt('games.minorWord')}`;
+    prompt = gt('games.prompt.relativeMinor', { key: formattedMajor });
     answer = formattedMinor;
     distractors = relativePairs
       .filter((p) => p.minor !== pair.minor)
-      .map((p) => formatChordWithMusicalSymbols(p.minor).replace(/<[^>]*>/g, '') + ' minor');
+      .map((p) => `${formatChordWithMusicalSymbols(p.minor).replace(/<[^>]*>/g, '')} ${gt('games.minorWord')}`);
   } else {
     const formattedMinor = formatChordWithMusicalSymbols(pair.minor).replace(/<[^>]*>/g, '');
-    const formattedMajor = formatChordWithMusicalSymbols(pair.major).replace(/<[^>]*>/g, '') + ' major';
-    prompt = `What is the relative major of ${formattedMinor} minor?`;
+    const formattedMajor = `${formatChordWithMusicalSymbols(pair.major).replace(/<[^>]*>/g, '')} ${gt('games.majorWord')}`;
+    prompt = gt('games.prompt.relativeMajor', { key: formattedMinor });
     answer = formattedMajor;
     distractors = relativePairs
       .filter((p) => p.major !== pair.major)
-      .map((p) => formatChordWithMusicalSymbols(p.major).replace(/<[^>]*>/g, '') + ' major');
+      .map((p) => `${formatChordWithMusicalSymbols(p.major).replace(/<[^>]*>/g, '')} ${gt('games.majorWord')}`);
   }
 
   return {
@@ -1131,16 +1186,16 @@ Hint: The sequence wraps around.`;
 
 /** Build a Part A question: "How many sharps/flats does X major have?" */
 function buildPartAQuestion(entry: { key: string; count: number }, type: 'sharp' | 'flat'): KeySignatureMnemonicPart {
-  const unit = type === 'sharp' ? 'sharp' : 'flat';
-  const unitPlural = type === 'sharp' ? 'sharps' : 'flats';
-  const answerStr = entry.count === 1 ? `1 ${unit}` : `${entry.count} ${unitPlural}`;
+  const unit = type === 'sharp' ? gt('games.sharp') : gt('games.flat');
+  const unitPlural = type === 'sharp' ? gt('games.sharps') : gt('games.flats');
+  const answerStr = accidentCount(entry.count, unit, unitPlural);
 
   // Generate 3 distractors from nearby counts (never negative, avoid duplicating the answer)
   const distractorCounts = [entry.count - 2, entry.count - 1, entry.count + 1, entry.count + 2]
     .filter((c) => c >= 0 && c !== entry.count);
   const distractorStrs = distractorCounts
     .slice(0, 3)
-    .map((c) => (c === 1 ? `1 ${unit}` : `${c} ${unitPlural}`));
+    .map((c) => accidentCount(c, unit, unitPlural));
 
   // Build explanation: show the mnemonic traversal
   const mnemonic = type === 'sharp' ? SHARP_MNEMONIC : FLAT_MNEMONIC;
@@ -1159,7 +1214,7 @@ function buildPartAQuestion(entry: { key: string; count: number }, type: 'sharp'
   const traversal = steps.length > 0 ? ` Starting from ${startNote}: ${steps.join(', ')}.` : '';
   const explanation = `${entry.key} major has ${answerStr}.${traversal}`;
 
-  return { prompt: `How many ${unitPlural} does ${entry.key} major have?`, answer: answerStr, options: [answerStr, ...distractorStrs], explanation };
+  return { prompt: gt('games.prompt.howMany', { unit: unitPlural, key: entry.key }), answer: answerStr, options: [answerStr, ...distractorStrs], explanation };
 }
 
 /** Build a Part B question: interval relationship on the circle of fifths */
@@ -1179,8 +1234,8 @@ function buildPartBQuestion(startIdx: number, direction: 'fifth-up' | 'fourth-up
     : CIRCLE_DISPLAY[targetIdx].flat;
 
   const prompt = direction === 'fifth-up'
-    ? `What is the fifth up / fourth down from ${startName}?`
-    : `What is the fourth up / fifth down from ${startName}?`;
+    ? gt('games.prompt.fifthUp', { note: startName })
+    : gt('games.prompt.fourthUp', { note: startName });
 
   // Distractors: grab 3 nearby notes from the circle, same naming convention
   const distractorIdxs = [
@@ -1254,7 +1309,7 @@ function createScaleQuestion(sequenceIndex: number): ScaleNoteQuizQuestion {
 
   return {
     type: 'scale',
-    prompt: `Degree ${degree} (${degreeName}) in ${getScaleDisplayName(tonic, scaleType)}`,
+    prompt: gt('games.prompt.degreeInScale', { degree, degreeName, scale: getScaleDisplayName(tonic, scaleType) }),
     tonic,
     scaleType,
     answer,
@@ -1322,7 +1377,7 @@ function createDegreeQuestion(sequenceIndex: number): ScaleDegreeQuizQuestion {
   const roman = getRomanForDegree(degree, quality, extensionKey);
   
   const isAllWrong = sequenceIndex >= 4 && sequenceIndex % 4 === 0;
-  const answer = isAllWrong ? 'All are wrong' : `${roman} chord of ${key} major`;
+  const answer = isAllWrong ? gt('games.prompt.allWrong') : majorChordStatement(roman, key);
   
   const wrongCaseRoman = quality === 'm'
     ? roman.toUpperCase()
@@ -1334,24 +1389,24 @@ function createDegreeQuestion(sequenceIndex: number): ScaleDegreeQuizQuestion {
   if (isAllWrong) {
     const wrongDegree2 = ((degree + 3) % 7) + 1;
     optionsList = [
-      'All are wrong',
-      `${wrongCaseRoman} chord of ${key} major`,
-      `${getRomanForDegree(wrongDegree, MAJOR_KEY_QUALITIES[wrongDegree - 1], extensionKey)} chord of ${wrongKey} major`,
-      `${getRomanForDegree(wrongDegree2, MAJOR_KEY_QUALITIES[wrongDegree2 - 1], extensionKey)} chord of ${key} major`,
+      gt('games.prompt.allWrong'),
+      majorChordStatement(wrongCaseRoman, key),
+      majorChordStatement(getRomanForDegree(wrongDegree, MAJOR_KEY_QUALITIES[wrongDegree - 1], extensionKey), wrongKey),
+      majorChordStatement(getRomanForDegree(wrongDegree2, MAJOR_KEY_QUALITIES[wrongDegree2 - 1], extensionKey), key),
     ];
   } else {
     optionsList = [
       answer,
-      `${wrongCaseRoman} chord of ${key} major`,
-      `${getRomanForDegree(wrongDegree, MAJOR_KEY_QUALITIES[wrongDegree - 1], extensionKey)} chord of ${wrongKey} major`,
-      'All are wrong',
+      majorChordStatement(wrongCaseRoman, key),
+      majorChordStatement(getRomanForDegree(wrongDegree, MAJOR_KEY_QUALITIES[wrongDegree - 1], extensionKey), wrongKey),
+      gt('games.prompt.allWrong'),
     ];
   }
 
   return {
     type: 'degree',
     chord,
-    qualityText: `${getFormattedChordText(chord)} in ${key} major`,
+    qualityText: gt('games.prompt.chordInMajor', { chord: getFormattedChordText(chord), key }),
     answer,
     options: rotateOptions(optionsList, sequenceIndex),
     roman,
@@ -1387,12 +1442,12 @@ function createSecondaryQuestion(sequenceIndex: number): SecondaryDominantQuizQu
       answer,
       `V7/${wrongTargetRoman} tonicizing ${wrongTargetRoman}`,
       `${getRomanForDegree(targetDegree, targetQuality, '7')} borrowed from ${key} minor`,
-      'No tonicization is present',
+      gt('games.noTonicization'),
     ];
   } else {
     const subdominantChord = `${keyNotes[3]}${getDegreeChordSuffix(MAJOR_KEY_QUALITIES[3], 'triad', 4)}`;
     progression = [tonicChord, subdominantChord, targetChord, dominantChord, tonicChord];
-    answer = 'No tonicization is present';
+    answer = gt('games.noTonicization');
     optionsList = [
       answer,
       `V7/${targetRoman} tonicizing ${targetRoman}`,
@@ -1412,9 +1467,9 @@ function createSecondaryQuestion(sequenceIndex: number): SecondaryDominantQuizQu
   };
 }
 
-export function generateQuizQuestions(): QuizQuestion[] {
+function generateQuizQuestionsUnlocked(): QuizQuestion[] {
   if (process.env.NODE_ENV === 'test') {
-    return generateStableQuizQuestions();
+    return generateStableQuizQuestionsUnlocked();
   }
 
   const questions: QuizQuestion[] = [];
@@ -1462,7 +1517,7 @@ function createStableQuizQuestion(index: number): QuizQuestion {
   return createSecondaryQuestion(sequenceIndex);
 }
 
-function generateStableQuizQuestions(): QuizQuestion[] {
+function generateStableQuizQuestionsUnlocked(): QuizQuestion[] {
   const questions: QuizQuestion[] = [];
   for (let i = 0; i < 20; i++) {
     if (i === 2) {
@@ -1620,7 +1675,7 @@ function getTonicizationProgression(
   }
 }
 
-function generateStableEarQuestions(): EarTrainingQuestion[] {
+function generateStableEarQuestionsUnlocked(): EarTrainingQuestion[] {
   const questions: EarTrainingQuestion[] = [];
   const types: EarQuestionType[] = [
     'degree',
@@ -1642,7 +1697,7 @@ function generateStableEarQuestions(): EarTrainingQuestion[] {
     if ((type === 'progression' || type === 'quality' || type === 'scale_degree' || type === 'tonicization') && i % 4 === 3) {
       instrument = 'composite';
     }
-    const promptInstrumentName = instrument === 'composite' ? 'multiple instruments' : instrument;
+    const promptInstrumentName = namedInstrument(instrument);
 
     if (type === 'degree') {
       const tonic = EAR_ROOTS[sequenceIndex % EAR_ROOTS.length];
@@ -1650,13 +1705,13 @@ function generateStableEarQuestions(): EarTrainingQuestion[] {
       const degree = EAR_DEGREES[sequenceIndex % EAR_DEGREES.length];
       const degreeName = getScaleDegreeNames(scaleType)[degree - 1];
       const targetNote = getScaleNotes(tonic, scaleType)[degree - 1];
-      const answer = `${degree} (${degreeName})`;
+      const answer = gt('games.prompt.degreeParen', { degree, name: degreeName });
       const wrongDegreeA = (degree % 7) + 1;
       const wrongDegreeB = ((degree + 2) % 7) + 1;
 
       questions.push({
         type: 'degree',
-        prompt: `Reference: ${getScaleDisplayName(tonic, scaleType)} tonic, then one mystery pitch (played on ${promptInstrumentName})`,
+        prompt: gt('games.prompt.referencePitch', { scale: getScaleDisplayName(tonic, scaleType), instrument: promptInstrumentName }),
         tonic,
         scaleType,
         degree,
@@ -1665,9 +1720,9 @@ function generateStableEarQuestions(): EarTrainingQuestion[] {
         instrument,
         options: rotateOptions([
           answer,
-          `${wrongDegreeA} (${getScaleDegreeNames(scaleType)[wrongDegreeA - 1]})`,
-          `${wrongDegreeB} (${getScaleDegreeNames(scaleType)[wrongDegreeB - 1]})`,
-          'Not in the scale',
+          gt('games.prompt.degreeParen', { degree: wrongDegreeA, name: getScaleDegreeNames(scaleType)[wrongDegreeA - 1] }),
+          gt('games.prompt.degreeParen', { degree: wrongDegreeB, name: getScaleDegreeNames(scaleType)[wrongDegreeB - 1] }),
+          gt('games.notInScale'),
         ], sequenceIndex),
       });
     } else if (type === 'scale_degree') {
@@ -1756,9 +1811,9 @@ function generateStableEarQuestions(): EarTrainingQuestion[] {
   return questions;
 }
 
-export function generateEarQuestions(): EarTrainingQuestion[] {
+function generateEarQuestionsUnlocked(): EarTrainingQuestion[] {
   if (process.env.NODE_ENV === 'test') {
-    return generateStableEarQuestions();
+    return generateStableEarQuestionsUnlocked();
   }
 
   const questions: EarTrainingQuestion[] = [];
@@ -1782,7 +1837,7 @@ export function generateEarQuestions(): EarTrainingQuestion[] {
       instrument = 'composite';
     }
 
-    const promptInstrumentName = instrument === 'composite' ? 'multiple instruments' : instrument;
+    const promptInstrumentName = namedInstrument(instrument);
 
     if (type === 'degree') {
       const tonic = EAR_ROOTS[Math.floor(Math.random() * EAR_ROOTS.length)];
@@ -1790,13 +1845,13 @@ export function generateEarQuestions(): EarTrainingQuestion[] {
       const degree = EAR_DEGREES[Math.floor(Math.random() * EAR_DEGREES.length)];
       const degreeName = getScaleDegreeNames(scaleType)[degree - 1];
       const targetNote = getScaleNotes(tonic, scaleType)[degree - 1];
-      const answer = `${degree} (${degreeName})`;
+      const answer = gt('games.prompt.degreeParen', { degree, name: degreeName });
       const wrongDegreeA = (degree % 7) + 1;
       const wrongDegreeB = ((degree + 2) % 7) + 1;
 
       questions.push({
         type: 'degree',
-        prompt: `Reference: ${getScaleDisplayName(tonic, scaleType)} tonic, then one mystery pitch (played on ${promptInstrumentName})`,
+        prompt: gt('games.prompt.referencePitch', { scale: getScaleDisplayName(tonic, scaleType), instrument: promptInstrumentName }),
         tonic,
         scaleType,
         degree,
@@ -1805,9 +1860,9 @@ export function generateEarQuestions(): EarTrainingQuestion[] {
         instrument,
         options: shuffleArray(uniqueValues([
           answer,
-          `${wrongDegreeA} (${getScaleDegreeNames(scaleType)[wrongDegreeA - 1]})`,
-          `${wrongDegreeB} (${getScaleDegreeNames(scaleType)[wrongDegreeB - 1]})`,
-          'Not in the scale',
+          gt('games.prompt.degreeParen', { degree: wrongDegreeA, name: getScaleDegreeNames(scaleType)[wrongDegreeA - 1] }),
+          gt('games.prompt.degreeParen', { degree: wrongDegreeB, name: getScaleDegreeNames(scaleType)[wrongDegreeB - 1] }),
+          gt('games.notInScale'),
         ])),
       });
     } else if (type === 'scale_degree') {
@@ -1902,7 +1957,7 @@ export function generateEarQuestions(): EarTrainingQuestion[] {
       if (Math.random() < 0.25) {
         instrument = 'composite';
       }
-      const promptInstrumentName = instrument === 'composite' ? 'multiple instruments' : instrument;
+      const promptInstrumentName = namedInstrument(instrument);
 
       q.tonic = tonic;
       q.scaleType = 'major';
@@ -1917,9 +1972,9 @@ export function generateEarQuestions(): EarTrainingQuestion[] {
   return shuffledQuestions;
 }
 
-export function generateGuitarQuestions(): GuitarChordQuestion[] {
+function generateGuitarQuestionsUnlocked(): GuitarChordQuestion[] {
   if (process.env.NODE_ENV === 'test') {
-    return generateStableGuitarQuestions();
+    return generateStableGuitarQuestionsUnlocked();
   }
 
   const shuffledBase = shuffleArray(GUITAR_QUESTIONS);
@@ -1957,7 +2012,7 @@ export function generateGuitarQuestions(): GuitarChordQuestion[] {
   });
 }
 
-function generateStableGuitarQuestions(): GuitarChordQuestion[] {
+function generateStableGuitarQuestionsUnlocked(): GuitarChordQuestion[] {
   const questions: GuitarChordQuestion[] = [];
   for (let i = 0; i < 20; i++) {
     const q = GUITAR_QUESTIONS[i % GUITAR_QUESTIONS.length];
@@ -1984,6 +2039,30 @@ function generateStableGuitarQuestions(): GuitarChordQuestion[] {
     }
   }
   return questions;
+}
+
+export function generateQuizQuestions(translator?: Translator): QuizQuestion[] {
+  return withTranslator(translator, () => generateQuizQuestionsUnlocked());
+}
+
+export function generateEarQuestions(translator?: Translator): EarTrainingQuestion[] {
+  return withTranslator(translator, () => generateEarQuestionsUnlocked());
+}
+
+export function generateGuitarQuestions(translator?: Translator): GuitarChordQuestion[] {
+  return withTranslator(translator, () => generateGuitarQuestionsUnlocked());
+}
+
+function generateStableQuizQuestions(translator?: Translator): QuizQuestion[] {
+  return withTranslator(translator, () => generateStableQuizQuestionsUnlocked());
+}
+
+function generateStableEarQuestions(translator?: Translator): EarTrainingQuestion[] {
+  return withTranslator(translator, () => generateStableEarQuestionsUnlocked());
+}
+
+function generateStableGuitarQuestions(translator?: Translator): GuitarChordQuestion[] {
+  return withTranslator(translator, () => generateStableGuitarQuestionsUnlocked());
 }
 
 function getNoteMidi(note: string, octave = 4): number {
@@ -2482,23 +2561,24 @@ function CompletionScreen({
   onReplay: () => void;
   title: string;
 }) {
+  const { t } = useI18n();
   const percentage = Math.round((score.correct / totalPoints) * 100);
   return (
     <div className="flex flex-col items-center justify-center py-7 text-center space-y-6">
       <div className="space-y-2">
-        <h3 className="text-xl font-bold text-foreground font-outfit">{title} Completed!</h3>
+        <h3 className="text-xl font-bold text-foreground font-outfit">{t('games.completed', { title })}</h3>
         <p className="text-base font-medium text-default-500 dark:text-slate-300">You&apos;ve finished all 20 questions.</p>
       </div>
       
       <div className="relative flex items-center justify-center">
         <div className="flex flex-col items-center justify-center rounded-full bg-default-100 dark:bg-white/[0.08] w-32 h-32 border-4 border-primary">
           <span className="text-4xl font-bold text-foreground">{score.correct}</span>
-          <span className="text-sm text-default-500 dark:text-slate-300">out of {totalPoints}</span>
+          <span className="text-sm text-default-500 dark:text-slate-300">{t('games.outOf', { total: totalPoints })}</span>
         </div>
       </div>
 
       <div className="text-base font-semibold text-primary-600 dark:text-blue-300 font-outfit">
-        Accuracy: {percentage}%
+        {t('games.accuracy', { percentage })}
       </div>
 
       <Button
@@ -2507,7 +2587,7 @@ function CompletionScreen({
         onPress={onReplay}
         className="h-11 px-7 text-base font-semibold font-outfit"
       >
-        Play Again
+        {t('games.playAgain')}
       </Button>
     </div>
   );
@@ -2517,12 +2597,13 @@ function CompletionScreen({
 function HistoryPanelContent({
   history,
   onClear,
-  title = 'Session History',
+  title = '',
 }: {
   history: GameHistoryEntry[];
   onClear: () => void;
   title?: string;
 }) {
+  const { t } = useI18n();
   const [selectedReviewEntry, setSelectedReviewEntry] = useState<GameHistoryEntry | null>(null);
   const selectedReviewQuestions = selectedReviewEntry?.questions ?? [];
 
@@ -2568,11 +2649,11 @@ function HistoryPanelContent({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
               <span className="truncate text-lg font-bold text-foreground font-outfit">
-                {title}
+                {title || t('games.history')}
               </span>
             </div>
             {history.length > 0 && (
-              <AppTooltip content="Clear session history" placement="top" delay={0}>
+              <AppTooltip content={t('games.clearHistory')} placement="top" delay={0}>
                 <span className="inline-flex">
                   <Button
                     size="sm"
@@ -2585,8 +2666,8 @@ function HistoryPanelContent({
                       onClear();
                     }}
                     className="h-11 w-11 min-w-11 text-black hover:bg-default-100 dark:text-white dark:hover:bg-white/10"
-                    aria-label="Clear session history"
-                    title="Clear session history"
+                    aria-label={t('games.clearHistory')}
+                    title={t('games.clearHistory')}
                   >
                     <HiOutlineTrash className="h-5 w-5" aria-hidden="true" />
                   </Button>
@@ -2675,13 +2756,13 @@ function HistoryPanelContent({
                 <span className="text-xl font-bold">{selectedReviewEntry ? `${getHistoryLabel(selectedReviewEntry)} Review` : 'Question Review'}</span>
                 {selectedReviewEntry?.score && (
                   <span className="text-sm font-semibold text-default-500 dark:text-slate-300">
-                    {selectedReviewEntry.score.correct}/{selectedReviewEntry.score.attempted} first-try correct
+                    {t('games.firstTry', { correct: selectedReviewEntry.score.correct, attempted: selectedReviewEntry.score.attempted })}
                   </span>
                 )}
               </ModalHeader>
               <ModalBody className="pb-4">
                 <Table
-                  aria-label="Question review"
+                  aria-label={t('games.review')}
                   removeWrapper
                   classNames={{
                     table: 'min-w-full',
@@ -2691,8 +2772,8 @@ function HistoryPanelContent({
                 >
                   <TableHeader>
                     <TableColumn className="w-16">#</TableColumn>
-                    <TableColumn>Question</TableColumn>
-                    <TableColumn>Correct</TableColumn>
+                    <TableColumn>{t('games.question')}</TableColumn>
+                    <TableColumn>{t('games.correct')}</TableColumn>
                     <TableColumn>Your Answers</TableColumn>
                     <TableColumn>Audio</TableColumn>
                     <TableColumn className="text-right">Result</TableColumn>
@@ -2757,7 +2838,7 @@ function HistoryPanelContent({
                               }}
                               className="h-9 min-w-0 px-4 text-xs font-bold font-outfit"
                             >
-                              Play
+                              {t('games.play')}
                             </Button>
                           ) : (
                             <span className="text-xs text-default-400 dark:text-slate-400">—</span>
@@ -2771,7 +2852,7 @@ function HistoryPanelContent({
                               variant="flat"
                               className="h-7 text-xs font-bold uppercase"
                             >
-                              {question.wasCorrect ? 'Correct' : 'Wrong'}
+                              {question.wasCorrect ? t('games.correct') : t('games.wrong')}
                             </Chip>
                           </div>
                         </TableCell>
@@ -2782,7 +2863,7 @@ function HistoryPanelContent({
               </ModalBody>
               <ModalFooter>
                 <Button color="default" variant="light" onPress={onClose} className="font-semibold font-outfit">
-                  Close
+                  {t('games.close')}
                 </Button>
               </ModalFooter>
             </>
@@ -2794,6 +2875,7 @@ function HistoryPanelContent({
 }
 
 export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesContainerProps) {
+  const { t, locale } = useI18n();
   const [board, setBoard] = useState<Mark[]>(Array(64).fill(null));
   const [userGoesFirst, setUserGoesFirst] = useState<boolean>(true);
   const [gameMode, setGameMode] = useState<GameMode>('quiz');
@@ -2801,9 +2883,9 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
   const [earQuestionIndex, setEarQuestionIndex] = useState(0);
   const [guitarQuestionIndex, setGuitarQuestionIndex] = useState(0);
 
-  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>(() => generateStableQuizQuestions());
-  const [earQuestions, setEarQuestions] = useState<EarTrainingQuestion[]>(() => generateStableEarQuestions());
-  const [guitarQuestions, setGuitarQuestions] = useState<GuitarChordQuestion[]>(() => generateStableGuitarQuestions());
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>(() => generateStableQuizQuestions(t));
+  const [earQuestions, setEarQuestions] = useState<EarTrainingQuestion[]>(() => generateStableEarQuestions(t));
+  const [guitarQuestions, setGuitarQuestions] = useState<GuitarChordQuestion[]>(() => generateStableGuitarQuestions(t));
 
   const [quizResult, setQuizResult] = useState<QuizResult>(null);
   const [earResult, setEarResult] = useState<QuizResult>(null);
@@ -2845,7 +2927,6 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
       const stored = sessionStorage.getItem('chordmini_games_history');
       if (stored) {
         try {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
           setHistory(JSON.parse(stored));
         } catch (e) {
           console.error('Failed to parse games history from sessionStorage:', e);
@@ -2857,12 +2938,20 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
   useEffect(() => {
     if (process.env.NODE_ENV === 'test') return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUserGoesFirst(Math.random() < 0.5);
-    setQuizQuestions(generateQuizQuestions());
-    setEarQuestions(generateEarQuestions());
-    setGuitarQuestions(generateGuitarQuestions());
+    setQuizQuestions(generateQuizQuestions(t));
+    setEarQuestions(generateEarQuestions(t));
+    setGuitarQuestions(generateGuitarQuestions(t));
+    // The first paint keeps the stable questions. Random questions start after hydration.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'test') return;
+    setQuizQuestions(generateQuizQuestions(t));
+    setEarQuestions(generateEarQuestions(t));
+    setGuitarQuestions(generateGuitarQuestions(t));
+  }, [locale, t]);
 
   const addHistoryEntry = (entry: Omit<GameHistoryEntry, 'id' | 'timestamp'>) => {
     const newEntry: GameHistoryEntry = {
@@ -2891,10 +2980,10 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
   const isPlayerTurn = !winner && !isDraw && (board.filter(Boolean).length % 2 === (userGoesFirst ? 0 : 1));
   
   const status = winner
-    ? (winner === 'X' ? 'You win' : 'O wins')
+    ? (winner === 'X' ? t('games.youWin') : t('games.oWins'))
     : isDraw
-      ? 'Draw'
-      : (isPlayerTurn ? 'Your turn' : 'O thinking');
+      ? t('games.draw')
+      : (isPlayerTurn ? t('games.yourTurn') : t('games.oThinking'));
 
   const quizQuestion = quizQuestions[quizQuestionIndex] || quizQuestions[0];
   const earQuestion = earQuestions[earQuestionIndex] || earQuestions[0];
@@ -2908,8 +2997,8 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
 
     MINI_GAME_NOTICES.forEach((notice) => {
       const key = addToast({
-        title: notice.title,
-        description: notice.description,
+        title: t(notice.titleKey),
+        description: t(notice.bodyKey),
         color: 'default',
         timeout: 0,
         shouldShowTimeoutProgress: false,
@@ -2929,7 +3018,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
         closeToast(key);
       });
     };
-  }, [layoutMode]);
+  }, [layoutMode, locale, t]);
 
   // Watch for XO completion to save history
   useEffect(() => {
@@ -2937,8 +3026,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
       let result: 'win' | 'loss' | 'draw' = 'draw';
       if (winner === 'X') result = 'win';
       else if (winner === 'O') result = 'loss';
-      
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       addHistoryEntry({
         gameMode: 'xo',
         xoResult: result,
@@ -3093,7 +3181,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
       } else if (quizQuestion.type === 'relative_key') {
         explanation = `Relative major and minor keys share the exact same key signature. E.g., C major and A minor both have 0 sharps/flats.`;
       } else if (quizQuestion.type === 'secondary') {
-        if (quizQuestion.answer === 'No tonicization is present') {
+        if (quizQuestion.answer === t('games.noTonicization')) {
           explanation = `No tonicization is present. The progression uses the diatonic subdominant chord ${quizQuestion.progression[1]} instead of a secondary dominant.`;
         } else {
           const targetRoman = quizQuestion.targetRoman || '';
@@ -3110,7 +3198,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
         const key = quizQuestion.key || '';
         const roman = quizQuestion.roman || '';
         const romanStatement = roman && key ? `${chord} is ${roman} in ${key} major` : '';
-        if (quizQuestion.answer === 'All are wrong') {
+        if (quizQuestion.answer === t('games.prompt.allWrong')) {
           explanation = romanStatement ? `${romanStatement}. None of the given options are correct.` : `The chord is ${quizQuestion.qualityText}.`;
         } else {
           explanation = romanStatement || `The chord is ${quizQuestion.qualityText}.`;
@@ -3264,7 +3352,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
   };
 
   const handleQuizReplay = () => {
-    setQuizQuestions(generateQuizQuestions());
+    setQuizQuestions(generateQuizQuestions(t));
     setQuizScore({ correct: 0, attempted: 0 });
     setQuizReview([]);
     setQuizQuestionIndex(0);
@@ -3279,7 +3367,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
   };
 
   const handleEarReplay = () => {
-    setEarQuestions(generateEarQuestions());
+    setEarQuestions(generateEarQuestions(t));
     setEarScore({ correct: 0, attempted: 0 });
     setEarReview([]);
     setEarQuestionIndex(0);
@@ -3289,7 +3377,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
   };
 
   const handleGuitarReplay = () => {
-    setGuitarQuestions(generateGuitarQuestions());
+    setGuitarQuestions(generateGuitarQuestions(t));
     setGuitarScore({ correct: 0, attempted: 0 });
     setGuitarReview([]);
     setGuitarQuestionIndex(0);
@@ -3312,10 +3400,10 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
   const gameCardContent = (
     <div className={`w-full ${isStandalone ? '' : 'max-w-[420px]'} rounded-lg border border-default-200 bg-content1/85 ${cardPaddingClass} shadow-sm dark:border-white/10 dark:bg-slate-950/45`}>
       <div className="mb-5 text-center relative">
-        <h3 className={`${isStandalone ? 'text-xl' : 'text-base'} font-bold text-foreground font-outfit`}>Mini Games</h3>
+        <h3 className={`${isStandalone ? 'text-xl' : 'text-base'} font-bold text-foreground font-outfit`}>{t('games.mini')}</h3>
         {!isStandalone && (
           <p className="text-sm text-default-500 leading-relaxed mt-1 dark:text-slate-300">
-            Practice your theory skills and ear training while the audio analysis is processing. Or just play a quick game of tic-tac-toe to pass the time!
+            {t('games.waitBody')}
           </p>
         )}
         
@@ -3328,7 +3416,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
             isIconOnly
             onPress={onHistoryOpen}
             className="absolute top-0 right-0 text-default-500 hover:text-primary dark:text-slate-300 dark:hover:text-blue-300"
-            aria-label="View history"
+            aria-label={t('games.viewHistory')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -3338,8 +3426,8 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
       </div>
 
       <div className="mb-5 grid grid-cols-4 gap-2">
-        {MINI_GAME_TABS.map(([mode, label, helpText]) => (
-          <AppTooltip key={mode} content={helpText} placement="top">
+        {MINI_GAME_TABS.map(([mode, labelKey, helpKey]) => (
+          <AppTooltip key={mode} content={t(helpKey)} placement="top">
             <Button
               size={isStandalone ? 'md' : 'sm'}
               variant={gameMode === mode ? 'solid' : 'flat'}
@@ -3352,7 +3440,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
               }}
               className={`${isStandalone ? 'h-11 text-sm' : 'h-9 text-sm'} px-2 font-semibold font-outfit`}
             >
-              {label}
+              {t(labelKey)}
             </Button>
           </AppTooltip>
         ))}
@@ -3370,7 +3458,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
                 onPress={reset}
                 className={`${isStandalone ? 'h-10 px-4 text-sm' : 'h-8 px-3 text-xs'} font-semibold font-outfit`}
               >
-                Reset
+                {t('games.reset')}
               </Button>
             </div>
             <div className="mx-auto grid aspect-square w-full max-w-[280px] grid-cols-8 gap-1 rounded-lg border-2 border-default-400 bg-default-200/80 p-1 shadow-inner dark:border-white/30 dark:bg-white/10">
@@ -3383,7 +3471,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
                   isDisabled={!isPlayerTurn || Boolean(mark) || Boolean(winner) || isDraw}
                   onPress={() => handleCellClick(index)}
                   className={`${isStandalone ? 'text-base' : 'text-sm'} h-auto min-h-0 min-w-0 aspect-square border border-default-400 bg-content1 font-bold shadow-sm data-[hover=true]:border-primary data-[hover=true]:bg-primary/10 data-[disabled=true]:opacity-100 dark:border-white/25 dark:bg-slate-950/80 dark:data-[hover=true]:border-primary`}
-                  aria-label={`Cell ${index + 1}`}
+                  aria-label={t('games.cell', { n: index + 1 })}
                 >
                   {mark}
                 </Button>
@@ -3394,35 +3482,35 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
 
         {gameMode === 'quiz' && (
           quizScore.attempted >= 20 ? (
-            <CompletionScreen score={quizScore} totalPoints={quizTotalPoints} onReplay={handleQuizReplay} title="Theory Quiz" />
+            <CompletionScreen score={quizScore} totalPoints={quizTotalPoints} onReplay={handleQuizReplay} title={t('games.theoryQuiz')} />
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <p className={`${sectionTitleClass} font-semibold text-foreground font-outfit`}>
                   {quizQuestion.type === 'label'
-                    ? 'Name the chord'
+                    ? t('games.nameChord')
                     : quizQuestion.type === 'tone'
-                      ? 'Find the missing tone'
+                      ? t('games.findTone')
                       : quizQuestion.type === 'scale'
-                        ? 'Find the scale note'
+                        ? t('games.findScaleNote')
                         : quizQuestion.type === 'secondary'
-                          ? 'Find the tonicization'
+                          ? t('games.findTonicization')
                           : quizQuestion.type === 'mnemonic'
-                            ? 'Key Signature Mnemonic'
+                            ? t('games.keySignature')
                             : quizQuestion.type === 'mode_formula'
-                              ? 'Mode Interval Formula'
+                              ? t('games.modeFormula')
                               : quizQuestion.type === 'relative_key'
-                                ? 'Relative Key'
+                                ? t('games.relativeKey')
                                 : quizQuestion.type === 'mode_note'
-                                  ? 'Mode Note'
-                                  : 'Find the scale degree'}
+                                  ? t('games.modeNote')
+                                  : t('games.findDegree')}
                 </p>
                 <ScorePill score={quizScore} totalPoints={quizTotalPoints} />
               </div>
               <div className={`${isStandalone ? 'px-5 py-4' : 'px-4 py-3'} rounded-md bg-default-100 text-center dark:bg-white/10 border border-default-200/40 dark:border-white/5`}>
                 {quizQuestion.type === 'label' && (
                   <>
-                    <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>Notes</p>
+                    <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>{t('games.notes')}</p>
                     <p className={`${isStandalone ? 'text-2xl' : 'text-lg'} mt-2 flex items-center justify-center gap-2 font-bold text-foreground`}>
                       {quizQuestion.notes.map((note, index) => (
                         <span key={`${note}-${index}`} className="inline-flex items-center gap-2">
@@ -3450,13 +3538,13 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
                 )}
                 {quizQuestion.type === 'scale' && (
                   <>
-                    <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>Scale note</p>
+                    <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>{t('games.scaleNote')}</p>
                     <p className={`${isStandalone ? 'text-lg' : 'text-base'} mt-2 font-bold text-foreground`}>{quizQuestion.prompt}</p>
                   </>
                 )}
                 {quizQuestion.type === 'degree' && (
                   <>
-                    <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>Which statement is true?</p>
+                    <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>{t('games.whichTrue')}</p>
                     <p className={`${isStandalone ? 'text-xl' : 'text-base'} mt-2 font-bold text-foreground`}>
                       <ChordSymbol value={quizQuestion.chord} />
                     </p>
@@ -3466,7 +3554,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
                 {quizQuestion.type === 'secondary' && (
                   <>
                     <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>
-                      In <ChordSymbol value={quizQuestion.key} /> major
+                      {t('games.in') ? <>{t('games.in')} </> : null}<ChordSymbol value={quizQuestion.key} /> {t('games.majorWord')}
                     </p>
                     <p className={`${isStandalone ? 'text-lg' : 'text-base'} mt-2 flex flex-wrap items-center justify-center gap-2 font-bold text-foreground`}>
                       {quizQuestion.progression.map((chord, index) => (
@@ -3480,19 +3568,19 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
                 )}
                 {quizQuestion.type === 'mode_formula' && (
                   <>
-                    <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>Interval Formula</p>
+                    <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>{t('games.intervalFormula')}</p>
                     <p className={`${isStandalone ? 'text-lg' : 'text-base'} mt-2 font-bold text-foreground`}>{quizQuestion.prompt}</p>
                   </>
                 )}
                 {quizQuestion.type === 'relative_key' && (
                   <>
-                    <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>Relative Key</p>
+                    <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>{t('games.relativeKey')}</p>
                     <p className={`${isStandalone ? 'text-lg' : 'text-base'} mt-2 font-bold text-foreground`}>{quizQuestion.prompt}</p>
                   </>
                 )}
                 {quizQuestion.type === 'mode_note' && (
                   <>
-                    <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>Mode Note</p>
+                    <p className={`${helperTextClass} font-semibold uppercase text-default-500 tracking-wide font-outfit dark:text-slate-300`}>{t('games.modeNote')}</p>
                     <p className={`${isStandalone ? 'text-lg' : 'text-base'} mt-2 font-bold text-foreground`}>{quizQuestion.prompt}</p>
                   </>
                 )}
@@ -3503,7 +3591,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
                     </ScrollShadow>
                     <div className="border-t border-default-200/60 dark:border-white/10 pt-2 text-center">
                       <p className="text-[11px] font-bold text-primary uppercase tracking-wide">
-                        {activePart === 'A' ? 'Part A (1 Point)' : 'Part B (1 Point)'}
+                        {activePart === 'A' ? t('games.partA') : t('games.partB')}
                       </p>
                       <p className={`${isStandalone ? 'text-base' : 'text-sm'} mt-1 font-bold text-foreground`}>
                         {activePart === 'A' ? quizQuestion.partA.prompt : quizQuestion.partB.prompt}
@@ -3551,26 +3639,26 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
               </div>
               <p className={feedbackTextClass}>
                 {quizResult === 'correct'
-                  ? 'Correct'
+                  ? t('games.correct')
                   : quizResult === 'incorrect'
-                    ? 'Try another answer'
+                    ? t('games.tryAnother')
                     : quizQuestion.type === 'label'
-                      ? 'Choose the chord label'
+                      ? t('games.chooseChordLabel')
                       : quizQuestion.type === 'tone'
-                        ? 'Fill the missing chord tone'
+                        ? t('games.fillMissing')
                         : quizQuestion.type === 'scale'
-                          ? 'Choose the scale degree note'
+                          ? t('games.chooseScaleNote')
                           : quizQuestion.type === 'secondary'
-                            ? 'Choose the applied-dominant label'
+                            ? t('games.chooseApplied')
                             : quizQuestion.type === 'mnemonic'
-                              ? `Answer Part ${activePart}`
+                              ? t('games.answerPart', { part: activePart })
                               : quizQuestion.type === 'mode_formula'
-                                ? 'Choose the correct interval formula'
+                                ? t('games.chooseFormula')
                                 : quizQuestion.type === 'relative_key'
-                                  ? 'Choose the relative key'
+                                  ? t('games.chooseRelative')
                                   : quizQuestion.type === 'mode_note'
-                                    ? 'Choose the correct note'
-                                    : 'Choose the correct roman numeral statement'}
+                                    ? t('games.chooseNote')
+                                    : t('games.chooseRoman')}
               </p>
             </div>
           )
@@ -3578,20 +3666,20 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
 
         {gameMode === 'ear' && (
           earScore.attempted >= 20 ? (
-            <CompletionScreen score={earScore} totalPoints={earTotalPoints} onReplay={handleEarReplay} title="Ear Training" />
+            <CompletionScreen score={earScore} totalPoints={earTotalPoints} onReplay={handleEarReplay} title={t('games.earTraining')} />
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <p className={`${sectionTitleClass} font-semibold text-foreground font-outfit`}>
                   {earQuestion.type === 'degree'
-                    ? 'Hear the scale degree'
+                    ? t('games.hearDegree')
                     : earQuestion.type === 'progression'
-                      ? 'Hear the progression'
+                      ? t('games.hearProgression')
                       : earQuestion.type === 'scale_degree'
-                        ? 'Hear the scale degree (Full Scale)'
+                        ? t('games.hearDegreeFull')
                         : earQuestion.type === 'tonicization'
-                          ? 'Find the tonicization'
-                          : 'Hear the chord quality'}
+                          ? t('games.findTonicization')
+                          : t('games.hearQuality')}
                 </p>
                 <ScorePill score={earScore} totalPoints={earTotalPoints} />
               </div>
@@ -3600,7 +3688,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
 
                 {earQuestion.type === 'quality' && earQuestion.chord && (
                   <p className={`${helperTextClass} mt-2 text-default-500 font-medium dark:text-slate-300`}>
-                    Root: <ChordSymbol value={earQuestion.chord.replace(/(maj7|m7b5|m7|dim|sus4|7|m)$/, '')} />
+                    {t('games.root')} <ChordSymbol value={earQuestion.chord.replace(/(maj7|m7b5|m7|dim|sus4|7|m)$/, '')} />
                   </p>
                 )}
                 <Button
@@ -3612,7 +3700,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
                   }}
                   className={`${isStandalone ? 'h-10 px-6 text-sm' : 'px-5'} mt-3 font-semibold font-outfit`}
                 >
-                  Play
+                  {t('games.play')}
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -3630,7 +3718,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
                 ))}
               </div>
               <p className={feedbackTextClass}>
-                {earResult === 'correct' ? 'Correct' : earResult === 'incorrect' ? 'Listen again' : 'Play the sound, then choose an answer'}
+                {earResult === 'correct' ? t('games.correct') : earResult === 'incorrect' ? t('games.listenAgain') : t('games.playThenChoose')}
               </p>
             </div>
           )
@@ -3638,12 +3726,12 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
 
         {gameMode === 'guitar' && (
           guitarScore.attempted >= 20 ? (
-            <CompletionScreen score={guitarScore} totalPoints={guitarTotalPoints} onReplay={handleGuitarReplay} title="Guitar Game" />
+            <CompletionScreen score={guitarScore} totalPoints={guitarTotalPoints} onReplay={handleGuitarReplay} title={t('games.guitarGame')} />
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <p className={`${sectionTitleClass} font-semibold text-foreground font-outfit`}>
-                  {guitarQuestion.type === 'notes' ? 'Identify notes in the chord' : 'Read the diagram'}
+                  {guitarQuestion.type === 'notes' ? t('games.identifyNotes') : t('games.readDiagram')}
                 </p>
                 <ScorePill score={guitarScore} totalPoints={guitarTotalPoints} />
               </div>
@@ -3673,9 +3761,9 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
               </div>
               <p className={feedbackTextClass}>
                 {guitarResult === 'correct'
-                  ? 'Correct'
+                  ? t('games.correct')
                   : guitarResult === 'incorrect'
-                    ? (guitarQuestion.type === 'notes' ? 'Try again' : 'Try another chord')
+                    ? (guitarQuestion.type === 'notes' ? t('games.tryAgain') : t('games.tryAnotherChord'))
                     : (guitarQuestion.type === 'notes' ? 'Choose the correct notes list' : 'Choose the chord name')}
               </p>
             </div>
@@ -3726,7 +3814,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
               </ModalBody>
               <ModalFooter>
                 <Button color="default" variant="light" onPress={onClose} className="font-semibold font-outfit">
-                  Close
+                  {t('games.close')}
                 </Button>
               </ModalFooter>
             </>

@@ -6,6 +6,7 @@ import { Button } from '@heroui/react';
 import { addToast } from '@heroui/react';
 import { mergeToastClassNames } from '@/utils/toastStyles';
 import Navigation from '@/components/common/Navigation';
+import { useI18n } from '@/i18n/I18nProvider';
 import { analyzeAudioWithRateLimit, AnalysisResult } from '@/services/chord-analysis/chordRecognitionService';
 import { ProcessingStatusSkeleton } from '@/components/common/SkeletonLoaders';
 import {
@@ -108,6 +109,7 @@ import {
 import MelodyTranscriptionStatusToast from '@/components/analysis/MelodyTranscriptionStatusToast';
 
 export default function LocalAudioAnalyzePage() {
+  const { t } = useI18n();
   const showSheetSage = true;
   useSheetSageBackendAvailability(showSheetSage);
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -135,8 +137,8 @@ export default function LocalAudioAnalyzePage() {
     if (analysisDurationLimitReason && !durationLimitToastShownRef.current) {
       durationLimitToastShownRef.current = true;
       addToast({
-        title: 'Audio is too long for analysis',
-        description: `Audio duration should be less than ${MAX_ANALYSIS_DURATION_MINUTES} minutes.`,
+        title: t('analyze.tooLongTitle'),
+        description: t('analyze.tooLongBody', { minutes: MAX_ANALYSIS_DURATION_MINUTES }),
         color: 'default',
         timeout: 5000,
         shouldShowTimeoutProgress: true,
@@ -151,7 +153,7 @@ export default function LocalAudioAnalyzePage() {
     if (!analysisDurationLimitReason) {
       durationLimitToastShownRef.current = false;
     }
-  }, [analysisDurationLimitReason]);
+  }, [analysisDurationLimitReason, t]);
   const {
     segmentationData,
     showSegmentation,
@@ -630,7 +632,7 @@ export default function LocalAudioAnalyzePage() {
       startProcessing();
       setStage('chord-recognition');
       setProgress(0);
-      setStatusMessage('Recognizing chords and synchronizing with beats...');
+      setStatusMessage(t('analyze.recognizing'));
 
       // Use existing object URL from audio element or create new one (track and cleanup)
       let audioUrl = audioRef.current?.src;
@@ -699,7 +701,7 @@ export default function LocalAudioAnalyzePage() {
       // Complete processing
       setStage('complete');
       setProgress(100);
-      setStatusMessage('Analysis complete!');
+      setStatusMessage(t('analyze.complete'));
       completeProcessing();
 
       // Analysis completed successfully
@@ -713,7 +715,7 @@ export default function LocalAudioAnalyzePage() {
       }
 
       // Format error message more user-friendly
-      let errorMessage = 'Unknown error occurred';
+      let errorMessage = t('analyze.unknown');
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (typeof error === 'string') {
@@ -737,7 +739,7 @@ export default function LocalAudioAnalyzePage() {
 
   // Audio player controls
   const reportPlaybackFailure = () => {
-    setPlaybackError('Local playback could not start. The audio format may be unsupported or the file is still loading.');
+    setPlaybackError(t('analyze.playbackFailed'));
   };
 
   const playPause = () => {
@@ -1193,7 +1195,7 @@ const simplifiedChordGridData = useMemo(() => {
                 <div className="flex flex-row gap-2 items-center ml-auto pl-2 md:pl-6">
                   <div className="relative inline-block">
                     <label className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-medium py-2 px-4 rounded-md cursor-pointer transition-colors">
-                      {audioFile ? audioFile.name : 'Choose Audio File'}
+                      {audioFile ? audioFile.name : t('analyze.chooseFile')}
                       <input
                         type="file"
                         accept={AUDIO_FILE_ACCEPT}
@@ -1211,14 +1213,14 @@ const simplifiedChordGridData = useMemo(() => {
                     size="md"
                     className="font-medium bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700 disabled:bg-gray-400 disabled:border-gray-400 disabled:text-gray-200"
                   >
-                    {audioProcessingState.isExtracting ? 'Processing...' : 'Analyze Audio'}
+                    {audioProcessingState.isExtracting ? t('analyze.processing') : t('analyze.analyze')}
                   </Button>
                 </div>
               </div>
 
               {analysisDurationLimitReason && (
                 <div className="mb-4 rounded-md border border-warning-200 bg-warning-50 px-3 py-2 text-sm text-warning-800">
-                  {analysisDurationLimitReason}
+                  {t('analyze.tooLongTitle')}. {t('analyze.tooLongBody', { minutes: MAX_ANALYSIS_DURATION_MINUTES })}
                 </div>
               )}
 
@@ -1245,14 +1247,14 @@ const simplifiedChordGridData = useMemo(() => {
                   {audioProcessingState.isExtracting && (
                     <div className="flex items-center text-gray-600 dark:text-gray-300">
                       <div className="animate-spin h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full mr-2"></div>
-                      <span>Extracting audio...</span>
+                      <span>{t('analyze.extracting')}</span>
                     </div>
                   )}
 
                   {audioProcessingState.isAnalyzing && (
                     <div className="flex items-center text-gray-600 dark:text-gray-300">
                       <div className="animate-spin h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full mr-2"></div>
-                      <span>Analyzing chords & beats...</span>
+                      <span>{t('analyze.analyzing')}</span>
                     </div>
                   )}
 
@@ -1263,7 +1265,19 @@ const simplifiedChordGridData = useMemo(() => {
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                         </svg>
                         <div className="min-w-0">
-                          <p>{audioProcessingState.error}</p>
+                          <p>
+                            {analysisErrorCode === 'ANALYSIS_SERVICE_NOT_CONFIGURED'
+                              ? t('errors.notConfigured')
+                              : analysisErrorCode === 'ANALYSIS_SERVICE_UNAVAILABLE'
+                                ? t('errors.unavailable')
+                                : audioProcessingState.error}
+                          </p>
+                          {analysisErrorCode === 'ANALYSIS_SERVICE_NOT_CONFIGURED' && (
+                            <p className="mt-1">{t('errors.notConfiguredSuggestion')}</p>
+                          )}
+                          {analysisErrorCode === 'ANALYSIS_SERVICE_UNAVAILABLE' && (
+                            <p className="mt-1">{t('errors.unavailableSuggestion')}</p>
+                          )}
                           <button
                             type="button"
                             className="mt-2 text-xs font-medium text-gray-700 underline dark:text-gray-200"
@@ -1289,7 +1303,7 @@ const simplifiedChordGridData = useMemo(() => {
                               });
                             }}
                           >
-                            {diagnosticsCopied ? 'Diagnostics copied' : 'Copy diagnostics'}
+                            {diagnosticsCopied ? t('analyze.diagnosticsCopied') : t('analyze.copyDiagnostics')}
                           </button>
                           <pre className="sr-only" data-testid="analysis-diagnostics">
                             {buildPrivacySafeDiagnostics({
@@ -1302,7 +1316,7 @@ const simplifiedChordGridData = useMemo(() => {
                           {diagnosticsFallback && (
                             <textarea
                               readOnly
-                              aria-label="Analysis diagnostics"
+                              aria-label={t('analyze.diagnosticsLabel')}
                               className="mt-2 w-full rounded border border-gray-300 bg-white p-2 text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
                               value={diagnosticsFallback}
                             />
@@ -1317,7 +1331,7 @@ const simplifiedChordGridData = useMemo(() => {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
-                      <span>Analysis complete</span>
+                      <span>{t('analyze.complete')}</span>
                     </div>
                   )}
                 </div>

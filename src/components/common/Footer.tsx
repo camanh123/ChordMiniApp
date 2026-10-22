@@ -6,30 +6,32 @@ import Image from 'next/image';
 import { HiMail, HiHeart } from 'react-icons/hi';
 import { SiGithub } from 'react-icons/si';
 import { FaExternalLinkAlt } from 'react-icons/fa';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const Footer: React.FC = () => {
+  const { t } = useI18n();
 
-  const footerSections = {
+  const footerSections: Record<string, { title: string; links: { name: string; href: string; external: boolean }[] }> = {
     product: {
-      title: 'Product',
+      title: t('footer.product'),
       links: [
-        { name: 'About', href: '/about', external: false },
-        { name: 'Changelog', href: '/changelog', external: false },
+        { name: t('footer.about'), href: '/about', external: false },
+        { name: t('footer.changelog'), href: '/changelog', external: false },
       ]
     },
     support: {
-      title: 'Support',
+      title: t('footer.support'),
       links: [
-        { name: 'Help & Support', href: '/help', external: false },
-        { name: 'Documentation', href: '/docs', external: false },
-        { name: 'GitHub Issues', href: 'https://github.com/ptnghia-j/ChordMiniApp/issues', external: true },
+        { name: t('footer.help'), href: '/help', external: false },
+        { name: t('footer.docs'), href: '/docs', external: false },
+        { name: t('footer.issues'), href: 'https://github.com/ptnghia-j/ChordMiniApp/issues', external: true },
       ]
     },
     legal: {
-      title: 'Legal',
+      title: t('footer.legal'),
       links: [
-        { name: 'Privacy Policy', href: '/privacy', external: false },
-        { name: 'Terms of Service', href: '/terms', external: false },
+        { name: t('footer.privacy'), href: '/privacy', external: false },
+        { name: t('footer.terms'), href: '/terms', external: false },
       ]
     }
   };
@@ -63,7 +65,7 @@ const Footer: React.FC = () => {
                   {/* Light theme logo - hidden in dark mode */}
                   <Image
                     src="/chordMiniLogo.webp"
-                    alt="ChordMini Logo"
+                    alt={t('nav.logo')}
                     width={40}
                     height={40}
                     sizes="40px"
@@ -72,7 +74,7 @@ const Footer: React.FC = () => {
                   {/* Dark theme logo - hidden in light mode */}
                   <Image
                     src="/chordMiniLogo-dark.webp"
-                    alt="ChordMini Logo"
+                    alt={t('nav.logo')}
                     width={40}
                     height={40}
                     sizes="40px"
@@ -84,7 +86,7 @@ const Footer: React.FC = () => {
                     ChordMini
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    AI-Powered Chord Recognition
+                    {t('footer.tagline')}
                   </p>
                 </div>
               </div>
@@ -148,7 +150,7 @@ const Footer: React.FC = () => {
             {/* Left Side - Copyright and Contact */}
             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                © {new Date().getFullYear()} ChordMini. All rights reserved.
+                © {new Date().getFullYear()} ChordMini. {t('footer.rights')}
               </p>
               <div className="flex items-center space-x-2">
                 <HiMail className="w-4 h-4 text-gray-500 dark:text-gray-400" />
@@ -164,7 +166,7 @@ const Footer: React.FC = () => {
             {/* Right Side - Version and Support */}
             <div className="flex items-center space-x-6">
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                Version 0.6.5
+                {t('footer.version', { version: '0.6.5' })}
               </span>
               <a
                 href="https://buymeacoffee.com/nghiaphan"
@@ -173,7 +175,7 @@ const Footer: React.FC = () => {
                 className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
               >
                 <HiHeart className="w-4 h-4" />
-                <span>Support</span>
+                <span>{t('footer.support')}</span>
               </a>
             </div>
           </div>

@@ -4,6 +4,7 @@ import React, { memo, useMemo, useState } from 'react';
 import { Button, Tooltip, Popover, PopoverTrigger, PopoverContent, Slider } from '@heroui/react';
 import { FaPlay, FaPause } from 'react-icons/fa';
 import { getAppSliderClassNames } from '@/components/ui/appSliderStyles';
+import { useI18n } from '@/i18n/I18nProvider';
 
 export interface AudioPlaybackDockProps {
   isPlaying: boolean;
@@ -30,12 +31,13 @@ const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
   disabled = false,
   bpm,
 }) => {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const primarySliderClassNames = getAppSliderClassNames('primary');
-  const formatTime = (t: number) => {
-    if (!isFinite(t) || t < 0) return '0:00';
-    const minutes = Math.floor(t / 60);
-    const seconds = Math.floor(t % 60).toString().padStart(2, '0');
+  const formatTime = (secondsValue: number) => {
+    if (!isFinite(secondsValue) || secondsValue < 0) return '0:00';
+    const minutes = Math.floor(secondsValue / 60);
+    const seconds = Math.floor(secondsValue % 60).toString().padStart(2, '0');
     return `${minutes}:${seconds}`;
   };
 
@@ -52,7 +54,7 @@ const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
     <div className="inline-flex items-center gap-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/70 backdrop-blur-md border border-gray-300 dark:border-gray-700 shadow-sm px-3 sm:px-4 py-2 mx-auto">
       {/* Play / Pause */}
       <Tooltip
-        content={isPlaying ? 'Pause' : 'Play'}
+        content={isPlaying ? t('playback.pause') : t('playback.play')}
         placement="top"
         classNames={{
           content:
@@ -67,7 +69,7 @@ const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-blue-600 hover:bg-blue-700 text-white'
           }`}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
+          aria-label={isPlaying ? t('playback.pause') : t('playback.play')}
         >
           {isPlaying ? <FaPause className="h-5 w-5" /> : <FaPlay className="h-5 w-5" />}
         </button>
@@ -76,7 +78,7 @@ const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
       {/* Progress slider */}
       <div className="min-w-[160px] w-[240px] sm:w-[280px] md:w-[320px]">
         <Slider
-          aria-label="Playback position"
+          aria-label={t('playback.position')}
           color="primary"
           size="sm"
           step={0.01}
@@ -107,13 +109,14 @@ const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
             variant="flat"
             className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             isDisabled={disabled}
+            data-testid="playback-speed"
           >
             {playbackRate}x
           </Button>
         </PopoverTrigger>
         <PopoverContent className="min-w-[220px] p-3 bg-white text-gray-900 dark:bg-content-bg dark:text-gray-100 border border-gray-300 dark:border-gray-600 shadow-lg">
           <div className="flex flex-col gap-3">
-            <div className="text-xs font-medium text-gray-600 dark:text-gray-300">Playback Speed</div>
+            <div className="text-xs font-medium text-gray-600 dark:text-gray-300">{t('playback.speed')}</div>
             <div className="grid grid-cols-3 gap-2">
               {RATES.map((rate) => (
                 <Button
@@ -123,6 +126,7 @@ const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
                   variant={playbackRate === rate ? 'solid' : 'flat'}
                   color={playbackRate === rate ? 'primary' : 'default'}
                   className={playbackRate === rate ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100'}
+                  data-playback-rate={rate}
                   onPress={() => { onChangePlaybackRate(rate); setOpen(false); }}
                 >
                   {rate}x

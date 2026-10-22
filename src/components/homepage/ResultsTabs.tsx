@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Tabs, Tab } from "@heroui/react";
+import { useI18n } from '@/i18n/I18nProvider';
 
 type TabKey = 'beatChordMap' | 'guitarChords' | 'pianoVisualizer' | 'lyricsChords';
 
@@ -15,11 +16,11 @@ interface ResultsTabsProps {
 }
 
 // A small helper component to create the title with the beta badge
-const BetaTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const BetaTitle: React.FC<{ children: React.ReactNode; badge: string }> = ({ children, badge }) => (
   <span className="flex items-center space-x-1">
     <span>{children}</span>
     <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded-full font-medium">
-      beta
+      {badge}
     </span>
   </span>
 );
@@ -31,6 +32,7 @@ const ResultsTabs: React.FC<ResultsTabsProps> = ({
   hasCachedLyrics,
   rightContent
 }) => {
+  const { t } = useI18n();
   const handleSelectionChange = (key: React.Key) => {
     setActiveTab(key as TabKey);
   };
@@ -38,7 +40,7 @@ const ResultsTabs: React.FC<ResultsTabsProps> = ({
   return (
     <div className="mb-4 sticky top-0 z-[60] backdrop-blur rounded-full flex items-center gap-2">
       <Tabs
-        aria-label="Results navigation tabs"
+        aria-label={t('tabs.results')}
         selectedKey={activeTab}
         onSelectionChange={handleSelectionChange}
         size="md"
@@ -59,19 +61,19 @@ const ResultsTabs: React.FC<ResultsTabsProps> = ({
       >
         <Tab
           key="beatChordMap"
-          title="Beat & Chord Map"
+          title={t('tabs.beatMap')}
         />
         <Tab
           key="guitarChords"
-          title={<BetaTitle>Guitar</BetaTitle>}
+          title={<BetaTitle badge={t('tabs.beta')}>{t('tabs.guitar')}</BetaTitle>}
         />
         <Tab
           key="pianoVisualizer"
-          title={<BetaTitle>Piano</BetaTitle>}
+          title={<BetaTitle badge={t('tabs.beta')}>{t('tabs.piano')}</BetaTitle>}
         />
         <Tab
           key="lyricsChords"
-          title={<BetaTitle>Lyrics & Chords</BetaTitle>}
+          title={<BetaTitle badge={t('tabs.beta')}>{t('tabs.lyrics')}</BetaTitle>}
           isDisabled={!showLyrics && !hasCachedLyrics}
         />
       </Tabs>

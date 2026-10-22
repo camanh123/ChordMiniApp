@@ -6,6 +6,7 @@ import { mergeToastClassNames } from '@/utils/toastStyles';
 
 import { useProcessing } from '@/contexts/ProcessingContext';
 import { getAudioDurationFromUrl } from '@/utils/audioDurationUtils';
+import { useI18n } from '@/i18n/I18nProvider';
 
 // Processing time ratios (processing time as fraction of audio duration)
 const PROCESSING_RATIOS: Record<string, number> = {
@@ -60,6 +61,7 @@ const ProcessingStatusBanner: React.FC<ProcessingStatusBannerProps> = React.memo
   beatDetector = 'madmom',
 }) => {
   const { stage, statusMessage, getFormattedElapsedTime } = useProcessing();
+  const { t } = useI18n();
   const chordToastKeyRef = useRef<string | null>(null);
   const beatToastKeyRef = useRef<string | null>(null);
   const chordTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,8 +102,8 @@ const ProcessingStatusBanner: React.FC<ProcessingStatusBannerProps> = React.memo
       const chordTimeoutMs = Math.ceil(effectiveDuration * chordRatio) * 1000;
 
       const key = addToast({
-        title: 'Recognizing Chords',
-        description: statusMessage || 'Recognizing chords and synchronizing with beats...',
+        title: t('analyze.recognizingTitle'),
+        description: t('analyze.recognizing'),
         color: 'default',
         timeout: 0, // Disable HeroUI's default 6s auto-dismiss; we manage lifetime ourselves
         hideCloseButton: true,
@@ -130,8 +132,8 @@ const ProcessingStatusBanner: React.FC<ProcessingStatusBannerProps> = React.memo
       const beatTimeoutMs = Math.ceil(effectiveDuration * beatRatio) * 1000;
 
       const key = addToast({
-        title: 'Detecting Beats',
-        description: statusMessage || 'Analyzing beat patterns and timing...',
+        title: t('analyze.detectingTitle'),
+        description: t('analyze.detecting'),
         color: 'default',
         timeout: 0, // Disable HeroUI's default 6s auto-dismiss; we manage lifetime ourselves
         hideCloseButton: true,
@@ -169,14 +171,14 @@ const ProcessingStatusBanner: React.FC<ProcessingStatusBannerProps> = React.memo
 
       // Build description with cache badges
       const cacheInfo = [
-        fromCache ? 'Audio Cache' : '',
-        fromFirestoreCache ? 'Results Cache' : '',
+        fromCache ? t('analyze.audioCache') : '',
+        fromFirestoreCache ? t('analyze.resultsCache') : '',
       ].filter(Boolean).join(' · ');
 
-      const description = `Beat and chord analysis completed in ${getFormattedElapsedTime()}${cacheInfo ? ` · ${cacheInfo}` : ''}`;
+      const description = `${t('analyze.completeDetail', { time: getFormattedElapsedTime() })}${cacheInfo ? ` · ${cacheInfo}` : ''}`;
 
       addToast({
-        title: 'Analysis Complete',
+        title: t('analyze.completeTitle'),
         description,
         color: 'default',
         timeout: 5000,
@@ -217,7 +219,7 @@ const ProcessingStatusBanner: React.FC<ProcessingStatusBannerProps> = React.memo
         beatToastKeyRef.current = null;
       }
     }
-  }, [stage, statusMessage, getFormattedElapsedTime, fromCache, fromFirestoreCache, beatDetector]);
+  }, [stage, statusMessage, getFormattedElapsedTime, fromCache, fromFirestoreCache, beatDetector, t]);
 
   // Cleanup on unmount
   useEffect(() => {

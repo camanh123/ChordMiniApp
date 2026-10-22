@@ -11,6 +11,7 @@ import HeroScrollingChordAnimation from '@/components/homepage/HeroScrollingChor
 import IntegratedSearchContainer from '@/components/homepage/LazyIntegratedSearchContainer';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import { useI18n } from '@/i18n/I18nProvider';
 import { IoMusicalNotes, IoMusicalNote } from 'react-icons/io5';
 import { useSearchBoxVisibility } from '@/hooks/ui/useSearchBoxVisibility';
 import { useSharedSearchState } from '@/hooks/search/useSharedSearchState';
@@ -56,6 +57,7 @@ const RecentVideos = dynamic(() => import('@/components/homepage/LazyRecentVideo
 });
 
 function NewHomePageContentInner() {
+  const { t } = useI18n();
   const [error, setError] = useState('');
   const titleRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -192,7 +194,7 @@ function NewHomePageContentInner() {
                     }}
                     className="text-base md:text-lg text-slate-600 dark:text-gray-200 font-normal tracking-wide text-center leading-relaxed max-w-lg mx-auto"
                   >
-                    Open source chord & beat detection application. Get your favorite songs transcribed!
+                    {t('home.tagline')}
                   </motion.p>
                 </div>
               </div>
@@ -237,8 +239,8 @@ function NewHomePageContentInner() {
                 >
                   <HeroChordGridLyricsMock />
                   <div className="p-3">
-                    <h4 className="font-medium text-gray-800 dark:text-gray-100 mb-1 text-sm">Beat & Chord Analysis & Lyrics</h4>
-                    <p className="text-xs text-gray-600 dark:text-gray-300">Progressions with Roman numeral analysis, key changes, and sync lyrics</p>
+                    <h4 className="font-medium text-gray-800 dark:text-gray-100 mb-1 text-sm">{t('home.beatChordTitle')}</h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-300">{t('home.beatChordBody')}</p>
                   </div>
                 </motion.div>
 
@@ -249,8 +251,8 @@ function NewHomePageContentInner() {
                 >
                   <HeroPianoVisualizerMock />
                   <div className="p-3">
-                    <h4 className="font-medium text-gray-800 dark:text-gray-100 mb-1 text-sm">Piano Visualizer</h4>
-                    <p className="text-xs text-gray-600 dark:text-gray-300">Falling notes visualization with multi-instrument support and MIDI export</p>
+                    <h4 className="font-medium text-gray-800 dark:text-gray-100 mb-1 text-sm">{t('home.pianoTitle')}</h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-300">{t('home.pianoBody')}</p>
                   </div>
                 </motion.div>
               </div>
@@ -279,10 +281,10 @@ function NewHomePageContentInner() {
             className="text-center mb-12"
           >
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Recent Analyses
+              {t('home.recentTitle')}
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              Explore recently analyzed songs and discover new music through our community
+              {t('home.recentBody')}
             </p>
           </motion.div>
 
@@ -323,17 +325,17 @@ function NewHomePageContentInner() {
               >
                 <h3 className="text-lg font-medium flex items-center gap-2 text-gray-900 dark:text-white">
                   <HiSparkles className="w-5 h-5 text-primary" />
-                  Support ChordMini
+                  {t('home.supportTitle')}
                 </h3>
                 <Chip size="sm" variant="flat" color="success">
-                  Open Source
+                  {t('home.openSource')}
                 </Chip>
 
                 <p className="text-md text-gray-700 dark:text-gray-200 leading-relaxed">
-                  ChordMini is a free, open-source project. The backend server is not guaranteed to be maintained and running for extended periods due to budget constraints. We try our best to keep it running and add new features/models. If you&apos;d like to support the project to keep the backend server running, you can use the donation link. We really appreciate your support! <br />
-                  <em className="text-sm">Note: current server is CPU-based computation, GPU acceleration is more than 10 times faster.</em>
+                  {t('home.supportBody')} <br />
+                  <em className="text-sm">{t('home.cpuNote')}</em>
                   <br />
-                  <em className="text-sm">You can always clone/self-host the app from the source code in <a className="text-yellow-500"href="https://github.com/ptnghia-j/ChordMiniApp" target="_blank" rel="noopener noreferrer">github</a> and deploy it on your own server.</em>
+                  <em className="text-sm">{t('home.selfHost')} <a className="text-yellow-500" href="https://github.com/ptnghia-j/ChordMiniApp" target="_blank" rel="noopener noreferrer">{t('home.github')}</a></em>
                 </p>
               </motion.div>
             </div>
@@ -378,7 +380,7 @@ function NewHomePageContentInner() {
             <button
               onClick={handleDismissToast}
               className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 self-start rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
-              aria-label="Close warning"
+              aria-label={t('home.closeWarning')}
             >
               <HiXMark className="w-5 h-5" />
             </button>

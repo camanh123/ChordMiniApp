@@ -5,6 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import ThemeToggle from './ThemeToggle';
+import { useI18n } from '@/i18n/I18nProvider';
+import type { MessageKey } from '@/i18n/catalog';
 
 import StickySearchBar from '@/components/common/StickySearchBar';
 import { Navbar, NavbarBrand, NavbarContent, NavbarItem, NavbarMenuToggle, NavbarMenu, NavbarMenuItem, Button } from '@heroui/react';
@@ -17,7 +19,7 @@ interface NavigationProps {
 
 interface NavigationItem {
   href: string;
-  label: string;
+  labelKey: MessageKey;
   isScroll?: boolean;
 }
 
@@ -26,6 +28,7 @@ const Navigation: React.FC<NavigationProps> = ({ className = '', showStickySearc
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentHash, setCurrentHash] = useState('');
   const [isClient, setIsClient] = useState(false);
+  const { t } = useI18n();
   const isAnalyzeRoute = pathname?.startsWith('/analyze') ?? false;
   const shouldRenderSearch = pathname === '/' || isAnalyzeRoute;
   const shouldShowSearch = isAnalyzeRoute || showStickySearch;
@@ -48,12 +51,12 @@ const Navigation: React.FC<NavigationProps> = ({ className = '', showStickySearc
 
   // Navigation items configuration
   const navigationItems: NavigationItem[] = [
-    { href: '/', label: 'Home' },
-    { href: '/#features', label: 'Features', isScroll: true },
-    { href: '/analyze', label: 'Analyze Audio' },
-    { href: '/games', label: 'Games' },
-    { href: '/docs', label: 'API Docs' },
-    { href: '/settings', label: 'Settings' },
+    { href: '/', labelKey: 'nav.home' },
+    { href: '/#features', labelKey: 'nav.features', isScroll: true },
+    { href: '/analyze', labelKey: 'nav.analyze' },
+    { href: '/games', labelKey: 'nav.games' },
+    { href: '/docs', labelKey: 'nav.docs' },
+    { href: '/settings', labelKey: 'nav.settings' },
   ];
 
   // Close mobile menu when route changes
@@ -159,7 +162,7 @@ const Navigation: React.FC<NavigationProps> = ({ className = '', showStickySearc
               {/* Light theme logo - hidden in dark mode */}
               <Image
                 src="/chordMiniLogo.webp"
-                alt="ChordMini Logo"
+                alt={t('nav.logo')}
                 width={40}
                 height={40}
                 sizes="40px"
@@ -169,7 +172,7 @@ const Navigation: React.FC<NavigationProps> = ({ className = '', showStickySearc
               {/* Dark theme logo - hidden in light mode */}
               <Image
                 src="/chordMiniLogo-dark.webp"
-                alt="ChordMini Logo"
+                alt={t('nav.logo')}
                 width={40}
                 height={40}
                 sizes="40px"
@@ -211,7 +214,7 @@ const Navigation: React.FC<NavigationProps> = ({ className = '', showStickySearc
                   size="sm"
                   radius="full"
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </Button>
               ) : (
                 <Button
@@ -227,7 +230,7 @@ const Navigation: React.FC<NavigationProps> = ({ className = '', showStickySearc
                   size="sm"
                   radius="full"
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </Button>
               )}
             </NavbarItem>
@@ -267,7 +270,7 @@ const Navigation: React.FC<NavigationProps> = ({ className = '', showStickySearc
                   }`}
                   size="lg"
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </Button>
               ) : (
                 <Button
@@ -283,7 +286,7 @@ const Navigation: React.FC<NavigationProps> = ({ className = '', showStickySearc
                   }`}
                   size="lg"
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </Button>
               )}
             </NavbarMenuItem>

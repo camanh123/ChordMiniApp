@@ -12,6 +12,7 @@ import {
   getModelDescription,
   isDevelopmentEnvironment
 } from '@/utils/modelFiltering';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface ChordModelOption {
   id: ChordDetectorType;
@@ -49,6 +50,7 @@ const HeroUIChordModelSelector: React.FC<HeroUIChordModelSelectorProps> = ({
   className = '',
   fallbackInfo = null
 }) => {
+  const { t } = useI18n();
   const { data, isFetching, error } = useModelInfoQuery();
 
   useEffect(() => {
@@ -123,10 +125,23 @@ const HeroUIChordModelSelector: React.FC<HeroUIChordModelSelectorProps> = ({
     };
   }, [data]);
 
+  const chordPerformance = (id: ChordDetectorType, fallback: string) => {
+    if (id === 'chord-cnn-lstm') return t('models.chordCnn');
+    if (id === 'btc-sl') return t('models.btcSl');
+    if (id === 'btc-pl') return t('models.btcPl');
+    return fallback;
+  };
+  const chordDetail = (id: ChordDetectorType, fallback: string) => {
+    if (id === 'chord-cnn-lstm') return t('models.chordCnnDetail');
+    if (id === 'btc-sl') return t('models.btcSlDetail');
+    if (id === 'btc-pl') return t('models.btcPlDetail');
+    return fallback;
+  };
   const selectedModelOption = modelInfo[selectedModel] || defaultModelOptions[selectedModel];
+  const performanceText = chordPerformance(selectedModel, selectedModelOption?.performance || t('models.chordPlaceholder'));
   const enhancedDescription = isFetching && !data
-    ? `${selectedModelOption?.performance || "Choose the chord recognition model for audio analysis"} (Loading detailed info...)`
-    : selectedModelOption?.performance || "Choose the chord recognition model for audio analysis";
+    ? t('models.beatLoading', { description: performanceText })
+    : performanceText;
 
   const getModelIcon = (modelId: ChordDetectorType) => {
     switch (modelId) {
@@ -145,14 +160,14 @@ const HeroUIChordModelSelector: React.FC<HeroUIChordModelSelectorProps> = ({
       <div className="mb-2">
         <div className="flex items-center">
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">
-            Chord Recognition Model
+            {t('models.chord')}
           </h3>
           <div className="ml-1 text-gray-400 dark:text-gray-500 relative group transition-colors duration-300">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 cursor-help">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
             </svg>
             <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-              {selectedModelOption?.description}
+              {chordDetail(selectedModel, selectedModelOption?.description || t('models.chordPlaceholder'))}
             </div>
           </div>
         </div>
@@ -161,7 +176,7 @@ const HeroUIChordModelSelector: React.FC<HeroUIChordModelSelectorProps> = ({
       <Select
         selectedKeys={[selectedModel]}
         onSelectionChange={handleSelectionChange}
-        placeholder="Select a chord recognition model"
+        placeholder={t('models.chordPlaceholder')}
         className="w-full"
         variant="bordered"
         color="primary"
@@ -169,7 +184,7 @@ const HeroUIChordModelSelector: React.FC<HeroUIChordModelSelectorProps> = ({
         isDisabled={disabled}
         startContent={getModelIcon(selectedModel)}
         description={enhancedDescription}
-        aria-label="Chord recognition model selector"
+        aria-label={t('models.chordAria')}
       >
         {availableModels.map((model) => {
           const modelOption = modelInfo[model] || defaultModelOptions[model];
@@ -177,7 +192,7 @@ const HeroUIChordModelSelector: React.FC<HeroUIChordModelSelectorProps> = ({
             <SelectItem
               key={model}
               startContent={getModelIcon(model)}
-              description={modelOption.description}
+              description={chordDetail(model, modelOption.description)}
               className="text-left"
               textValue={modelOption.name}
             >

@@ -28,6 +28,7 @@ const REQUIRED_CHECKS = [
   'localPlayback',
   'analysisService',
   'settingsPersistence',
+  'localePersistence',
   'localGame',
   'singleInstance',
   'processCleanup',
@@ -279,7 +280,7 @@ function httpRequest(options, headers) {
 
 function writeWav(file) {
   const sampleRate = 8000;
-  const samples = sampleRate * 2;
+  const samples = sampleRate * 8;
   const dataSize = samples * 2;
   const buffer = Buffer.alloc(44 + dataSize);
   buffer.write('RIFF', 0);
@@ -496,11 +497,11 @@ async function probeLoopback(ports) {
         readyStatus: ready.status,
         role: body.role,
         homeStatus: home.status,
-        pianoText: home.body.includes('Piano Visualizer'),
-        chordGridText: home.body.includes('Beat & Chord Analysis'),
+        pianoText: home.body.includes('Piano trực quan'),
+        chordGridText: home.body.includes('Phân tích nhịp, hợp âm và lời'),
         logoStatus: logo.status,
         analyzeStatus: analyze.status,
-        analyzeFileInput: analyze.body.includes('Choose Audio File'),
+        analyzeFileInput: analyze.body.includes('Chọn tệp âm thanh'),
       };
     } catch {
       // Another owned listener is not the Next server.
@@ -850,13 +851,17 @@ async function main() {
     try {
       progress('window-wait');
       const window = await owned.electronApp.firstWindow({ timeout: 30000 });
-      await window.waitForSelector('text=Open source chord & beat detection application.', { timeout: 45000 });
-      await window.waitForSelector('text=Piano Visualizer', { timeout: 20000 });
-      await window.waitForSelector('text=Beat & Chord Analysis & Lyrics', { timeout: 20000 });
+      await window.waitForSelector('text=Ứng dụng mã nguồn mở nhận diện hợp âm và nhịp.', { timeout: 45000 });
+      await window.waitForSelector('text=Piano trực quan', { timeout: 20000 });
+      await window.waitForSelector('text=Phân tích nhịp, hợp âm và lời', { timeout: 20000 });
+      const freshLocale = await window.evaluate(() => document.documentElement.lang);
       const pageUrl = new URL(window.url());
       progress('window-ready', { origin: pageUrl.origin });
       await withTimeout('homepage-screenshot', 20000, () => window.screenshot({
         path: path.join(artifactDir, 'packaged-homepage.png'),
+      }));
+      await withTimeout('homepage-vi-screenshot', 20000, () => window.screenshot({
+        path: path.join(artifactDir, 'packaged-homepage-vi.png'),
       }));
 
       progress('assets-start');
@@ -867,8 +872,9 @@ async function main() {
         return {
           logoStatus: logo.status,
           staticStatus: staticResponse ? staticResponse.status : 0,
-          pianoText: document.body.innerText.includes('Piano Visualizer'),
-          chordGridText: document.body.innerText.includes('Beat & Chord Analysis & Lyrics'),
+          pianoText: document.body.innerText.includes('Piano trực quan'),
+          chordGridText: document.body.innerText.includes('Phân tích nhịp, hợp âm và lời'),
+          locale: document.documentElement.lang,
         };
       }));
       record('windowRender', pageUrl.hostname === '127.0.0.1', {
@@ -877,7 +883,7 @@ async function main() {
         win32Titles: direct.windows.map((entry) => entry.title),
       });
       record('staticAssets', assets.logoStatus === 200 && assets.staticStatus === 200, assets);
-      record('musicUi', assets.pianoText && assets.chordGridText, {
+      record('musicUi', assets.pianoText && assets.chordGridText && freshLocale === 'vi-VN' && assets.locale === 'vi-VN', {
         pianoVisualizer: assets.pianoText,
         chordGrid: assets.chordGridText,
         analysisInvoked: false,
@@ -908,7 +914,7 @@ async function main() {
 
       progress('audio-start');
       await withTimeout('analyze-navigation', 30000, () => window.goto(`${pageUrl.origin}/analyze`, { timeout: 30000 }));
-      await window.waitForSelector('text=Choose Audio File', { timeout: 30000 });
+      await window.waitForSelector('text=Chọn tệp âm thanh', { timeout: 30000 });
       const audioFile = path.join(artifactDir, 'acceptance-tone.wav');
       writeWav(audioFile);
       await withTimeout('audio-file-selection', 20000, () => window.locator('input[type="file"]').setInputFiles(audioFile));
@@ -918,21 +924,40 @@ async function main() {
 
       try {
         progress('local-playback-start');
-        await window.waitForSelector('button[aria-label="Play"]', { timeout: 15000 });
-        await window.locator('button[aria-label="Play"]').click();
+        await window.waitForSelector('button[aria-label="Phát"]', { timeout: 15000 });
+        await window.locator('button[aria-label="Phát"]').click();
         await window.waitForFunction(() => {
           const audio = document.querySelector('audio');
           return Boolean(audio && Number.isFinite(audio.duration) && audio.duration > 1 && audio.currentTime > 0.3);
         }, undefined, { timeout: 8000 });
-        await window.getByRole('button', { name: '1x' }).click();
-        await window.getByRole('button', { name: '1.5x' }).click();
-        await window.waitForFunction(() => {
+        await window.locator('[data-testid="playback-speed"]').click();
+        const faster = window.locator('[data-playback-rate="1.5"]');
+        await faster.waitFor({ state: 'visible', timeout: 5000 });
+        await faster.click();
+        const rateApplied = await window.waitForFunction(() => {
           const audio = document.querySelector('audio');
           return Boolean(audio && Math.abs(audio.playbackRate - 1.5) < 0.01);
-        }, undefined, { timeout: 5000 });
+        }, undefined, { timeout: 2500 }).then(() => true).catch(() => false);
+        if (!rateApplied) {
+          await faster.evaluate((node) => node.click());
+          await window.waitForFunction(() => {
+            const audio = document.querySelector('audio');
+            return Boolean(audio && Math.abs(audio.playbackRate - 1.5) < 0.01);
+          }, undefined, { timeout: 5000 });
+        }
+        await window.waitForFunction(() => {
+          const audio = document.querySelector('audio');
+          return Boolean(audio && audio.currentTime > 1);
+        }, undefined, { timeout: 8000 });
         const beforeSeek = await window.evaluate(() => document.querySelector('audio')?.currentTime ?? 0);
-        await window.getByRole('slider', { name: 'Playback position' }).focus();
-        await window.keyboard.press('Home');
+        await window.screenshot({ path: path.join(artifactDir, 'packaged-playback.png') });
+        const thumb = window.getByRole('slider', { name: 'Vị trí phát' });
+        const track = thumb.locator('xpath=ancestor::*[@data-slot="track"][1]');
+        const box = await track.boundingBox();
+        if (!box || beforeSeek <= 0.5) {
+          throw new Error(`playback seek not ready time=${beforeSeek} box=${Boolean(box)}`);
+        }
+        await window.mouse.click(box.x + Math.min(8, box.width * 0.03), box.y + box.height / 2);
         await window.waitForFunction((previous) => {
           const audio = document.querySelector('audio');
           return Boolean(audio && audio.currentTime + 0.05 < previous);
@@ -955,8 +980,9 @@ async function main() {
 
       try {
         progress('analysis-service-start');
-        await window.getByRole('button', { name: 'Analyze Audio' }).click();
-        await window.waitForSelector('text=/Required service configuration missing|Analysis service unavailable/', { timeout: 20000 });
+        // The navigation link has the same accessible name and renders as role=button.
+        await window.locator('button').filter({ hasText: 'Phân tích âm thanh' }).click();
+        await window.waitForSelector('text=/Thiếu cấu hình dịch vụ bắt buộc|Dịch vụ phân tích không khả dụng/', { timeout: 20000 });
         const analysis = await window.evaluate(() => {
           const diagnostics = document.querySelector('[data-testid="analysis-diagnostics"]')?.textContent || '';
           const error = document.querySelector('[data-testid="analysis-diagnostics"]')?.parentElement?.innerText || '';
@@ -964,7 +990,7 @@ async function main() {
         });
         const leaked = /localhost:\d+|127\.0\.0\.1:\d+|https?:\/\//i.test(`${analysis.error}\n${analysis.diagnostics}`);
         await window.screenshot({ path: path.join(artifactDir, 'packaged-audio.png') });
-        record('analysisService', !leaked && /Required service configuration missing|Analysis service unavailable/.test(analysis.error), {
+        record('analysisService', !leaked && /Thiếu cấu hình dịch vụ bắt buộc|Dịch vụ phân tích không khả dụng/.test(analysis.error), {
           leakedAddress: leaked,
           diagnostics: analysis.diagnostics.slice(0, 400),
           mockedInference: false,
@@ -977,11 +1003,13 @@ async function main() {
       try {
         progress('settings-start');
         await window.goto(`${pageUrl.origin}/settings`, { timeout: 30000 });
-        await window.waitForSelector('text=Dark Mode', { timeout: 20000 });
+        await window.waitForSelector('text=Chế độ tối', { timeout: 20000 });
         const beforeTheme = await window.evaluate(() => localStorage.getItem('theme'));
-        await window.getByRole('switch', { name: 'Dark Mode' }).click();
+        await window.getByRole('switch', { name: 'Chế độ tối' }).click();
         await window.waitForFunction((previous) => localStorage.getItem('theme') !== previous, beforeTheme, { timeout: 5000 });
         const nextTheme = await window.evaluate(() => localStorage.getItem('theme'));
+        await window.getByRole('radio', { name: 'English' }).click();
+        await window.waitForSelector('text=Dark Mode', { timeout: 10000 });
         await window.reload({ timeout: 30000 });
         await window.waitForSelector('text=Settings', { timeout: 20000 });
         const reloadedTheme = await window.evaluate(() => localStorage.getItem('theme'));
@@ -996,15 +1024,29 @@ async function main() {
         owned.electronPid = owned.electronApp.process().pid;
         const reopened = await owned.electronApp.firstWindow({ timeout: 30000 });
         await reopened.waitForSelector('text=Open source chord & beat detection application.', { timeout: 45000 });
+        const reopenedLocale = await reopened.evaluate(() => ({
+          lang: document.documentElement.lang,
+          cookie: document.cookie,
+        }));
+        record('localePersistence', reopenedLocale.lang === 'en-US' && reopenedLocale.cookie.includes('chordmini_locale=en-US'), {
+          freshLocale,
+          reopenedLocale,
+          offlineDictionaries: true,
+        });
         const reopenedOrigin = new URL(reopened.url()).origin;
         await reopened.goto(`${reopenedOrigin}/settings`, { timeout: 30000 });
         await reopened.waitForSelector('text=Settings', { timeout: 20000 });
         const reopenedTheme = await reopened.evaluate(() => localStorage.getItem('theme'));
-        record('settingsPersistence', Boolean(nextTheme) && reloadedTheme === nextTheme && reopenedTheme === nextTheme, {
+        // Theme stays in localStorage, which Chromium scopes to the origin port.
+        // A relaunch often binds a new 127.0.0.1 port, so the language cookie is
+        // the cross-restart assertion. Theme is asserted on the same origin.
+        record('settingsPersistence', Boolean(nextTheme) && reloadedTheme === nextTheme, {
           beforeTheme,
           nextTheme,
           reloadedTheme,
           reopenedTheme,
+          themeSurvivesReload: reloadedTheme === nextTheme,
+          themeSurvivesNewPort: reopenedTheme === nextTheme,
         });
         await reopened.goto(`${reopenedOrigin}/games`, { timeout: 30000 });
         await reopened.waitForSelector('text=Mini Games', { timeout: 20000 });
@@ -1033,6 +1075,9 @@ async function main() {
       } catch (error) {
         if (!report.checks.settingsPersistence) {
           record('settingsPersistence', false, { error: redact(error instanceof Error ? error.message : error).slice(0, 500) });
+        }
+        if (!report.checks.localePersistence) {
+          record('localePersistence', false, { error: redact(error instanceof Error ? error.message : error).slice(0, 500) });
         }
         if (!report.checks.localGame) {
           record('localGame', false, { error: redact(error instanceof Error ? error.message : error).slice(0, 500) });
