@@ -101,14 +101,20 @@ export function findExternalModuleLinks(standaloneDir: string): Array<{ path: st
   return found;
 }
 
-function runtimeChildEnv(extra: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+function runtimeChildEnv(extra: Record<string, string | undefined> = {}): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { NODE_ENV: 'production' };
   for (const key of ['PATH', 'SystemRoot', 'SYSTEMROOT', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'PATHEXT', 'ComSpec', 'COMSPEC']) {
-    if (process.env[key]) {
-      env[key] = process.env[key];
+    const value = process.env[key];
+    if (value) {
+      env[key] = value;
     }
   }
-  return { ...env, ...extra };
+  for (const [key, value] of Object.entries(extra)) {
+    if (value !== undefined) {
+      env[key] = value;
+    }
+  }
+  return env;
 }
 
 function missingNextMessage(standaloneDir: string): string {
@@ -168,7 +174,7 @@ export function verifyStandaloneResolution(standaloneDir: string): RuntimeModule
     fs.writeFileSync(scriptPath, RESOLVE_SCRIPT);
     const result = spawnSync(process.execPath, [scriptPath, path.join(isolated, 'server.js')], {
       cwd: isolatedParent,
-      env: runtimeChildEnv({}),
+      env: runtimeChildEnv(),
       encoding: 'utf8',
       timeout: 120000,
       windowsHide: true,
