@@ -8,6 +8,7 @@ import type { SegmentationResult } from '@/types/chatbotTypes';
 import { getSegmentationColorForBeatIndex } from '@/utils/chordFormatting';
 
 import { GridLyricText, type BeatGridTimedLyrics } from '@/components/chord-analysis/GridLyricsRow';
+import { useI18n } from '@/i18n/I18nProvider';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -171,6 +172,7 @@ export const ScrollingChordStrip = React.memo<ScrollingChordStripProps>(({
   segmentationData,
   gridLyrics = null,
 }) => {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const stripInnerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(800);
@@ -468,7 +470,7 @@ export const ScrollingChordStrip = React.memo<ScrollingChordStripProps>(({
         className="relative overflow-hidden rounded-sm flex items-center justify-center"
         style={{ height: hasLyrics ? height + 24 : height }}
       >
-        <span className="font-varela text-xs text-gray-500">No chord events</span>
+        <span className="font-varela text-xs text-gray-500">{t('piano.noEvents')}</span>
       </div>
     );
   }

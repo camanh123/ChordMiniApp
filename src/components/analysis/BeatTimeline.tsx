@@ -2,6 +2,7 @@
 
 import React, { useMemo, useRef, useEffect } from 'react';
 import { Card, CardBody } from '@heroui/react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface BeatTimelineProps {
   beats: Array<{time: number, beatNum?: number} | number>;
@@ -25,6 +26,7 @@ export const BeatTimeline: React.FC<BeatTimelineProps> = React.memo(({
   className = '',
   embedded = false,
 }) => {
+  const { t } = useI18n();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const processedBeats = useMemo(() => {
@@ -179,19 +181,19 @@ export const BeatTimeline: React.FC<BeatTimelineProps> = React.memo(({
       <div className="hidden md:flex items-center gap-3 px-1">
         <LegendItem>
           <div className="w-1 h-3 rounded-sm bg-gray-300 dark:bg-gray-500" />
-          <span>Regular beat</span>
+          <span>{t('beat.regular')}</span>
         </LegendItem>
         <LegendItem>
           <div className="w-1.5 h-3.5 rounded-sm bg-blue-300 dark:bg-blue-500/70" />
-          <span>Downbeat</span>
+          <span>{t('beat.downbeat')}</span>
         </LegendItem>
         <LegendItem>
           <div className="w-2 h-4 rounded-sm bg-blue-500 dark:bg-blue-400 shadow-sm shadow-blue-500/30" />
-          <span>Current beat</span>
+          <span>{t('beat.current')}</span>
         </LegendItem>
         <LegendItem>
           <div className="w-[3px] h-3.5 rounded-full bg-red-400/60" />
-          <span>Measure start</span>
+          <span>{t('beat.measure')}</span>
         </LegendItem>
       </div>
     </div>

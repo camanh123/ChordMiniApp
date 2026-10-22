@@ -41,11 +41,18 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
     }`} />
   );
 
+  const presentKnownError = (error: string) => {
+    if (error === 'Invalid API key' || error === 'Invalid access code') return t('settings.invalid');
+    if (error === 'Failed to validate API key') return t('settings.validateKeyFailed');
+    if (error === 'Failed to validate access code') return t('settings.validateCodeFailed');
+    return error;
+  };
+
   const getStatusLabel = (service: ApiCredentialService) => {
     const s = apiKeyStatus[service];
-    if (!s.hasKey) return 'Not configured';
-    if (s.isValid) return 'Valid';
-    return s.error || 'Invalid';
+    if (!s.hasKey) return t('settings.notConfigured');
+    if (s.isValid) return t('settings.valid');
+    return s.error ? presentKnownError(s.error) : t('settings.invalid');
   };
 
   const geminiQuota = (() => {
@@ -58,7 +65,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600 dark:text-gray-400">
-        Credentials are encrypted locally and never leave your browser.
+        {t('settings.credentialsNote')}
       </p>
 
       {/* Music.ai */}
@@ -68,7 +75,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="font-semibold text-gray-900 dark:text-white">Music.ai</h4>
-                <Chip size="sm" variant="flat" color="primary">Required</Chip>
+                <Chip size="sm" variant="flat" color="primary">{t('settings.required')}</Chip>
                 <div className="flex items-center gap-1.5 ml-1">
                   <StatusDot valid={apiKeyStatus.musicAi.isValid} hasKey={apiKeyStatus.musicAi.hasKey} />
                   <span className={`text-xs font-medium ${
@@ -80,7 +87,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
                 </div>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Required for lyrics transcription. New accounts get $20 free credit.
+                {t('settings.musicAiBody')}
               </p>
             </div>
             <div className="flex gap-2 shrink-0">
@@ -89,7 +96,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
                 isDisabled={isUpdating === 'musicAi'}
                 onPress={() => setActiveModal('musicAi')}
               >
-                {apiKeyStatus.musicAi.hasKey ? 'Update' : 'Add Key'}
+                {apiKeyStatus.musicAi.hasKey ? t('settings.update') : t('settings.addKey')}
               </Button>
               {apiKeyStatus.musicAi.hasKey && (
                 <Button
@@ -110,7 +117,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
               <span>
-                Create a <strong>&ldquo;Lyrics Transcription and Alignment&rdquo;</strong> workflow in your Music.AI workspace first.
+                {t('settings.musicAiWorkflow')}
               </span>
             </div>
           )}
@@ -118,10 +125,10 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
           {/* Links */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <a href={API_KEY_HELP_URLS.MUSIC_AI} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-              Get API Key &rarr;
+              {t('settings.getApiKey')}
             </a>
             <a href="https://music.ai/workflows/" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">
-              Setup Workflow &rarr;
+              {t('settings.setupWorkflow')}
             </a>
           </div>
         </CardBody>
@@ -134,7 +141,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="font-semibold text-gray-900 dark:text-white">{t('settings.segmentation')}</h4>
-                <Chip size="sm" variant="flat" color="warning">Restricted</Chip>
+                <Chip size="sm" variant="flat" color="warning">{t('settings.restricted')}</Chip>
                 <div className="flex items-center gap-1.5 ml-1">
                   <StatusDot valid={apiKeyStatus.songformerAccess.isValid} hasKey={apiKeyStatus.songformerAccess.hasKey} />
                   <span className={`text-xs font-medium ${
@@ -146,14 +153,14 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
                 </div>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Required only for new uncached SongFormer segmentation requests. Cached results remain available without a code.
+                {t('settings.segmentationBody')}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Request access via{' '}
+                {t('settings.segmentationRequest')}{' '}
                 <a href={`mailto:${SEGMENTATION_ACCESS_REQUEST_EMAIL}`} className="text-blue-500 hover:underline">
                   {SEGMENTATION_ACCESS_REQUEST_EMAIL}
                 </a>
-                . Local development does not require this code.
+                . {t('settings.segmentationLocal')}
               </p>
             </div>
             <div className="flex gap-2 shrink-0">
@@ -162,7 +169,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
                 isDisabled={isUpdating === 'songformerAccess'}
                 onPress={() => setActiveModal('songformerAccess')}
               >
-                {apiKeyStatus.songformerAccess.hasKey ? 'Update Code' : 'Add Code'}
+                {apiKeyStatus.songformerAccess.hasKey ? t('settings.updateCode') : t('settings.addCode')}
               </Button>
               {apiKeyStatus.songformerAccess.hasKey && (
                 <Button
@@ -185,7 +192,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="font-semibold text-gray-900 dark:text-white">Gemini</h4>
-                <Chip size="sm" variant="flat" color="default">Optional</Chip>
+                <Chip size="sm" variant="flat" color="default">{t('settings.optional')}</Chip>
                 <div className="flex items-center gap-1.5 ml-1">
                   <StatusDot valid={apiKeyStatus.gemini.isValid} hasKey={apiKeyStatus.gemini.hasKey} />
                   <span className={`text-xs font-medium ${
@@ -197,7 +204,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
                 </div>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Bypass translation rate limits. Free tier available.
+                {t('settings.geminiBody')}
               </p>
             </div>
             <div className="flex gap-2 shrink-0">
@@ -206,7 +213,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
                 isDisabled={isUpdating === 'gemini'}
                 onPress={() => setActiveModal('gemini')}
               >
-                {apiKeyStatus.gemini.hasKey ? 'Update' : 'Add Key'}
+                {apiKeyStatus.gemini.hasKey ? t('settings.update') : t('settings.addKey')}
               </Button>
               {apiKeyStatus.gemini.hasKey && (
                 <Button
@@ -224,7 +231,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
           {geminiQuota && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>Translation quota</span>
+                <span>{t('settings.translationQuota')}</span>
                 <span className="font-medium">{geminiQuota.used}/{geminiQuota.limit} ({geminiQuota.pct.toFixed(0)}%)</span>
               </div>
               <Progress
@@ -235,14 +242,14 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
               />
               {geminiQuota.resetTime && (
                 <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                  Resets {new Date(geminiQuota.resetTime).toLocaleString()}
+                  {t('settings.resets', { time: new Date(geminiQuota.resetTime).toLocaleString() })}
                 </p>
               )}
             </div>
           )}
 
           <a href={API_KEY_HELP_URLS.GEMINI} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline">
-            Get API Key &rarr;
+            {t('settings.getApiKey')}
           </a>
         </CardBody>
       </Card>

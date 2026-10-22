@@ -7,11 +7,13 @@ on:
       - cursor/phase-2b-windows-installer-393f
       - cursor/phase-2c-functional-recovery-393f
       - cursor/phase-i18n-01-offline-languages-393f
+      - cursor/phase-i18n-01a-coverage-393f
   pull_request:
     branches:
       - cursor/phase-2a-electron-shell-393f
       - cursor/phase-2b-windows-installer-393f
       - cursor/phase-2c-functional-recovery-393f
+      - cursor/phase-i18n-01-offline-languages-393f
 
 permissions:
   contents: read

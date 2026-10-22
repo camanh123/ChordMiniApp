@@ -916,8 +916,8 @@ export const GuitarChordsTab: React.FC<GuitarChordsTabProps> = ({
             </div>
             {uniqueChordsForGuitarDiagrams.length === 0 && (
               <div className="text-center text-gray-500 dark:text-gray-400 py-12 max-w-md mx-auto">
-                <Image src="/quarter_rest.svg" alt="No chords" width={64} height={64} className="mx-auto mb-4 opacity-50" style={{ filter: 'brightness(0.4)' }} />
-                <p className="text-lg font-medium">No chords detected in this song</p>
+                <Image src="/quarter_rest.svg" alt={t('guitar.noneAlt')} width={64} height={64} className="mx-auto mb-4 opacity-50" style={{ filter: 'brightness(0.4)' }} />
+                <p className="text-lg font-medium">{t('guitar.noneDetected')}</p>
               </div>
             )}
           </div>

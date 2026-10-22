@@ -1008,6 +1008,16 @@ async function main() {
         await window.getByRole('switch', { name: 'Chế độ tối' }).click();
         await window.waitForFunction((previous) => localStorage.getItem('theme') !== previous, beforeTheme, { timeout: 5000 });
         const nextTheme = await window.evaluate(() => localStorage.getItem('theme'));
+        await window.waitForSelector('text=Chưa cấu hình', { timeout: 20000 });
+        await window.screenshot({ path: path.join(artifactDir, 'packaged-settings-vi.png') });
+        await window.goto(`${pageUrl.origin}/games`, { timeout: 30000 });
+        await window.waitForSelector('text=Lý thuyết nhạc và trò chơi tương tác', { timeout: 20000 });
+        await window.screenshot({ path: path.join(artifactDir, 'packaged-games-vi.png') });
+        await window.goto(`${pageUrl.origin}/docs`, { timeout: 30000 });
+        await window.waitForSelector('text=Tài liệu API ChordMini', { timeout: 20000 });
+        await window.screenshot({ path: path.join(artifactDir, 'packaged-docs-vi.png') });
+        await window.goto(`${pageUrl.origin}/settings`, { timeout: 30000 });
+        await window.waitForSelector('text=Chế độ tối', { timeout: 20000 });
         await window.getByRole('radio', { name: 'English' }).click();
         await window.waitForSelector('text=Dark Mode', { timeout: 10000 });
         await window.reload({ timeout: 30000 });

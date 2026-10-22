@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Highlight, themes } from 'prism-react-renderer';
 import { useTheme } from '@/contexts/ThemeContext';
 import AppTooltip from '@/components/common/AppTooltip';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface CodeBlockProps {
   code: string;
@@ -14,6 +15,7 @@ interface CodeBlockProps {
 
 export const CodeBlock = ({ code, language }: CodeBlockProps) => {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -28,12 +30,12 @@ export const CodeBlock = ({ code, language }: CodeBlockProps) => {
 
   return (
     <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 font-mono text-sm relative">
-      <AppTooltip content="Copy code">
+      <AppTooltip content={t('docs.copyTip')}>
         <button
           onClick={handleCopy}
           className="absolute top-2 right-2 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors z-10"
         >
-          {copied ? '✓ Copied' : 'Copy'}
+          {copied ? t('docs.copied') : t('docs.copy')}
         </button>
       </AppTooltip>
 

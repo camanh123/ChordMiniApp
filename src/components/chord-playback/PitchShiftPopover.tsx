@@ -23,6 +23,7 @@ import {
   useSetPitchShiftSemitones
 } from '@/stores/uiStore';
 import { formatSemitones } from '@/utils/chordTransposition';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface PitchShiftPopoverProps {
   playbackRate: number;
@@ -39,6 +40,7 @@ const PitchShiftPopover: React.FC<PitchShiftPopoverProps> = memo(({
   playbackRate,
   setPlaybackRate,
 }) => {
+  const { t } = useI18n();
   const successSliderClassNames = getAppSliderClassNames('success');
   const isPitchShiftEnabled = useIsPitchShiftEnabled();
   const togglePitchShift = useTogglePitchShift();
@@ -248,7 +250,7 @@ const PitchShiftPopover: React.FC<PitchShiftPopoverProps> = memo(({
               {isProcessingPitchShift && (
                 <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
                   <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                  <span>Processing...</span>
+                  <span>{t('playback.processing')}</span>
                 </div>
               )}
             </UtilityPopoverPanel>

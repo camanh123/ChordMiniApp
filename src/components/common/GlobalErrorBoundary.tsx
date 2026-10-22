@@ -1,6 +1,8 @@
 'use client';
 
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/locales';
+import { translate } from '@/i18n/translate';
 
 interface Props {
   children: ReactNode;
@@ -53,12 +55,14 @@ class GlobalErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      // Default fallback UI
+      const locale = typeof document !== 'undefined' && isAppLocale(document.documentElement.lang)
+        ? document.documentElement.lang
+        : DEFAULT_LOCALE;
       return (
         <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-600 rounded-md">
-          <h2 className="text-xl font-bold text-red-700 dark:text-red-200 mb-2">Something went wrong</h2>
+          <h2 className="text-xl font-bold text-red-700 dark:text-red-200 mb-2">{translate(locale, 'errors.somethingWrong')}</h2>
           <p className="text-red-600 dark:text-red-200 mb-4">
-            An error occurred in the application. Please try refreshing the page.
+            {translate(locale, 'errors.refreshBody')}
           </p>
           {this.state.error && (
             <div className="bg-white dark:bg-gray-800 p-3 rounded border border-red-100 dark:border-red-700 mb-3">
@@ -73,7 +77,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
             }}
             className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
           >
-            Refresh Page
+            {translate(locale, 'errors.refreshPage')}
           </button>
         </div>
       );

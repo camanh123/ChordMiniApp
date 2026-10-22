@@ -10,6 +10,7 @@ import { useApiKeys } from '@/hooks/settings/useApiKeys';
 import MarkdownRenderer from '@/components/common/MarkdownRenderer';
 import AppTooltip from '@/components/common/AppTooltip';
 import { useEmbeddedPanelHeight } from '@/hooks/ui/useEmbeddedPanelHeight';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface ChatbotInterfaceProps {
   isOpen: boolean;
@@ -19,7 +20,6 @@ interface ChatbotInterfaceProps {
   embedded?: boolean;
 }
 
-const WELCOME_MESSAGE = `Hello! I'm your AI music assistant. I can help you understand this song's chord progressions, beat patterns, harmonic movement, structure, and lyrics. What would you like to explore?`;
 const FLOATING_PANEL_CLASSES = 'w-[20.5rem] max-w-[calc(100vw-1rem)] h-[calc(100vh-9.85rem)] max-h-[590px] min-h-[340px] max-sm:left-3 max-sm:right-3 max-sm:bottom-[calc(var(--mobile-video-dock-height,0px)+1.35rem)] max-sm:w-auto max-sm:max-w-none max-sm:h-[calc(100vh-var(--mobile-video-dock-height,0px)-9.6rem)] max-sm:max-h-[calc(100vh-var(--mobile-video-dock-height,0px)-9.6rem)] max-sm:min-h-[280px] sm:bottom-16 sm:right-4 sm:w-[20.5rem] sm:max-w-[calc(100vw-2rem)] sm:h-[calc(100vh-9.85rem)] sm:max-h-[590px] sm:min-h-[340px]';
 
 const ChatbotInterface: React.FC<ChatbotInterfaceProps> = ({
@@ -37,11 +37,12 @@ const ChatbotInterface: React.FC<ChatbotInterfaceProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const { t, locale } = useI18n();
   const { getApiKey } = useApiKeys();
   const embeddedHeight = useEmbeddedPanelHeight(embedded, panelRef);
 
   const clearConversation = () => {
-    setMessages([createChatMessage('assistant', WELCOME_MESSAGE)]);
+    setMessages([createChatMessage('assistant', t('chat.welcome'))]);
     setError(null);
   };
 
@@ -60,7 +61,7 @@ const ChatbotInterface: React.FC<ChatbotInterfaceProps> = ({
     setIsLoading(true);
     try {
       if (!songContext) {
-        throw new Error('No song context available. Please make sure a song is loaded.');
+        throw new Error(t('chat.noContext'));
       }
 
       const geminiApiKey = await getApiKey('gemini');
@@ -68,7 +69,7 @@ const ChatbotInterface: React.FC<ChatbotInterfaceProps> = ({
       const response = await sendChatMessageWithLyricsRetrieval(messageContent, truncatedHistory, songContext, geminiApiKey || undefined);
       setMessages((prev) => [...prev, createChatMessage('assistant', response.message)]);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to send message');
+      setError(error instanceof Error ? error.message : t('chat.sendFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -95,10 +96,15 @@ const ChatbotInterface: React.FC<ChatbotInterfaceProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      setMessages([createChatMessage('assistant', WELCOME_MESSAGE)]);
-    }
-  }, [isOpen, messages.length]);
+    if (!isOpen) return;
+    setMessages((current) => {
+      if (current.length > 1) return current;
+      if (current.length === 1 && current[0].role !== 'assistant') return current;
+      const welcome = t('chat.welcome');
+      if (current.length === 1 && current[0].content === welcome) return current;
+      return [createChatMessage('assistant', welcome)];
+    });
+  }, [isOpen, locale, t]);
 
   return (
     <AnimatePresence>
@@ -127,15 +133,15 @@ const ChatbotInterface: React.FC<ChatbotInterfaceProps> = ({
               <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <HiSparkles className="h-5 w-5 text-blue-500" />
-                <h3 className="font-semibold text-neutral-800 dark:text-white text-sm sm:text-base">AI Music Assistant</h3>
+                <h3 className="font-semibold text-neutral-800 dark:text-white text-sm sm:text-base">{t('chat.title')}</h3>
               </div>
               <div className="flex items-center text-neutral-500 dark:text-white">
-                <AppTooltip content="Clear conversation" placement="left">
-                  <button onClick={clearConversation} className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors" aria-label="Clear conversation">
+                <AppTooltip content={t('chat.clear')} placement="left">
+                  <button onClick={clearConversation} className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors" aria-label={t('chat.clear')}>
                     <HiArrowPath className="h-5 w-5" />
                   </button>
                 </AppTooltip>
-                <button onClick={onClose} className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors" aria-label="Close chatbot">
+                <button onClick={onClose} className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors" aria-label={t('chat.close')}>
                   <HiXMark className="h-5 w-5" />
                 </button>
               </div>
@@ -176,7 +182,7 @@ const ChatbotInterface: React.FC<ChatbotInterfaceProps> = ({
                       handleSendMessage();
                     }
                   }}
-                  placeholder="Ask about the song analysis..."
+                  placeholder={t('chat.placeholder')}
                   disabled={isLoading}
                   rows={1}
                   className="w-full px-3 pt-3 bg-transparent text-sm text-neutral-800 dark:text-neutral-200 placeholder-neutral-500 dark:placeholder-neutral-400 focus:outline-none resize-none"
@@ -187,7 +193,7 @@ const ChatbotInterface: React.FC<ChatbotInterfaceProps> = ({
                     disabled={!inputMessage.trim() || isLoading}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 text-white disabled:text-neutral-500 dark:disabled:text-neutral-400 text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
                   >
-                    Send
+                    {t('chat.send')}
                   </button>
                 </div>
               </div>

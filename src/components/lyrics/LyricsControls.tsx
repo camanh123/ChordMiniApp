@@ -1,4 +1,7 @@
+'use client';
+
 import React from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 import { Button, Popover, PopoverTrigger, PopoverContent, Slider } from '@heroui/react';
 import { HiGlobeAlt } from 'react-icons/hi';
 import { getAppSliderClassNames } from '@/components/ui/appSliderStyles';
@@ -52,6 +55,7 @@ export const LyricsControls: React.FC<LyricsControlsProps> = ({
   setSelectedLanguages,
   setIsLanguageMenuOpen
 }) => {
+  const { t } = useI18n();
   const successSliderClassNames = getAppSliderClassNames('success');
   return (
     <>
@@ -59,9 +63,9 @@ export const LyricsControls: React.FC<LyricsControlsProps> = ({
       <div className={`controls mb-3 flex items-center gap-3 px-2 py-1.5 rounded-lg transition-colors duration-300 ${darkMode ? 'bg-gray-800/60' : 'bg-gray-200/60'}`}>
         {/* Font size – HeroUI Slider */}
         <div className="flex items-center gap-2 shrink-0">
-          <span className={`text-xs whitespace-nowrap ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Font</span>
+          <span className={`text-xs whitespace-nowrap ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t('lyrics.font')}</span>
           <Slider
-            aria-label="Font size"
+            aria-label={t('lyrics.fontSize')}
             color="success"
             size="sm"
             step={1}
@@ -142,7 +146,7 @@ export const LyricsControls: React.FC<LyricsControlsProps> = ({
       {/* Translation error */}
       {translationError && (
         <div className="mb-3 p-2 bg-red-100 text-red-700 rounded-md text-sm">
-          <p className="font-medium">Translation Error</p>
+          <p className="font-medium">{t('lyrics.translationError')}</p>
           <p>{translationError}</p>
         </div>
       )}

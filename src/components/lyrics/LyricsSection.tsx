@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { LyricsData, ChordMarker, SynchronizedLyrics } from '@/types/musicAiTypes';
 import { AnalysisResult } from '@/services/chord-analysis/chordRecognitionService';
 import { useApiKeys } from '@/hooks/settings/useApiKeys';
+import { useI18n } from '@/i18n/I18nProvider';
 import { SegmentationResult } from '@/types/chatbotTypes';
 import type { BeatInfo } from '@/services/audio/beatDetectionService';
 import { simplifyChord } from '@/utils/chordSimplification';
@@ -52,6 +53,7 @@ export const LyricsSection: React.FC<LyricsSectionProps> = ({
   segmentationData = null,
   sequenceCorrections = null
 }) => {
+  const { t } = useI18n();
   const { isServiceAvailable, getServiceMessage } = useApiKeys();
   const { simplifyChords } = useSimplifySelector();
   const storeKeySignature = useKeySignature();
@@ -255,19 +257,19 @@ export const LyricsSection: React.FC<LyricsSectionProps> = ({
           : 'bg-orange-100 dark:bg-orange-200 text-orange-700 dark:text-orange-900'
       }`}>
         <p className="font-medium">
-          {hasCachedLyrics ? "Cached Lyrics Available" : "Lyrics Not Transcribed"}
+          {hasCachedLyrics ? t('lyrics.cachedTitle') : t('lyrics.notTranscribed')}
         </p>
         <p>
           {!musicAiAvailable ? (
             <>
               {getServiceMessage('musicAi')}
               <br />
-              <span className="text-sm">Go to Settings to add your Music.AI API key.</span>
+              <span className="text-sm">{t('lyrics.goSettings')}</span>
             </>
           ) : hasCachedLyrics ? (
-            "Cached lyrics are loading automatically. Click \"AI Transcribe\" to refresh or re-transcribe."
+            t('lyrics.cachedBody')
           ) : (
-            "Click the \"AI Transcribe\" button above to analyze the audio for lyrics. Lyrics transcription is now manual to give you control over when to process vocals."
+            t('lyrics.manualBody')
           )}
         </p>
       </div>
@@ -277,8 +279,8 @@ export const LyricsSection: React.FC<LyricsSectionProps> = ({
   if (!lyrics) {
     return (
       <div className="p-4 bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 rounded-md transition-colors duration-300">
-        <p className="font-medium">Lyrics Data Unavailable</p>
-        <p>The lyrics data could not be loaded. Please try again.</p>
+        <p className="font-medium">{t('lyrics.unavailableTitle')}</p>
+        <p>{t('lyrics.unavailableBody')}</p>
       </div>
     );
   }
@@ -286,7 +288,7 @@ export const LyricsSection: React.FC<LyricsSectionProps> = ({
   if (lyrics.error) {
     return (
       <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-600 text-red-700 dark:text-red-200 rounded-md transition-colors duration-300">
-        <p className="font-medium">Lyrics Transcription Error</p>
+        <p className="font-medium">{t('lyrics.errorTitle')}</p>
         <p>{lyrics.error}</p>
       </div>
     );
@@ -295,8 +297,8 @@ export const LyricsSection: React.FC<LyricsSectionProps> = ({
   if (!lyrics.lines || lyrics.lines.length === 0) {
     return (
       <div className="p-4 bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 rounded-md transition-colors duration-300">
-        <p className="font-medium">No Lyrics Detected</p>
-        <p>This may be an instrumental track or the vocals are too quiet for accurate transcription.</p>
+        <p className="font-medium">{t('lyrics.noneDetectedTitle')}</p>
+        <p>{t('lyrics.noneDetectedBody')}</p>
       </div>
     );
   }
