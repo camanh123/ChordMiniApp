@@ -8,6 +8,7 @@ import UtilityPopoverPanel from '@/components/analysis/UtilityPopoverPanel';
 import { getAppSliderClassNames } from '@/components/ui/appSliderStyles';
 import { DEFAULT_AUDIO_MIXER_SETTINGS } from '@/config/audioDefaults';
 import { getAudioMixerService, type AudioMixerSettings } from '@/services/chord-playback/audioMixerService';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface MelodicTranscriptionToggleProps {
   isEnabled: boolean;
@@ -45,6 +46,7 @@ const MelodicTranscriptionToggle: React.FC<MelodicTranscriptionToggleProps> = ({
   canAdjustVolume = false,
   className = '',
 }) => {
+  const { t } = useI18n();
   const successSliderClassNames = getAppSliderClassNames('success');
   const audioMixer = useRef<ReturnType<typeof getAudioMixerService> | null>(null);
   const [audioSettings, setAudioSettings] = useState<AudioMixerSettings>(() => {
@@ -123,7 +125,7 @@ const MelodicTranscriptionToggle: React.FC<MelodicTranscriptionToggleProps> = ({
               } ${(disabled || isLoading) ? 'cursor-not-allowed opacity-60' : ''}`}
               whileHover={(!disabled && !isLoading) ? { scale: 1.02 } : undefined}
               whileTap={(!disabled && !isLoading) ? { scale: 0.98 } : undefined}
-              aria-label="Toggle melodic transcription playback"
+              aria-label={t('melody.toggle')}
               aria-pressed={isEnabled}
             >
               {isLoading ? (
@@ -142,7 +144,7 @@ const MelodicTranscriptionToggle: React.FC<MelodicTranscriptionToggleProps> = ({
 
       <PopoverContent>
         <UtilityPopoverPanel
-          title="Melody Playback"
+          title={t('melody.playback')}
           headerStartContent={<HiSpeakerWave className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />}
           headerEndContent={
             <Button
@@ -151,7 +153,7 @@ const MelodicTranscriptionToggle: React.FC<MelodicTranscriptionToggleProps> = ({
               size="sm"
               variant="light"
               onPress={() => setIsPopoverOpen(false)}
-              aria-label="Close melody playback controls"
+              aria-label={t('melody.close')}
               className="text-gray-500 dark:text-gray-400"
             >
               <HiXMark className="h-5 w-5" />
@@ -163,7 +165,7 @@ const MelodicTranscriptionToggle: React.FC<MelodicTranscriptionToggleProps> = ({
             <div className="mb-1 flex items-center justify-between gap-2.5">
               <label className={MIXER_LABEL_CLASS}>
                 <TrebleClefIcon active />
-                Melody (Violin)
+                {t('melody.violin')}
               </label>
               <span className={MIXER_VALUE_CLASS}>
                 {Math.round(audioSettings.melodyVolume)}%
@@ -186,7 +188,7 @@ const MelodicTranscriptionToggle: React.FC<MelodicTranscriptionToggleProps> = ({
                   audioMixer.current?.setMelodyVolume(nextValue);
                 }}
                 className="w-full"
-                aria-label="Melody playback volume control"
+                aria-label={t('melody.volume')}
                 classNames={{
                   base: MIXER_SLIDER_BASE_CLASS,
                   ...successSliderClassNames,
@@ -196,7 +198,7 @@ const MelodicTranscriptionToggle: React.FC<MelodicTranscriptionToggleProps> = ({
           </div>
 
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Melody volume is available while the transcription is playing inside Piano Visualizer.
+            {t('melody.volumeHint')}
           </p>
         </UtilityPopoverPanel>
       </PopoverContent>

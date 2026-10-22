@@ -34,6 +34,37 @@ function gt(key: MessageKey, vars?: Record<string, string | number>): string {
   return activeTranslator(key, vars);
 }
 
+const QUALITY_LABEL_KEYS: Record<string, MessageKey> = {
+  major: 'games.quality.major',
+  minor: 'games.quality.minor',
+  'dominant seventh': 'games.quality.dominant7',
+  'major seventh': 'games.quality.major7',
+  'minor seventh': 'games.quality.minor7',
+  diminished: 'games.quality.diminished',
+  'half-diminished seventh': 'games.quality.halfDim',
+  'suspended fourth': 'games.quality.sus4',
+};
+
+function qualityLabel(text: string, tr: Translator = gt): string {
+  const key = QUALITY_LABEL_KEYS[text];
+  return key ? tr(key) : text;
+}
+
+const DEGREE_LABEL_KEYS: Record<string, MessageKey> = {
+  '1st': 'games.ordinal.1',
+  '2nd': 'games.ordinal.2',
+  '3rd': 'games.ordinal.3',
+  '4th': 'games.ordinal.4',
+  '5th': 'games.ordinal.5',
+  '6th': 'games.ordinal.6',
+  '7th': 'games.ordinal.7',
+};
+
+function presentDegree(label: string): string {
+  const key = DEGREE_LABEL_KEYS[label];
+  return key ? gt(key) : label;
+}
+
 function withTranslator<T>(translator: Translator | undefined, run: () => T): T {
   const previous = activeTranslator;
   activeTranslator = translator ?? englishTranslator;
@@ -898,7 +929,7 @@ function createRandomSecondaryQuestion(): SecondaryDominantQuizQuestion {
 
 function getModeFormulaDetails(modeName: string): { prompt: string; explanation: string } {
   const cleanName = modeName.toLowerCase();
-  const prompt = `What is the interval formula for ${modeName} mode, given W is whole step and H is half step? (Hint: The Ionian mode formula is W - W - H - W - W - W - H. Think about rotating the sequence to the left and wrapping around.)`;
+  const prompt = gt('games.prompt.modeFormula', { mode: modeName });
   
   let shift = 0;
   let displayName = '';
@@ -937,9 +968,10 @@ function getModeFormulaDetails(modeName: string): { prompt: string; explanation:
 
   let explanation = '';
   if (shift === 0) {
-    explanation = `The Ionian mode (major scale) is the 1st mode, so its formula remains the default: W - W - H - W - W - W - H.`;
+    explanation = gt('games.explain.modeIonian');
   } else {
-    explanation = `The ${displayName} mode is the ${shift + 1}${shift + 1 === 2 ? 'nd' : shift + 1 === 3 ? 'rd' : 'th'} mode of the major scale. To find its formula, we rotate the Ionian formula (W - W - H - W - W - W - H) to the left by ${shift} step${shift > 1 ? 's' : ''} and wrap around:\n`;
+    const steps = shift === 1 ? gt('games.oneStep') : gt('games.manySteps', { count: shift });
+    explanation = gt('games.explain.modeRotate', { mode: displayName, ordinal: getOrdinal(shift + 1), steps });
     for (let i = 0; i <= shift; i++) {
       explanation += `• ${stepsList[i].name}: ${stepsList[i].formula}\n`;
     }
@@ -973,10 +1005,10 @@ function getModeNotes(root: string, modeName: string): string[] {
 }
 
 function getOrdinal(n: number): string {
-  if (n === 1) return '1st';
-  if (n === 2) return '2nd';
-  if (n === 3) return '3rd';
-  return `${n}th`;
+  if (n >= 1 && n <= 7) {
+    return gt(`games.ordinal.${n}` as MessageKey);
+  }
+  return gt('games.ordinal.n', { n });
 }
 
 const MODE_DEFS = [
@@ -1048,11 +1080,11 @@ function createRandomModeNoteQuestion(): ModeNoteQuizQuestion {
   const chromaticOptions = getNeighborNoteOptions(tonic, answer, Math.floor(Math.random() * 12));
   
   const ordinal = getOrdinal(degree);
-  const explanation = `The notes in ${tonic} ${mode.displayName} are ${modeNotes.join(', ')}. The ${ordinal} note is ${answer}.`;
+  const explanation = gt('games.explain.modeNote', { tonic, mode: mode.displayName, notes: modeNotes.join(', '), ordinal, answer });
 
   return {
     type: 'mode_note',
-    prompt: `What is the ${ordinal} note in ${tonic} ${mode.displayName} mode?`,
+    prompt: gt('games.prompt.modeNote', { ordinal, tonic, mode: mode.displayName }),
     answer,
     options: buildAnswerOptions(answer, chromaticOptions),
     explanation,
@@ -1068,11 +1100,11 @@ function createStableModeNoteQuestion(sequenceIndex: number): ModeNoteQuizQuesti
   const answer = modeNotes[degree - 1];
   const chromaticOptions = getNeighborNoteOptions(tonic, answer, sequenceIndex + 4);
   const ordinal = getOrdinal(degree);
-  const explanation = `The notes in ${tonic} ${mode.displayName} are ${modeNotes.join(', ')}. The ${ordinal} note is ${answer}.`;
+  const explanation = gt('games.explain.modeNote', { tonic, mode: mode.displayName, notes: modeNotes.join(', '), ordinal, answer });
 
   return {
     type: 'mode_note',
-    prompt: `What is the ${ordinal} note in ${tonic} ${mode.displayName} mode?`,
+    prompt: gt('games.prompt.modeNote', { ordinal, tonic, mode: mode.displayName }),
     answer,
     options: rotateOptions([
       answer,
@@ -1179,10 +1211,9 @@ const CIRCLE_DISPLAY: { sharp: string; flat: string }[] = [
   { sharp: 'E#', flat: 'F'  },
 ];
 
-const MNEMONIC_CONTEXT = `Given the key signature mnemonics:
-- Sharps: 'Father Charles Goes Down And Ends Battle' (F C G D A E B). Moving forward = more sharps. C has 0 sharps, G has 1 sharp, etc.
-- Flats: 'Battle Ends And Down Goes Charles\\' Father' (B E A D G C F). Moving forward = more flats. Bb has 2 flats, Eb has 3 flats, etc.
-Hint: The sequence wraps around.`;
+function mnemonicContext(): string {
+  return gt('games.mnemonicContext');
+}
 
 /** Build a Part A question: "How many sharps/flats does X major have?" */
 function buildPartAQuestion(entry: { key: string; count: number }, type: 'sharp' | 'flat'): KeySignatureMnemonicPart {
@@ -1199,7 +1230,7 @@ function buildPartAQuestion(entry: { key: string; count: number }, type: 'sharp'
 
   // Build explanation: show the mnemonic traversal
   const mnemonic = type === 'sharp' ? SHARP_MNEMONIC : FLAT_MNEMONIC;
-  const startNote = type === 'sharp' ? 'C (0 sharps)' : 'Bb (2 flats)';
+  const startNote = type === 'sharp' ? gt('games.explain.sharpStart') : gt('games.explain.flatStart');
   const startCount = type === 'sharp' ? 0 : 2;
   // Show the traversal steps up to the target count
   const steps: string[] = [];
@@ -1211,8 +1242,8 @@ function buildPartAQuestion(entry: { key: string; count: number }, type: 'sharp'
     steps.push(`${mnemonic[mnIdx]}(${startCount + i})`);
     if (startCount + i >= entry.count) break;
   }
-  const traversal = steps.length > 0 ? ` Starting from ${startNote}: ${steps.join(', ')}.` : '';
-  const explanation = `${entry.key} major has ${answerStr}.${traversal}`;
+  const traversal = steps.length > 0 ? gt('games.explain.traversal', { start: startNote, steps: steps.join(', ') }) : '';
+  const explanation = gt('games.explain.keyCount', { key: entry.key, count: answerStr, traversal });
 
   return { prompt: gt('games.prompt.howMany', { unit: unitPlural, key: entry.key }), answer: answerStr, options: [answerStr, ...distractorStrs], explanation };
 }
@@ -1247,11 +1278,17 @@ function buildPartBQuestion(startIdx: number, direction: 'fifth-up' | 'fourth-up
     isSharpSide ? CIRCLE_DISPLAY[idx].sharp : CIRCLE_DISPLAY[idx].flat
   ).filter((d) => d !== answer);
 
-  const mnemonicName = direction === 'fifth-up' ? 'sharp (F C G D A E B)' : 'flat (B E A D G C F)';
+  const mnemonicName = direction === 'fifth-up' ? gt('games.mnemonic.sharp') : gt('games.mnemonic.flat');
   const movementDesc = direction === 'fifth-up'
-    ? `Moving clockwise on the circle of fifths from ${startName} gives ${answer}.`
-    : `Moving counter-clockwise on the circle of fifths from ${startName} gives ${answer}.`;
-  const explanation = `${answer} is the ${direction === 'fifth-up' ? 'fifth up / fourth down' : 'fourth up / fifth down'} from ${startName}. In the ${mnemonicName} mnemonic, ${movementDesc}`;
+    ? gt('games.explain.fifthMove', { start: startName, answer })
+    : gt('games.explain.fourthMove', { start: startName, answer });
+  const explanation = gt('games.explain.circle', {
+    answer,
+    interval: direction === 'fifth-up' ? gt('games.interval.fifth') : gt('games.interval.fourth'),
+    start: startName,
+    mnemonic: mnemonicName,
+    movement: movementDesc,
+  });
 
   return { prompt, answer, options: [answer, ...distractors.slice(0, 3)], explanation };
 }
@@ -1277,7 +1314,7 @@ function createRandomMnemonicQuestion(): KeySignatureMnemonicQuizQuestion {
   return {
     type: 'mnemonic',
     key: partAEntry.entry.key,
-    context: MNEMONIC_CONTEXT,
+    context: mnemonicContext(),
     partA: { ...partA, options: shuffleArray(partA.options) },
     partB: { ...partB, options: shuffleArray(partB.options) },
   };
@@ -1292,7 +1329,7 @@ function createStableMnemonicQuestion(sequenceIndex: number): KeySignatureMnemon
   return {
     type: 'mnemonic',
     key: partAEntry.entry.key,
-    context: MNEMONIC_CONTEXT,
+    context: mnemonicContext(),
     partA: { ...partA, options: rotateOptions(partA.options, sequenceIndex) },
     partB: { ...partB, options: rotateOptions(partB.options, sequenceIndex) },
   };
@@ -1731,17 +1768,18 @@ function generateStableEarQuestionsUnlocked(): EarTrainingQuestion[] {
       const scaleType: ScaleType = sequenceIndex % 2 === 1 ? minorTypes[sequenceIndex % minorTypes.length] : 'major';
       const degree = EAR_DEGREES[sequenceIndex % EAR_DEGREES.length];
       const degreeNames = ['2nd', '3rd', '4th', '5th', '6th', '7th'];
-      const answer = degreeNames[degree - 2] || '3rd';
+      const answerLabel = degreeNames[degree - 2] || '3rd';
+      const answer = presentDegree(answerLabel);
 
       questions.push({
         type: 'scale_degree',
-        prompt: `Reference scale: ${tonic} ${scaleType} ascending and descending, then a mystery note. Identify the scale degree (played on ${promptInstrumentName})`,
+        prompt: gt('games.prompt.referenceScale', { scale: getScaleDisplayName(tonic, scaleType), instrument: promptInstrumentName }),
         tonic,
         scaleType,
         degree,
         answer,
         instrument,
-        options: rotateOptions([answer, '2nd', '3rd', '4th', '5th', '6th', '7th'].slice(0, 4), sequenceIndex),
+        options: rotateOptions([answerLabel, '2nd', '3rd', '4th', '5th', '6th', '7th'].slice(0, 4).map(presentDegree), sequenceIndex),
       });
     } else if (type === 'progression') {
       const pattern = EAR_PROGRESSIONS[sequenceIndex % EAR_PROGRESSIONS.length];
@@ -1753,7 +1791,7 @@ function generateStableEarQuestionsUnlocked(): EarTrainingQuestion[] {
 
       questions.push({
         type: 'progression',
-        prompt: `Tonic reference chord (${getScaleDisplayName(tonic, scaleType)}) will be played first, then the sequence. Identify the progression (played on ${promptInstrumentName}):`,
+        prompt: gt('games.prompt.identifyProgression', { scale: getScaleDisplayName(tonic, scaleType), instrument: promptInstrumentName }),
         tonic,
         scaleType,
         progression,
@@ -1774,10 +1812,10 @@ function generateStableEarQuestionsUnlocked(): EarTrainingQuestion[] {
 
       questions.push({
         type: 'quality',
-        prompt: `Listen to the chord quality (played on ${promptInstrumentName})`,
+        prompt: gt('games.prompt.listenQuality', { instrument: promptInstrumentName }),
         chord,
         qualityKey,
-        answer: quality.qualityText,
+        answer: qualityLabel(quality.qualityText),
         instrument,
         options: rotateOptions([
           quality.qualityText,
@@ -1786,7 +1824,7 @@ function generateStableEarQuestionsUnlocked(): EarTrainingQuestion[] {
           'dominant seventh',
           'major seventh',
           'diminished',
-        ], sequenceIndex),
+        ].map((label) => qualityLabel(label)), sequenceIndex),
       });
     } else if (type === 'tonicization') {
       const tonic = EAR_ROOTS[sequenceIndex % EAR_ROOTS.length];
@@ -1798,7 +1836,7 @@ function generateStableEarQuestionsUnlocked(): EarTrainingQuestion[] {
 
       questions.push({
         type: 'tonicization',
-        prompt: `Tonic reference chord (${getScaleDisplayName(tonic, 'major')}) will be played first, then the sequence. Identify the tonicization progression (played on ${promptInstrumentName}):`,
+        prompt: gt('games.prompt.identifyTonicization', { scale: getScaleDisplayName(tonic, 'major'), instrument: promptInstrumentName }),
         tonic,
         scaleType: 'major',
         progression: chords,
@@ -1871,17 +1909,18 @@ function generateEarQuestionsUnlocked(): EarTrainingQuestion[] {
       const scaleType: ScaleType = Math.random() < 0.5 ? minorTypes[Math.floor(Math.random() * minorTypes.length)] : 'major';
       const degree = EAR_DEGREES[Math.floor(Math.random() * EAR_DEGREES.length)];
       const degreeNames = ['2nd', '3rd', '4th', '5th', '6th', '7th'];
-      const answer = degreeNames[degree - 2] || '3rd';
+      const answerLabel = degreeNames[degree - 2] || '3rd';
+      const answer = presentDegree(answerLabel);
 
       questions.push({
         type: 'scale_degree',
-        prompt: `Reference scale: ${tonic} ${scaleType} ascending and descending, then a mystery note. Identify the scale degree (played on ${promptInstrumentName})`,
+        prompt: gt('games.prompt.referenceScale', { scale: getScaleDisplayName(tonic, scaleType), instrument: promptInstrumentName }),
         tonic,
         scaleType,
         degree,
         answer,
         instrument,
-        options: shuffleArray(uniqueValues([answer, '2nd', '3rd', '4th', '5th', '6th', '7th'].slice(0, 4))),
+        options: shuffleArray(uniqueValues([answerLabel, '2nd', '3rd', '4th', '5th', '6th', '7th'].slice(0, 4).map(presentDegree))),
       });
     } else if (type === 'progression') {
       const pattern = EAR_PROGRESSIONS[Math.floor(Math.random() * EAR_PROGRESSIONS.length)];
@@ -1895,7 +1934,7 @@ function generateEarQuestionsUnlocked(): EarTrainingQuestion[] {
 
       questions.push({
         type: 'progression',
-        prompt: `Tonic reference chord (${getScaleDisplayName(tonic, scaleType)}) will be played first, then the sequence. Identify the progression (played on ${promptInstrumentName}):`,
+        prompt: gt('games.prompt.identifyProgression', { scale: getScaleDisplayName(tonic, scaleType), instrument: promptInstrumentName }),
         tonic,
         scaleType,
         progression,
@@ -1916,18 +1955,18 @@ function generateEarQuestionsUnlocked(): EarTrainingQuestion[] {
 
       questions.push({
         type: 'quality',
-        prompt: `Listen to the chord quality (played on ${promptInstrumentName})`,
+        prompt: gt('games.prompt.listenQuality', { instrument: promptInstrumentName }),
         chord,
         qualityKey,
-        answer: quality.qualityText,
+        answer: qualityLabel(quality.qualityText),
         instrument,
-        options: buildAnswerOptions(quality.qualityText, [
+        options: buildAnswerOptions(qualityLabel(quality.qualityText), [
           'major',
           'minor',
           'dominant seventh',
           'major seventh',
           'diminished',
-        ]),
+        ].map((label) => qualityLabel(label))),
       });
     } else if (type === 'tonicization') {
       questions.push({
@@ -1965,7 +2004,7 @@ function generateEarQuestionsUnlocked(): EarTrainingQuestion[] {
       q.answer = answer;
       q.instrument = instrument;
       q.options = options;
-      q.prompt = `Tonic reference chord (${getScaleDisplayName(tonic, 'major')}) will be played first, then the sequence. Identify the tonicization progression (played on ${promptInstrumentName}):`;
+      q.prompt = gt('games.prompt.identifyTonicization', { scale: getScaleDisplayName(tonic, 'major'), instrument: promptInstrumentName });
     }
   }
 
@@ -2483,13 +2522,13 @@ function getQuizAnswer(question: QuizQuestion): string {
   return question.answer;
 }
 
-function getQuizReviewPrompt(question: QuizQuestion): string {
+function getQuizReviewPrompt(question: QuizQuestion, tr: Translator = gt): string {
   if (question.type === 'label') {
-    return `Name the chord: ${question.notes.join(' · ')}`;
+    return tr('games.review.nameChord', { notes: question.notes.join(' · ') });
   }
 
   if (question.type === 'tone') {
-    return `Find the missing tone in ${getFormattedChordText(question.chord)}: ${question.tones.join(' · ')}`;
+    return tr('games.review.missingTone', { chord: getFormattedChordText(question.chord), tones: question.tones.join(' · ') });
   }
 
   if (question.type === 'scale') {
@@ -2497,7 +2536,7 @@ function getQuizReviewPrompt(question: QuizQuestion): string {
   }
 
   if (question.type === 'secondary') {
-    return `In ${question.key} major: ${question.progression.map(getFormattedChordText).join(' - ')}`;
+    return tr('games.review.inMajor', { key: question.key, progression: question.progression.map(getFormattedChordText).join(' - ') });
   }
 
   if (question.type === 'mode_formula' || question.type === 'relative_key' || question.type === 'mode_note') {
@@ -2505,28 +2544,31 @@ function getQuizReviewPrompt(question: QuizQuestion): string {
   }
 
   if (question.type === 'mnemonic') {
-    return `Key Sig Mnemonic for ${question.key}`;
+    return tr('games.review.keySig', { key: question.key });
   }
 
-  return question.qualityText;
+  return qualityLabel(question.qualityText, tr);
 }
 
-function getEarReviewPrompt(question: EarTrainingQuestion): string {
+function getEarReviewPrompt(question: EarTrainingQuestion, tr: Translator = gt): string {
   if ((question.type === 'progression' || question.type === 'tonicization') && question.progression) {
-    return `${question.prompt} ${question.progression.map(getFormattedChordText).join(' - ')}`;
+    return tr('games.review.withProgression', { prompt: question.prompt, progression: question.progression.map(getFormattedChordText).join(' - ') });
   }
 
   if (question.type === 'quality' && question.chord) {
-    return `${question.prompt} Root: ${getFormattedChordText(question.chord.replace(/(maj7|m7b5|m7|dim|sus4|7|m)$/, ''))}`;
+    return tr('games.review.withRoot', {
+      prompt: question.prompt,
+      root: getFormattedChordText(question.chord.replace(/(maj7|m7b5|m7|dim|sus4|7|m)$/, '')),
+    });
   }
 
   return question.prompt;
 }
 
-function getGuitarReviewPrompt(question: GuitarChordQuestion): string {
+function getGuitarReviewPrompt(question: GuitarChordQuestion, tr: Translator = gt): string {
   return question.type === 'notes'
-    ? 'Identify notes in the displayed guitar chord diagram'
-    : 'Read the displayed guitar chord diagram';
+    ? tr('games.review.guitarNotes')
+    : tr('games.review.guitarDiagram');
 }
 
 function buildQuestionReviewEntry(
@@ -2567,7 +2609,7 @@ function CompletionScreen({
     <div className="flex flex-col items-center justify-center py-7 text-center space-y-6">
       <div className="space-y-2">
         <h3 className="text-xl font-bold text-foreground font-outfit">{t('games.completed', { title })}</h3>
-        <p className="text-base font-medium text-default-500 dark:text-slate-300">You&apos;ve finished all 20 questions.</p>
+        <p className="text-base font-medium text-default-500 dark:text-slate-300">{t('games.finishedAll')}</p>
       </div>
       
       <div className="relative flex items-center justify-center">
@@ -2608,10 +2650,10 @@ function HistoryPanelContent({
   const selectedReviewQuestions = selectedReviewEntry?.questions ?? [];
 
   const getHistoryLabel = (entry: GameHistoryEntry) => {
-    if (entry.gameMode === 'xo') return 'X/O Game';
-    if (entry.gameMode === 'ear') return 'Ear Training';
-    if (entry.gameMode === 'guitar') return 'Guitar Game';
-    return 'Theory Quiz';
+    if (entry.gameMode === 'xo') return t('games.xoGame');
+    if (entry.gameMode === 'ear') return t('games.earTraining');
+    if (entry.gameMode === 'guitar') return t('games.guitarGame');
+    return t('games.theoryQuiz');
   };
 
   const getHistoryResult = (entry: GameHistoryEntry) => {
@@ -2640,7 +2682,7 @@ function HistoryPanelContent({
   return (
     <>
       <Table
-        aria-label="Session history"
+        aria-label={t('games.sessionHistoryAria')}
         isHeaderSticky
         topContent={
           <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-3">
@@ -2686,12 +2728,12 @@ function HistoryPanelContent({
         }}
       >
         <TableHeader>
-          <TableColumn>Game</TableColumn>
-          <TableColumn>Score</TableColumn>
-          <TableColumn>Time</TableColumn>
-          <TableColumn>Review</TableColumn>
+          <TableColumn>{t('games.colGame')}</TableColumn>
+          <TableColumn>{t('games.colScore')}</TableColumn>
+          <TableColumn>{t('games.colTime')}</TableColumn>
+          <TableColumn>{t('games.colReview')}</TableColumn>
         </TableHeader>
-        <TableBody emptyContent="No games completed in this session yet. Complete a quiz or finish an X/O board to see your scores here!">
+        <TableBody emptyContent={t('games.emptyHistory')}>
           {history.map((entry) => {
             const dateStr = new Date(entry.timestamp).toLocaleTimeString([], {
               hour: '2-digit',
@@ -2726,7 +2768,7 @@ function HistoryPanelContent({
                       onPress={() => setSelectedReviewEntry(entry)}
                       className="h-9 min-w-0 px-3 text-xs font-bold font-outfit"
                     >
-                      Review
+                      {t('games.reviewAction')}
                     </Button>
                   ) : (
                     <span className="text-xs text-default-400 dark:text-slate-400">—</span>
@@ -2753,7 +2795,7 @@ function HistoryPanelContent({
           {(onClose) => (
             <>
               <ModalHeader className="flex flex-col gap-1 font-outfit">
-                <span className="text-xl font-bold">{selectedReviewEntry ? `${getHistoryLabel(selectedReviewEntry)} Review` : 'Question Review'}</span>
+                <span className="text-xl font-bold">{selectedReviewEntry ? t('games.reviewOf', { title: getHistoryLabel(selectedReviewEntry) }) : t('games.questionReviewTitle')}</span>
                 {selectedReviewEntry?.score && (
                   <span className="text-sm font-semibold text-default-500 dark:text-slate-300">
                     {t('games.firstTry', { correct: selectedReviewEntry.score.correct, attempted: selectedReviewEntry.score.attempted })}
@@ -2774,11 +2816,11 @@ function HistoryPanelContent({
                     <TableColumn className="w-16">#</TableColumn>
                     <TableColumn>{t('games.question')}</TableColumn>
                     <TableColumn>{t('games.correct')}</TableColumn>
-                    <TableColumn>Your Answers</TableColumn>
-                    <TableColumn>Audio</TableColumn>
-                    <TableColumn className="text-right">Result</TableColumn>
+                    <TableColumn>{t('games.yourAnswers')}</TableColumn>
+                    <TableColumn>{t('games.audio')}</TableColumn>
+                    <TableColumn className="text-right">{t('games.result')}</TableColumn>
                   </TableHeader>
-                  <TableBody emptyContent="No question review data was saved for this session.">
+                  <TableBody emptyContent={t('games.emptyReview')}>
                     {selectedReviewQuestions.map((question) => (
                       <TableRow key={`${selectedReviewEntry?.id}-${question.questionNumber}`}>
                         <TableCell>
@@ -2792,7 +2834,7 @@ function HistoryPanelContent({
                           </span>
                           {question.explanation && !question.wasCorrect && (
                             <div className="mt-3 pt-2 border-t border-blue-200/30 dark:border-blue-500/20 max-w-[260px] whitespace-normal text-xs font-semibold text-blue-600 dark:text-blue-400 whitespace-pre-line">
-                              Explanation: {question.explanation}
+                              {t('games.explanation')} {question.explanation}
                             </div>
                           )}
                         </TableCell>
@@ -2814,7 +2856,7 @@ function HistoryPanelContent({
                                     variant="flat"
                                     className="h-5 shrink-0 text-[9px] font-bold uppercase"
                                   >
-                                    {isAnswerCorrect ? 'Correct' : 'Wrong'}
+                                    {isAnswerCorrect ? t('games.correct') : t('games.wrong')}
                                   </Chip>
                                   <span className="whitespace-normal font-semibold leading-snug text-foreground">
                                     {answer}
@@ -3185,23 +3227,30 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
           explanation = `No tonicization is present. The progression uses the diatonic subdominant chord ${quizQuestion.progression[1]} instead of a secondary dominant.`;
         } else {
           const targetRoman = quizQuestion.targetRoman || '';
-          explanation = `The secondary dominant chord ${quizQuestion.progression[1]}${targetRoman ? ` (V7/${targetRoman})` : ''} resolves to ${quizQuestion.progression[2]}${targetRoman ? ` (${targetRoman})` : ''}, tonicizing it in the key of ${quizQuestion.key} major.`;
+          explanation = t('games.explain.secondary', {
+            chord: quizQuestion.progression[1],
+            extra: targetRoman ? ` (V7/${targetRoman})` : '',
+            target: quizQuestion.progression[2],
+            targetExtra: targetRoman ? ` (${targetRoman})` : '',
+            key: quizQuestion.key,
+          });
         }
       } else if (quizQuestion.type === 'scale') {
-        explanation = `The note ${quizQuestion.answer} is indeed the requested scale note.`;
+        explanation = t('games.explain.scaleNote', { note: quizQuestion.answer });
       } else if (quizQuestion.type === 'tone') {
-        explanation = `The missing tone in the chord ${quizQuestion.chord} is ${quizQuestion.missing}. Chords are built by stacking thirds.`;
+        explanation = t('games.explain.missingTone', { chord: quizQuestion.chord, missing: quizQuestion.missing });
       } else if (quizQuestion.type === 'label') {
-        explanation = `The notes ${quizQuestion.notes.join(' - ')} make up the ${quizQuestion.answer} chord.`;
+        explanation = t('games.explain.labelNotes', { notes: quizQuestion.notes.join(' - '), answer: quizQuestion.answer });
       } else if (quizQuestion.type === 'degree') {
         const chord = quizQuestion.chord || '';
         const key = quizQuestion.key || '';
         const roman = quizQuestion.roman || '';
-        const romanStatement = roman && key ? `${chord} is ${roman} in ${key} major` : '';
+        const romanStatement = roman && key ? t('games.explain.romanStatement', { chord, roman, key }) : '';
+        const quality = qualityLabel(quizQuestion.qualityText, t);
         if (quizQuestion.answer === t('games.prompt.allWrong')) {
-          explanation = romanStatement ? `${romanStatement}. None of the given options are correct.` : `The chord is ${quizQuestion.qualityText}.`;
+          explanation = romanStatement ? t('games.explain.noneCorrect', { statement: romanStatement }) : t('games.explain.chordIs', { quality });
         } else {
-          explanation = romanStatement || `The chord is ${quizQuestion.qualityText}.`;
+          explanation = romanStatement || t('games.explain.chordIs', { quality });
         }
       }
 
@@ -3209,7 +3258,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
         ...quizReview,
         buildQuestionReviewEntry(
           nextAttempted,
-          getQuizReviewPrompt(quizQuestion),
+          getQuizReviewPrompt(quizQuestion, t),
           getQuizAnswer(quizQuestion),
           wrongSelections,
           option,
@@ -3266,7 +3315,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
         ...earReview,
         buildQuestionReviewEntry(
           nextAttempted,
-          getEarReviewPrompt(earQuestion),
+          getEarReviewPrompt(earQuestion, t),
           earQuestion.answer,
           wrongSelections,
           option,
@@ -3315,7 +3364,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
         ...guitarReview,
         buildQuestionReviewEntry(
           nextAttempted,
-          getGuitarReviewPrompt(guitarQuestion),
+          getGuitarReviewPrompt(guitarQuestion, t),
           guitarQuestion.answer,
           wrongSelections,
           option,
@@ -3764,7 +3813,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
                   ? t('games.correct')
                   : guitarResult === 'incorrect'
                     ? (guitarQuestion.type === 'notes' ? t('games.tryAgain') : t('games.tryAnotherChord'))
-                    : (guitarQuestion.type === 'notes' ? 'Choose the correct notes list' : 'Choose the chord name')}
+                    : (guitarQuestion.type === 'notes' ? t('games.chooseNotesList') : t('games.chooseChordName'))}
               </p>
             </div>
           )
@@ -3807,7 +3856,7 @@ export default function MiniGamesContainer({ layoutMode = 'embed' }: MiniGamesCo
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-primary">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
-                Session Gameplay History
+                {t('games.historyModalTitle')}
               </ModalHeader>
               <ModalBody className="pb-6">
                 <HistoryPanelContent history={history} onClear={clearHistory} />

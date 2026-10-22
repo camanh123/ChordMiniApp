@@ -6,6 +6,7 @@ import { BeatDetectorType, ChordDetectorType } from '@/hooks/chord-analysis/useM
 import HeroUIBeatModelSelector from '@/components/analysis/HeroUIBeatModelSelector';
 import HeroUIChordModelSelector from '@/components/analysis/HeroUIChordModelSelector';
 import { isDevelopmentEnvironment } from '@/utils/modelFiltering';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const BEAT_MODEL_LABELS: Record<BeatDetectorType, string> = {
   madmom: 'Madmom',
@@ -62,6 +63,7 @@ export const AnalysisControls: React.FC<AnalysisControlsProps> = ({
   actionDisabledReason = null,
   hidden = false,
 }) => {
+  const { t } = useI18n();
   // PERFORMANCE FIX: Always show model selection UI, regardless of extraction state
   // This allows users to select models immediately, even during cold starts
   // Only hide when analysis is actually complete (isAnalyzed is true)
@@ -72,14 +74,14 @@ export const AnalysisControls: React.FC<AnalysisControlsProps> = ({
   const canOpenCachedResults = cacheCheckCompleted && cacheAvailable;
 
   const actionLabel = isAnalyzing
-    ? 'Analyzing...'
+    ? t('analyze.actionAnalyzing')
     : actionDisabledReason
-      ? 'Analysis unavailable'
+      ? t('analyze.actionUnavailable')
       : canOpenCachedResults
-        ? 'Open cached results'
+        ? t('analyze.actionCached')
         : !isExtracted
-          ? 'Preparing audio'
-          : 'Run analysis';
+          ? t('analyze.actionPreparing')
+          : t('analyze.actionRun');
 
   const statusTone = actionDisabledReason
     ? 'warning'
@@ -108,24 +110,24 @@ export const AnalysisControls: React.FC<AnalysisControlsProps> = ({
         : 'bg-default-400';
 
   const statusTitle = actionDisabledReason
-    ? 'Analysis unavailable for this track'
+    ? t('analyze.unavailableTrack')
     : canOpenCachedResults
-      ? 'Cached results ready'
+      ? t('analyze.cacheReady')
       : !isExtracted
-        ? 'Preparing analysis session'
+        ? t('analyze.preparing')
         : !cacheCheckCompleted
-          ? 'Checking cache availability'
-          : 'Fresh analysis required';
+          ? t('analyze.checkingCache')
+          : t('analyze.freshRequired');
 
   const statusDescription = actionDisabledReason
     ? actionDisabledReason
     : canOpenCachedResults
-      ? `We found saved results for ${BEAT_MODEL_LABELS[beatDetector]} and ${CHORD_MODEL_LABELS[chordDetector]}.`
+      ? t('analyze.cacheFound', { beat: BEAT_MODEL_LABELS[beatDetector], chord: CHORD_MODEL_LABELS[chordDetector] })
       : !isExtracted
-        ? 'Audio is still being prepared. You can choose models now and continue as soon as extraction finishes.'
+        ? t('analyze.preparingBody')
         : !cacheCheckCompleted
-          ? 'Looking for previously processed results for the selected model combination.'
-          : `No saved results were found for ${BEAT_MODEL_LABELS[beatDetector]} and ${CHORD_MODEL_LABELS[chordDetector]}.`;
+          ? t('analyze.checkingCacheBody')
+          : t('analyze.noSaved', { beat: BEAT_MODEL_LABELS[beatDetector], chord: CHORD_MODEL_LABELS[chordDetector] });
 
   const isActionDisabled = (!isExtracted && !canOpenCachedResults) || isAnalyzing || hasError || !!actionDisabledReason;
 
@@ -138,9 +140,9 @@ export const AnalysisControls: React.FC<AnalysisControlsProps> = ({
       <CardHeader className="flex flex-col items-start gap-3 pb-3">
         <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Analysis setup</h3>
+            <h3 className="text-lg font-semibold text-foreground">{t('analyze.setupTitle')}</h3>
             <p className="text-sm text-default-500 dark:text-gray-400">
-              Choose your detection models. The selected combination is preserved when this page reloads.
+              {t('analyze.setupHelp')}
             </p>
           </div>
 
@@ -152,7 +154,7 @@ export const AnalysisControls: React.FC<AnalysisControlsProps> = ({
               variant="flat"
               size="sm"
             >
-              Beat: {BEAT_MODEL_LABELS[beatDetector]}
+              {t('analyze.beatChip', { model: BEAT_MODEL_LABELS[beatDetector] })}
             </Chip>
             <Chip
               data-testid="chord-model-chip"
@@ -161,7 +163,7 @@ export const AnalysisControls: React.FC<AnalysisControlsProps> = ({
               variant="flat"
               size="sm"
             >
-              Chords: {CHORD_MODEL_LABELS[chordDetector]}
+              {t('analyze.chordChip', { model: CHORD_MODEL_LABELS[chordDetector] })}
             </Chip>
           </div>
         </div>

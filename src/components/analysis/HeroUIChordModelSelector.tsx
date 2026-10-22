@@ -211,9 +211,9 @@ const HeroUIChordModelSelector: React.FC<HeroUIChordModelSelectorProps> = ({
 
       {fallbackInfo && (
         <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm transition-colors duration-300">
-          <p className="font-medium text-yellow-800 dark:text-yellow-200 transition-colors duration-300">Model Fallback:</p>
+          <p className="font-medium text-yellow-800 dark:text-yellow-200 transition-colors duration-300">{t('models.fallbackTitle')}</p>
           <p className="text-yellow-700 dark:text-yellow-300 transition-colors duration-300">
-            {fallbackInfo.fallback_reason} Using {fallbackInfo.fallback_model} instead.
+            {fallbackInfo.fallback_reason} {t('models.fallbackUsing', { model: fallbackInfo.fallback_model || '' })}
           </p>
         </div>
       )}

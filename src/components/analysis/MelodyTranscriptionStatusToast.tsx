@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, createElement } from 'react';
 import { addToast, closeToast } from '@heroui/react';
 import { mergeToastClassNames } from '@/utils/toastStyles';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const DEFAULT_REFERENCE_DURATION_SECONDS = 240;
 const DEFAULT_ESTIMATED_MELODY_SECONDS = 100;
@@ -50,6 +51,7 @@ interface MelodyCountdownDescriptionProps {
 const MelodyCountdownDescription: React.FC<MelodyCountdownDescriptionProps> = ({
   estimateSeconds,
 }) => {
+  const { t } = useI18n();
   const [remainingSeconds, setRemainingSeconds] = useState(estimateSeconds);
 
   useEffect(() => {
@@ -66,10 +68,10 @@ const MelodyCountdownDescription: React.FC<MelodyCountdownDescriptionProps> = ({
   }, [estimateSeconds]);
 
   if (remainingSeconds === 0) {
-    return <span>Estimate elapsed. Waiting for Sheet Sage to return the melody...</span>;
+    return <span>{t('melody.wait')}</span>;
   }
 
-  return <span>Estimated wait: about {remainingSeconds}s for this song.</span>;
+  return <span>{t('melody.estimate', { seconds: remainingSeconds })}</span>;
 };
 
 interface MelodyTranscriptionStatusToastProps {
@@ -85,6 +87,7 @@ const MelodyTranscriptionStatusToast: React.FC<MelodyTranscriptionStatusToastPro
   hasResult = false,
   errorMessage = null,
 }) => {
+  const { t } = useI18n();
   const toastKeyRef = useRef<string | null>(null);
   const prevComputingRef = useRef(false);
 
@@ -96,7 +99,7 @@ const MelodyTranscriptionStatusToast: React.FC<MelodyTranscriptionStatusToastPro
       const estimateSeconds = estimateMelodyWaitSeconds(durationSeconds);
       const durationMs = estimateSeconds * 1000;
       const key = addToast({
-        title: 'Transcribing Melody',
+        title: t('melody.transcribing'),
         description: <MelodyCountdownDescription estimateSeconds={estimateSeconds} />,
         color: 'default',
         timeout: 0,
@@ -120,8 +123,8 @@ const MelodyTranscriptionStatusToast: React.FC<MelodyTranscriptionStatusToastPro
 
       if (!errorMessage && hasResult) {
         addToast({
-          title: 'Melody Ready',
-          description: 'Melody transcription finished and is ready in Piano Visualizer.',
+          title: t('melody.ready'),
+          description: t('melody.readyBody'),
           color: 'default',
           timeout: 4000,
           shouldShowTimeoutProgress: true,
@@ -132,7 +135,7 @@ const MelodyTranscriptionStatusToast: React.FC<MelodyTranscriptionStatusToastPro
         });
       }
     }
-  }, [durationSeconds, errorMessage, hasResult, isComputing]);
+  }, [durationSeconds, errorMessage, hasResult, isComputing, t]);
 
   useEffect(() => () => {
     if (toastKeyRef.current) {

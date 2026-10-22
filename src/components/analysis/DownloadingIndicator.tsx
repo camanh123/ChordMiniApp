@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, createElement } from 'react';
 import { addToast, closeToast } from '@heroui/react';
 import { mergeToastClassNames } from '@/utils/toastStyles';
 import { useProcessing } from '@/contexts/ProcessingContext';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const EXTRACTION_ESTIMATE_SECONDS = 25;
 const QUEUE_ESTIMATE_IMPROVEMENT_SECONDS = 10;
@@ -26,6 +27,7 @@ const ExtractionCountdownDescription: React.FC<ExtractionCountdownDescriptionPro
   queueStatus,
   queuePosition,
 }) => {
+  const { t } = useI18n();
   const [remainingSeconds, setRemainingSeconds] = useState(estimateSeconds);
 
   useEffect(() => {
@@ -46,16 +48,16 @@ const ExtractionCountdownDescription: React.FC<ExtractionCountdownDescriptionPro
     if (remainingSeconds === 0) {
       return (
         <span className="block space-y-1 whitespace-normal break-words leading-relaxed">
-          {hasQueuePosition && <span className="block">Queue position: {queuePosition}.</span>}
-          <span className="block">Waiting for earlier extraction sessions to finish.</span>
+          {hasQueuePosition && <span className="block">{t('download.queuePosition', { position: queuePosition ?? 0 })}</span>}
+          <span className="block">{t('download.waitingEarlier')}</span>
         </span>
       );
     }
 
     return (
       <span className="block space-y-1 whitespace-normal break-words leading-relaxed">
-        {hasQueuePosition && <span className="block">Queue position: {queuePosition}.</span>}
-        <span className="block">Estimated wait: about {remainingSeconds}s.</span>
+        {hasQueuePosition && <span className="block">{t('download.queuePosition', { position: queuePosition ?? 0 })}</span>}
+        <span className="block">{t('download.estimatedWait', { seconds: remainingSeconds })}</span>
       </span>
     );
   }
@@ -63,18 +65,18 @@ const ExtractionCountdownDescription: React.FC<ExtractionCountdownDescriptionPro
   if (remainingSeconds === 0) {
     return (
       <span className="block whitespace-normal break-words leading-relaxed">
-        Extraction is still in progress.
+        {t('download.stillRunning')}
         <br />
-        Some videos take a little longer to prepare.
+        {t('download.longerVideos')}
       </span>
     );
   }
 
   return (
     <span className="block whitespace-normal break-words leading-relaxed">
-      Estimated time remaining:
+      {t('download.timeRemaining')}
       <br />
-      about {remainingSeconds}s.
+      {t('download.aboutSeconds', { seconds: remainingSeconds })}
     </span>
   );
 };
@@ -114,6 +116,7 @@ const DownloadingIndicator: React.FC<DownloadingIndicatorProps> = ({
 }) => {
   // Get stage from the ProcessingContext
   const { stage } = useProcessing();
+  const { t } = useI18n();
   const toastKeyRef = useRef<string | null>(null);
   const wasVisibleRef = useRef(false);
   const toastSignatureRef = useRef<string>('');
@@ -143,8 +146,8 @@ const DownloadingIndicator: React.FC<DownloadingIndicatorProps> = ({
       const estimateMs = effectiveEstimateSeconds * 1000;
       const key = addToast({
         title: queueStatus === 'queued'
-          ? 'Waiting for Extraction Queue'
-          : (stage === 'downloading' ? 'Downloading YouTube Video...' : 'Extracting Audio...'),
+          ? t('download.queueTitle')
+          : (stage === 'downloading' ? t('download.youtubeTitle') : t('download.extractTitle')),
         description: (
           <ExtractionCountdownDescription
             estimateSeconds={effectiveEstimateSeconds}
@@ -175,7 +178,7 @@ const DownloadingIndicator: React.FC<DownloadingIndicatorProps> = ({
         toastKeyRef.current = null;
       }
     }
-  }, [isVisible, stage, queueStatus, queuePosition, estimatedWaitSeconds]);
+  }, [estimatedWaitSeconds, isVisible, queuePosition, queueStatus, stage, t]);
 
   // Cleanup on unmount
   useEffect(() => {

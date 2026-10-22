@@ -58,6 +58,30 @@ describe('offline locales', () => {
     expect(assignment).not.toMatch(/:\d+/);
   });
 
+  it('keeps the same placeholders in every language', () => {
+    const placeholders = (value: string) => [...value.matchAll(/\{([a-zA-Z0-9_]+)\}/g)].map((match) => match[1]).sort();
+    for (const key of Object.keys(catalog) as MessageKey[]) {
+      const english = placeholders(catalog[key]['en-US']);
+      for (const locale of APP_LOCALES) {
+        expect(placeholders(catalog[key][locale])).toEqual(english);
+      }
+    }
+  });
+
+  it('covers the reported games, docs, and settings labels in five languages', () => {
+    expect(translate('en-US', 'docs.unverified')).toBe('Unverified');
+    expect(translate('en-US', 'docs.unverified')).not.toMatch(/Operational|Online|Active/);
+    expect(translate('vi-VN', 'games.pageTitle')).toBe('Lý thuyết nhạc và trò chơi tương tác');
+    expect(translate('vi-VN', 'games.pageTitle')).not.toBe(catalog['games.pageTitle']['en-US']);
+    expect(translate('zh-CN', 'docs.title')).not.toBe(catalog['docs.title']['en-US']);
+    expect(translate('ja-JP', 'settings.notConfigured')).toBe('未設定');
+    expect(translate('ko-KR', 'settings.notConfigured')).toBe('설정되지 않음');
+    expect(translate('vi-VN', 'games.quality.dominant7')).toBe('bảy át');
+    expect(translate('en-US', 'games.quality.major')).toBe('major');
+    expect(translate('en-US', 'games.reviewAction')).toBe('Review');
+    expect(translate('en-US', 'analyze.setupTitle')).toBe('Analysis setup');
+  });
+
   it('interpolates without contacting a translation service', () => {
     expect(translate('en-US', 'games.prompt.degreeInScale', {
       degree: 3,

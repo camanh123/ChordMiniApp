@@ -5,6 +5,8 @@ import { Accordion, AccordionItem, Card, CardBody, Chip, Tooltip } from '@heroui
 import { FiActivity, FiAlertTriangle, FiCheckCircle, FiMinusCircle, FiXCircle } from 'react-icons/fi';
 import type { PublicOverallStatus, PublicStatusIncident, PublicStatusReport, PublicStatusServiceSummary } from '@/services/status/statusTypes';
 import { STATUS_SERVICE_IDS } from '@/services/status/statusConstants';
+import { useI18n } from '@/i18n/I18nProvider';
+import type { Translator } from '@/i18n/translate';
 
 const STATUS_TIMEZONE = 'America/Los_Angeles';
 const DATE_PART_FORMATTER = new Intl.DateTimeFormat('en-US', {
@@ -22,13 +24,21 @@ const TIME_PART_FORMATTER = new Intl.DateTimeFormat('en-US', {
   timeZone: STATUS_TIMEZONE,
 });
 
-const OVERALL_LABELS: Record<PublicOverallStatus, string> = {
-  operational: 'All Systems Operational',
-  degraded: 'Degraded Performance',
-  partial_outage: 'Partial Outage',
-  major_outage: 'Major Outage',
-  unknown: 'Awaiting First Probe',
-};
+function overallLabel(status: PublicOverallStatus, t: Translator): string {
+  if (status === 'operational') return t('status.operational');
+  if (status === 'degraded') return t('status.degradedOverall');
+  if (status === 'partial_outage') return t('status.partial');
+  if (status === 'major_outage') return t('status.major');
+  return t('status.awaiting');
+}
+
+function presentServiceLabel(label: string, t: Translator): string {
+  if (label === 'Beat Detection') return t('docs.beatTitle');
+  if (label === 'Chord Recognition') return t('docs.chordTitle');
+  if (label === 'Sheet Sage') return t('status.sheetSage');
+  if (label === 'Gemini API') return t('status.geminiApi');
+  return label;
+}
 
 function getDayIds(count: number): string[] {
   const today = new Date();
@@ -53,11 +63,11 @@ function getServiceColor(status: PublicStatusServiceSummary['status']): 'success
   return 'default';
 }
 
-function getServiceStatusLabel(status: PublicStatusServiceSummary['status']): string {
-  if (status === 'operational') return 'Operational';
-  if (status === 'degraded') return 'Degraded';
-  if (status === 'outage') return 'Outage';
-  return 'Unknown';
+function getServiceStatusLabel(status: PublicStatusServiceSummary['status'], t: Translator): string {
+  if (status === 'operational') return t('status.svcOperational');
+  if (status === 'degraded') return t('status.svcDegraded');
+  if (status === 'outage') return t('status.svcOutage');
+  return t('status.svcUnknown');
 }
 
 function getBarClass(status: PublicStatusServiceSummary['status'] | undefined): string {
@@ -84,8 +94,8 @@ function formatDate(date: string): string {
   return `${month} ${day}, ${year}`;
 }
 
-function formatTime(value: string | null): string {
-  if (!value) return 'Not checked';
+function formatTime(value: string | null, t: Translator): string {
+  if (!value) return t('status.notChecked');
   const parts = TIME_PART_FORMATTER.formatToParts(new Date(value));
   const month = parts.find((part) => part.type === 'month')?.value || '';
   const day = parts.find((part) => part.type === 'day')?.value || '';
@@ -95,25 +105,25 @@ function formatTime(value: string | null): string {
   return `${month} ${day}, ${hour}:${minute} ${dayPeriod}`.trim();
 }
 
-function formatIncidentWindow(incident: PublicStatusIncident): string {
-  const started = `Detected ${formatTime(incident.startedAt)}`;
+function formatIncidentWindow(incident: PublicStatusIncident, t: Translator): string {
+  const started = t('status.detected', { time: formatTime(incident.startedAt, t) });
   if (incident.endedAt) {
-    return `${started} · Recovery confirmed ${formatTime(incident.endedAt)}`;
+    return `${started} · ${t('status.recoveredAt', { time: formatTime(incident.endedAt, t) })}`;
   }
   if (incident.status === 'resolved') {
-    return `${started} · Recovery confirmed`;
+    return `${started} · ${t('status.recovered')}`;
   }
 
-  return `${started} · Awaiting a successful follow-up probe`;
+  return `${started} · ${t('status.awaitingProbe')}`;
 }
 
-function getDailyIncidentLabel(report: PublicStatusReport, latestDate?: string): string {
+function getDailyIncidentLabel(report: PublicStatusReport, t: Translator, latestDate?: string): string {
   const incidentCount = report.incidents.length;
   if (incidentCount === 0) {
-    return report.date === latestDate ? 'No incidents reported today.' : 'No incidents reported.';
+    return report.date === latestDate ? t('status.noneToday') : t('status.noneReported');
   }
 
-  return `${incidentCount} incident${incidentCount === 1 ? '' : 's'} recorded.`;
+  return t(incidentCount === 1 ? 'status.incidentOne' : 'status.incidentMany', { count: incidentCount });
 }
 
 function getDailyIncidentColor(report: PublicStatusReport): 'success' | 'warning' | 'danger' | 'default' {
@@ -128,9 +138,9 @@ function getDailyIncidentColor(report: PublicStatusReport): 'success' | 'warning
   return 'success';
 }
 
-function getDailyIncidentStatusLabel(report: PublicStatusReport): string {
-  if (report.incidents.length === 0) return 'Clear';
-  return report.incidents.some((incident) => incident.status !== 'resolved') ? 'Investigating' : 'Recovery confirmed';
+function getDailyIncidentStatusLabel(report: PublicStatusReport, t: Translator): string {
+  if (report.incidents.length === 0) return t('status.clear');
+  return report.incidents.some((incident) => incident.status !== 'resolved') ? t('status.investigating') : t('status.recovered');
 }
 
 function StatusIcon({ status }: { status: PublicOverallStatus }) {
@@ -156,6 +166,8 @@ function UptimeRow({
   reports: PublicStatusReport[];
   className?: string;
 }) {
+  const { t } = useI18n();
+  const serviceLabel = presentServiceLabel(service.label, t);
   const reportByDate = new Map(reports.map((report) => [report.date, report]));
   const days = getDayIds(90);
   const knownDays = days
@@ -168,7 +180,7 @@ function UptimeRow({
   return (
     <div className={`min-w-0 px-5 py-6 sm:px-6 ${className}`}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold leading-tight text-gray-900 dark:text-gray-100">{service.label}</h2>
+        <h2 className="text-lg font-semibold leading-tight text-gray-900 dark:text-gray-100">{serviceLabel}</h2>
         <Tooltip
           showArrow
           delay={0}
@@ -177,29 +189,29 @@ function UptimeRow({
           }}
           content={
             <div className="space-y-1 text-sm">
-              <div className="font-semibold">{service.label}</div>
-              <div>Status: {getServiceStatusLabel(service.status)}</div>
-              <div>Last checked: {formatTime(service.lastCheckedAt)}</div>
-              {service.latencyMs !== null && <div>Latency: {service.latencyMs} ms</div>}
+              <div className="font-semibold">{serviceLabel}</div>
+              <div>{t('status.statusLine', { status: getServiceStatusLabel(service.status, t) })}</div>
+              <div>{t('status.lastChecked', { time: formatTime(service.lastCheckedAt, t) })}</div>
+              {service.latencyMs !== null && <div>{t('status.latency', { ms: service.latencyMs })}</div>}
             </div>
           }
         >
           <Chip
-            aria-label={`${service.label} status: ${getServiceStatusLabel(service.status)}`}
+            aria-label={`${serviceLabel}: ${getServiceStatusLabel(service.status, t)}`}
             color={getServiceColor(service.status)}
             variant="flat"
             size="sm"
             className="h-8 min-w-8 cursor-help px-2"
           >
             <ServiceStatusIcon status={service.status} />
-            <span className="sr-only">{getServiceStatusLabel(service.status)}</span>
+            <span className="sr-only">{getServiceStatusLabel(service.status, t)}</span>
           </Chip>
         </Tooltip>
       </div>
       <div className="flex h-12 items-stretch gap-px sm:gap-0.5 lg:gap-[3px]">
         {days.map((day) => {
           const dayService = reportByDate.get(day)?.services?.[service.id];
-          const dayStatus = getServiceStatusLabel(dayService?.status || 'unknown');
+          const dayStatus = getServiceStatusLabel(dayService?.status || 'unknown', t);
           return (
             <Tooltip
               key={`${service.id}-${day}`}
@@ -212,10 +224,10 @@ function UptimeRow({
               content={
                 <div className="space-y-1 text-sm">
                   <div className="font-semibold">{formatDate(day)}</div>
-                  <div>{service.label}: {dayStatus}</div>
-                  {dayService?.lastCheckedAt && <div>Last checked: {formatTime(dayService.lastCheckedAt)}</div>}
+                  <div>{serviceLabel}: {dayStatus}</div>
+                  {dayService?.lastCheckedAt && <div>{t('status.lastChecked', { time: formatTime(dayService.lastCheckedAt, t) })}</div>}
                   {dayService?.latencyMs !== null && dayService?.latencyMs !== undefined && (
-                    <div>Latency: {dayService.latencyMs} ms</div>
+                    <div>{t('status.latency', { ms: dayService.latencyMs })}</div>
                   )}
                 </div>
               }
@@ -223,18 +235,18 @@ function UptimeRow({
               <button
                 type="button"
                 className={`min-w-0 flex-1 cursor-help rounded-[2px] border-0 p-0 transition duration-150 hover:-translate-y-0.5 hover:scale-y-110 hover:brightness-125 hover:ring-2 hover:ring-gray-900/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:ring-white/40 ${getBarClass(dayService?.status)}`}
-                aria-label={`${service.label} on ${formatDate(day)}: ${dayStatus}`}
+                aria-label={t('status.dayStatus', { service: serviceLabel, date: formatDate(day), status: dayStatus })}
               />
             </Tooltip>
           );
         })}
       </div>
       <div className="mt-3 grid grid-cols-[auto_1fr_auto_1fr_auto] items-center gap-3 text-sm font-medium text-gray-500 dark:text-gray-400 sm:gap-4">
-        <span>90 days ago</span>
+        <span>{t('status.daysAgo')}</span>
         <div className="h-px bg-gray-300 dark:bg-gray-700" />
-        <span className="font-semibold">{uptime.toFixed(2)}% uptime</span>
+        <span className="font-semibold">{t('status.uptimePct', { percent: uptime.toFixed(2) })}</span>
         <div className="h-px bg-gray-300 dark:bg-gray-700" />
-        <span>Today</span>
+        <span>{t('status.today')}</span>
       </div>
     </div>
   );
@@ -247,6 +259,7 @@ export default function StatusDashboard({
   reports: PublicStatusReport[];
   unavailable: boolean;
 }) {
+  const { t } = useI18n();
   const latest = reports[0] || null;
   const latestServices = latest ? STATUS_SERVICE_IDS.map((id) => latest.services[id]) : [];
   const overallStatus = latest?.overallStatus || 'unknown';
@@ -262,10 +275,10 @@ export default function StatusDashboard({
             <div>
               <div className="flex items-center gap-3 text-gray-800 dark:text-gray-100">
                 <FiActivity className="h-7 w-7" />
-                <h1 className="text-3xl font-semibold">ChordMini Status</h1>
+                <h1 className="text-3xl font-semibold">{t('status.title')}</h1>
               </div>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                Public service health from sanitized server-side probes.
+                {t('status.subtitle')}
               </p>
             </div>
             <Chip
@@ -274,14 +287,14 @@ export default function StatusDashboard({
               size="lg"
               startContent={<StatusIcon status={overallStatus} />}
             >
-              {OVERALL_LABELS[overallStatus]}
+              {overallLabel(overallStatus, t)}
             </Chip>
           </div>
 
           {unavailable && (
             <Card radius="sm" shadow="none" className="border border-gray-200 bg-white/70 dark:border-gray-700 dark:bg-content-bg">
               <CardBody className="text-sm text-gray-700 dark:text-gray-300">
-                Status history is unavailable in this environment. No private endpoints are probed from local read mode.
+                {t('status.unavailable')}
               </CardBody>
             </Card>
           )}
@@ -289,7 +302,7 @@ export default function StatusDashboard({
           {hasNoReportsYet && (
             <Card radius="sm" shadow="none" className="border border-gray-200 bg-white/70 dark:border-gray-700 dark:bg-content-bg">
               <CardBody className="text-sm text-gray-700 dark:text-gray-300">
-                Status storage is reachable, but no public reports have been written yet. The dashboard will populate after the first authorized server-side probe runs.
+                {t('status.noReports')}
               </CardBody>
             </Card>
           )}
@@ -298,7 +311,7 @@ export default function StatusDashboard({
         {latest && (
           <section className="mb-14">
             <div className="mb-4 flex justify-end text-base font-medium text-gray-500 dark:text-gray-400">
-              Uptime over the past 90 days.
+              {t('status.uptimeHeading')}
             </div>
             <Card radius="sm" shadow="none" className="border border-gray-200 bg-white dark:border-gray-700 dark:bg-content-bg">
               <CardBody className="grid p-0 md:grid-cols-2">
@@ -316,12 +329,12 @@ export default function StatusDashboard({
         )}
 
         <section>
-          <h2 className="mb-8 text-3xl font-semibold text-gray-900 dark:text-gray-100">Past Incidents</h2>
+          <h2 className="mb-8 text-3xl font-semibold text-gray-900 dark:text-gray-100">{t('status.pastIncidents')}</h2>
           {reports.length === 0 && (
             <p className="text-gray-600 dark:text-gray-400">
               {hasNoReportsYet
-                ? 'No status reports have been written yet.'
-                : 'No public status history is available.'}
+                ? t('status.noneWritten')
+                : t('status.noHistory')}
             </p>
           )}
 
@@ -340,11 +353,11 @@ export default function StatusDashboard({
             >
               {reports.slice(0, 14).map((report) => {
                 const dayIncidents = report.incidents;
-                const incidentStatusLabel = getDailyIncidentStatusLabel(report);
+                const incidentStatusLabel = getDailyIncidentStatusLabel(report, t);
                 return (
                   <AccordionItem
                     key={report.date}
-                    aria-label={`${formatDate(report.date)} status incidents`}
+                    aria-label={t('status.incidentsAria', { date: formatDate(report.date) })}
                     title={
                       <span className="flex flex-wrap items-center gap-3">
                         <span>{formatDate(report.date)}</span>
@@ -355,13 +368,13 @@ export default function StatusDashboard({
                     }
                     subtitle={
                       <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {getDailyIncidentLabel(report, latest?.date)}
+                        {getDailyIncidentLabel(report, t, latest?.date)}
                       </span>
                     }
                   >
                     {dayIncidents.length === 0 ? (
                       <p className="text-lg text-gray-600 dark:text-gray-400">
-                        {report.date === latest?.date ? 'No incidents reported today.' : 'No incidents reported.'}
+                        {report.date === latest?.date ? t('status.noneToday') : t('status.noneReported')}
                       </p>
                     ) : (
                       <div className="space-y-4">
@@ -371,7 +384,7 @@ export default function StatusDashboard({
                               {incident.title}
                             </div>
                             <p className="mt-2 text-gray-700 dark:text-gray-300">{incident.summary}</p>
-                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{formatIncidentWindow(incident)}</p>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{formatIncidentWindow(incident, t)}</p>
                           </div>
                         ))}
                         {report.analysis.summary && (

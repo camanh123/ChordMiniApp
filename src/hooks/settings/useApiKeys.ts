@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 import { 
   ApiCredentialService,
   ApiKeyStatus, 
@@ -14,6 +15,7 @@ import { apiKeyStorage } from '@/services/cache/apiKeyStorageService';
 import { apiKeyValidation } from '@/services/api/apiKeyValidationService';
 
 export const useApiKeys = () => {
+  const { t } = useI18n();
   const [apiKeyStatus, setApiKeyStatus] = useState<ApiKeyStatus>({
     musicAi: { hasKey: false, isValid: false },
     gemini: { hasKey: false, isValid: false },
@@ -123,39 +125,39 @@ export const useApiKeys = () => {
     
     if (service === 'musicAi') {
       if (!status.hasKey) {
-        return 'Music.ai API key required for lyrics transcription and chord generation';
+        return t('settings.msg.musicAiRequired');
       }
       if (!status.isValid) {
-        return 'Invalid Music.ai API key - please check your key';
+        return t('settings.msg.musicAiInvalid');
       }
-      return 'Music.ai services available';
+      return t('settings.msg.musicAiReady');
     }
     
     if (service === 'gemini') {
       if (!status.hasKey) {
-        return 'Using app translation quota - add your own key to bypass limits';
+        return t('settings.msg.geminiQuota');
       }
       if (!status.isValid) {
-        return 'Invalid Gemini API key - falling back to app quota';
+        return t('settings.msg.geminiInvalid');
       }
-      return 'Using your Gemini API key for translations';
+      return t('settings.msg.geminiReady');
     }
 
     if (service === 'songformerAccess') {
       if (process.env.NODE_ENV !== 'production') {
-        return 'Song segmentation access code is not required for local development';
+        return t('settings.msg.songformerDev');
       }
       if (!status.hasKey) {
-        return 'Access code required for first-time SongFormer segmentation requests';
+        return t('settings.msg.songformerRequired');
       }
       if (!status.isValid) {
-        return 'Invalid SongFormer access code - please check your code';
+        return t('settings.msg.songformerInvalid');
       }
-      return 'SongFormer access code configured';
+      return t('settings.msg.songformerReady');
     }
     
-    return 'Service status unknown';
-  }, [apiKeyStatus]);
+    return t('settings.msg.unknown');
+  }, [apiKeyStatus, t]);
 
   // Check if we're near rate limits
   const isNearRateLimit = useCallback((service: 'gemini'): boolean => {

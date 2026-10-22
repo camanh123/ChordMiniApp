@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { addToast } from '@heroui/react';
 import { mergeToastClassNames } from '@/utils/toastStyles';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface ExtractionNotificationProps {
   isVisible: boolean;
@@ -16,6 +17,7 @@ const ExtractionNotification: React.FC<ExtractionNotificationProps> = ({
   fromCache,
   onDismiss,
 }) => {
+  const { t } = useI18n();
   const hasShownRef = useRef(false);
 
   useEffect(() => {
@@ -27,10 +29,10 @@ const ExtractionNotification: React.FC<ExtractionNotificationProps> = ({
         : 'text-success-600 dark:text-success-400';
 
       addToast({
-        title: fromCache ? 'Audio Loaded from Cache' : 'Audio Extracted Successfully',
+        title: fromCache ? t('analyze.cacheLoadedTitle') : t('analyze.extractedTitle'),
         description: fromCache
-          ? 'Using cached audio file. Select models to begin analysis.'
-          : 'Audio extraction complete. Select models to begin analysis.',
+          ? t('analyze.cacheLoadedBody')
+          : t('analyze.extractedBody'),
         color: 'default',
         timeout: 5000, // Auto-dismiss after 5 seconds (matching original)
         shouldShowTimeoutProgress: true,
@@ -43,8 +45,8 @@ const ExtractionNotification: React.FC<ExtractionNotificationProps> = ({
 
       if (!fromCache) {
         addToast({
-          title: 'Ready for Beat and Chord Analysis',
-          description: 'Click "Run analysis" to start beat and chord inference.',
+          title: t('analyze.readyTitle'),
+          description: t('analyze.readyBody', { action: t('analyze.actionRun') }),
           color: 'default',
           timeout: 7000,
           shouldShowTimeoutProgress: true,
@@ -59,7 +61,7 @@ const ExtractionNotification: React.FC<ExtractionNotificationProps> = ({
     if (!isVisible) {
       hasShownRef.current = false;
     }
-  }, [isVisible, fromCache, onDismiss]);
+  }, [fromCache, isVisible, onDismiss, t]);
 
   return null;
 };

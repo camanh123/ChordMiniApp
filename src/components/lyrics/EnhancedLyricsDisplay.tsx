@@ -1,4 +1,7 @@
+'use client';
+
 import React, { useRef, useEffect } from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 import { LyricsData, LyricLine } from '@/types/musicAiTypes';
 
 interface EnhancedLyricsDisplayProps {
@@ -17,6 +20,7 @@ const EnhancedLyricsDisplay: React.FC<EnhancedLyricsDisplayProps> = ({
   onLineClick,
   autoScroll = true,
 }) => {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const currentLineRef = useRef<HTMLDivElement>(null);
   // PERFORMANCE P2-G: Throttle scroll to prevent competing smooth-scroll calls
@@ -139,15 +143,15 @@ const EnhancedLyricsDisplay: React.FC<EnhancedLyricsDisplayProps> = ({
   if (!lyrics || !lyrics.lines || !Array.isArray(lyrics.lines)) {
     return (
       <div className="bg-white rounded-lg shadow-md p-4">
-        <h2 className="text-xl font-bold mb-4">Lyrics</h2>
-        <div className="text-gray-500 italic">No lyrics data available</div>
+        <h2 className="text-xl font-bold mb-4">{t('lyrics.heading')}</h2>
+        <div className="text-gray-500 italic">{t('lyrics.none')}</div>
       </div>
     );
   }
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
-      <h2 className="text-xl font-bold mb-4">Lyrics</h2>
+      <h2 className="text-xl font-bold mb-4">{t('lyrics.heading')}</h2>
 
       <div
         ref={containerRef}

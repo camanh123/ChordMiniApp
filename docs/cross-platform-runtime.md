@@ -74,6 +74,8 @@ The interface ships five dictionaries in `src/i18n/`: Vietnamese (`vi-VN`), Engl
 
 CJK text uses the operating-system fonts already on Windows (Microsoft YaHei, Yu Gothic, Malgun Gothic). Vietnamese uses the bundled DM Sans Latin Extended subset, with the system font filling any missing glyph. Nothing is fetched at runtime to translate the interface.
 
+The API documentation badges are labels in the dictionary. They are not a live health check. The separate status page still shows sanitized probe results when reports exist. About, privacy, terms, and changelog bodies stay in their authored language. Song titles, lyrics, chord symbols, note names, code samples, and product names such as Music.ai, Gemini, and SongFormer stay unchanged.
+
 ## Phase 4 — iPad PWA
 
 Do not implement this in Phase 1. The future PWA must:

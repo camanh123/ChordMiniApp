@@ -6,6 +6,7 @@ import Navigation from '@/components/common/Navigation';
 import { isDevelopmentEnvironment } from '@/utils/modelFiltering';
 import { CodeBlock } from '@/components/common/CodeBlock';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useI18n } from '@/i18n/I18nProvider';
 
 import {
   FiActivity,
@@ -23,17 +24,7 @@ import {
 import { Card, CardBody, Chip } from '@heroui/react';
 
 // Reusable Status Icon Component
-const StatusIcon = ({ status }: { status: 'Operational' | 'Degraded' | 'Offline' | 'Active' | 'Enabled' }) => {
-  let colorClass = 'bg-green-500';
-  if (status === 'Degraded') colorClass = 'bg-yellow-500';
-  if (status === 'Offline') colorClass = 'bg-red-500';
-  if (status === 'Active' || status === 'Enabled') colorClass = 'bg-blue-500';
-  
-  return <div className={`w-3 h-3 ${colorClass} rounded-full animate-pulse`}></div>;
-};
-
 interface ModelCardProps {
-  status: 'Operational' | 'Degraded' | 'Offline' | 'Active' | 'Enabled';
   title: string;
   description: React.ReactNode;
   footer: React.ReactNode;
@@ -43,19 +34,21 @@ interface ModelCardProps {
 }
 
 const ModelCard = ({
-  status,
   title,
   description,
   footer,
   badgeLabel,
   badgeColor = 'success',
   accentClassName = 'border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900',
-}: ModelCardProps) => (
+}: ModelCardProps) => {
+  const { t } = useI18n();
+  return (
   <Card shadow="sm" className={`transition-all hover:shadow-lg ${accentClassName}`}>
     <CardBody className="p-6">
       <div className="flex items-center gap-3 mb-3">
-        <StatusIcon status={status} />
+        <div className="w-3 h-3 bg-slate-400 rounded-full" aria-hidden="true" />
         <h4 className="font-semibold text-gray-900 dark:text-white">{title}</h4>
+        <Chip size="sm" variant="flat">{t('docs.unverified')}</Chip>
         {badgeLabel ? (
           <Chip
             size="sm"
@@ -75,12 +68,14 @@ const ModelCard = ({
       </div>
     </CardBody>
   </Card>
-);
+  );
+};
 
 export default function DocsPage() {
   const [activeSection, setActiveSection] = useState<string>('welcome');
   // Consume theme to toggle a CSS class for docs without referencing the value directly
   const { theme } = useTheme();
+  const { t } = useI18n();
   // no-op read to satisfy linter while keeping reactive subscription
   void theme;
 
@@ -151,49 +146,49 @@ export default function DocsPage() {
               <nav className="space-y-6 bg-[#FAF6EE] dark:bg-content-bg">
                 <div className="space-y-2">
                   <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                    Welcome
+                    {t('docs.navWelcome')}
                   </h3>
                   <a href="#welcome" className={navItemClasses('welcome')}>
-                    <FiInfo className="w-4 h-4" /> Overview
+                    <FiInfo className="w-4 h-4" /> {t('docs.navOverview')}
                   </a>
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                    Getting Started
+                    {t('docs.navStart')}
                   </h3>
                   <a href="#getting-started" className={navItemClasses('getting-started')}>
-                    <FiZap className="w-4 h-4" /> Quick Start
+                    <FiZap className="w-4 h-4" /> {t('docs.navQuick')}
                   </a>
                   <a href="#authentication" className={navItemClasses('authentication')}>
-                    <FiCheckCircle className="w-4 h-4" /> Authentication
+                    <FiCheckCircle className="w-4 h-4" /> {t('docs.navAuth')}
                   </a>
                   <a href="#rate-limits" className={navItemClasses('rate-limits')}>
-                    <FiActivity className="w-4 h-4" /> Rate Limits
+                    <FiActivity className="w-4 h-4" /> {t('docs.navRates')}
                   </a>
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                    API Reference
+                    {t('docs.navReference')}
                   </h3>
                   <a href="#models" className={navItemClasses('models')}>
-                    <FiCpu className="w-4 h-4" /> Models
+                    <FiCpu className="w-4 h-4" /> {t('docs.navModels')}
                   </a>
                   <a href="#endpoints" className={navItemClasses('endpoints')}>
-                    <FiLink className="w-4 h-4" /> Endpoints
+                    <FiLink className="w-4 h-4" /> {t('docs.navEndpoints')}
                   </a>
                   <a href="#examples" className={navItemClasses('examples')}>
-                    <FiCode className="w-4 h-4" /> Examples
+                    <FiCode className="w-4 h-4" /> {t('docs.navExamples')}
                   </a>
                   <a href="#sample-responses" className={navItemClasses('sample-responses')}>
-                    <FiFileText className="w-4 h-4" /> Responses
+                    <FiFileText className="w-4 h-4" /> {t('docs.navResponses')}
                   </a>
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                    Support
+                    {t('docs.navSupport')}
                   </h3>
                   <a href="#status" className={navItemClasses('status')}>
-                    <FiServer className="w-4 h-4" /> Status
+                    <FiServer className="w-4 h-4" /> {t('docs.navStatus')}
                   </a>
                 </div>
               </nav>
@@ -210,20 +205,20 @@ export default function DocsPage() {
                     <FiCode className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                   </div>
                   <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight">
-                    ChordMini API Documentation
+                    {t('docs.title')}
                   </h1>
                   <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-                    A comprehensive guide to using our audio analysis API, covering beat detection, chord recognition, and more.
+                    {t('docs.intro')}
                   </p>
                 </div>
               </section>
 
               {/* Getting Started */}
               <section id="getting-started" className="scroll-mt-8">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Getting Started</h2>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">{t('docs.gettingStarted')}</h2>
                 <div className="prose prose-gray dark:prose-invert max-w-none mb-8">
                   <p>
-                    The ChordMini API provides powerful audio analysis capabilities with no authentication required. Start making requests immediately to analyze audio files and extract musical information.
+                    {t('docs.gettingBody')}
                   </p>
                 </div>
 
@@ -233,10 +228,10 @@ export default function DocsPage() {
                     <CardBody>
                       <div className="flex items-center gap-4 mb-2">
                         <FiActivity className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                        <h3 className="font-semibold text-gray-900 dark:text-white text-lg">Beat Detection</h3>
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{t('docs.beatTitle')}</h3>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Identify beat positions and downbeats using advanced ML models.
+                        {t('docs.beatBody')}
                       </p>
                     </CardBody>
                   </Card>
@@ -244,10 +239,10 @@ export default function DocsPage() {
                     <CardBody>
                       <div className="flex items-center gap-4 mb-2">
                         <FiCpu className="w-6 h-6 text-green-600 dark:text-green-400" />
-                        <h3 className="font-semibold text-gray-900 dark:text-white text-lg">Chord Recognition</h3>
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{t('docs.chordTitle')}</h3>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Recognize chord progressions with multiple model options.
+                        {t('docs.chordBody')}
                       </p>
                     </CardBody>
                   </Card>
@@ -255,10 +250,10 @@ export default function DocsPage() {
                     <CardBody>
                       <div className="flex items-center gap-4 mb-2">
                         <FiFileText className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                        <h3 className="font-semibold text-gray-900 dark:text-white text-lg">Lyrics Fetching</h3>
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{t('docs.lyricsTitle')}</h3>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Retrieve synchronized lyrics from LRClib database.
+                        {t('docs.lyricsBody')}
                       </p>
                     </CardBody>
                   </Card>
@@ -266,10 +261,10 @@ export default function DocsPage() {
                     <CardBody>
                       <div className="flex items-center gap-4 mb-2">
                         <FiServer className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-                        <h3 className="font-semibold text-gray-900 dark:text-white text-lg">Model Info</h3>
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{t('docs.modelInfoTitle')}</h3>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Get details about available models and capabilities.
+                        {t('docs.modelInfoBody')}
                       </p>
                     </CardBody>
                   </Card>
@@ -278,15 +273,14 @@ export default function DocsPage() {
 
               {/* Authentication */}
               <section id="authentication" className="scroll-mt-8">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Authentication</h2>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">{t('docs.authTitle')}</h2>
                 <div className={`rounded-lg p-6 mb-6 ${infoCardClass('success')}`}>
                   <div className="flex items-start gap-3">
                     <FiCheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
                     <div>
-                      <h3 className="font-semibold text-green-900 dark:text-green-100 mb-2">No API Key Required</h3>
+                      <h3 className="font-semibold text-green-900 dark:text-green-100 mb-2">{t('docs.noKeyTitle')}</h3>
                       <p className="text-sm text-gray-700 dark:text-gray-300">
-                        The ChordMini API is currently open and does not require authentication. All endpoints are publicly accessible,
-                        making it easy to get started immediately.
+                        {t('docs.noKeyBody')}
                       </p>
                     </div>
                   </div>
@@ -295,9 +289,9 @@ export default function DocsPage() {
                   <div className="flex items-start gap-3">
                     <FiAlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
                     <div>
-                      <h3 className="font-semibold text-amber-900 dark:text-amber-100 mb-2">Future Changes</h3>
+                      <h3 className="font-semibold text-amber-900 dark:text-amber-100 mb-2">{t('docs.futureTitle')}</h3>
                       <p className="text-sm text-gray-700 dark:text-gray-300">
-                        Authentication may be required in future versions. Implement proper error handling for potential `401/403` responses.
+                        {t('docs.futureBody')}
                       </p>
                     </div>
                   </div>
@@ -306,58 +300,58 @@ export default function DocsPage() {
 
               {/* Rate Limits */}
               <section id="rate-limits" className="scroll-mt-8">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Rate Limits</h2>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">{t('docs.ratesTitle')}</h2>
                 <div className="prose prose-gray dark:prose-invert max-w-none mb-8">
                   <p>
-                    The ChordMini API implements production-grade rate limiting to ensure fair usage and system stability. Rate limits vary by endpoint based on computational requirements.
+                    {t('docs.ratesBody')}
                   </p>
                 </div>
                 <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
                   <table className="w-full">
                     <thead>
                       <tr className="bg-gray-100 dark:bg-content-bg/50 border-b border-gray-200 dark:border-gray-700">
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Endpoint</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Method</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rate Limit</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reason</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('docs.colEndpoint')}</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('docs.colMethod')}</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('docs.colLimit')}</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('docs.colReason')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                       <tr className="bg-white dark:bg-slate-900">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">/</td>
                         <td className="px-6 py-4 whitespace-nowrap"><span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">GET</span></td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">30/minute</td>
-                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">Health checks, status monitoring</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">{t('docs.perMinute', { count: 30 })}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{t('docs.reasonHealth')}</td>
                       </tr>
                       <tr className="bg-white dark:bg-slate-900">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">/api/model-info</td>
                         <td className="px-6 py-4 whitespace-nowrap"><span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">GET</span></td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">20/minute</td>
-                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">Information endpoint, moderate usage</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">{t('docs.perMinute', { count: 20 })}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{t('docs.reasonInfo')}</td>
                       </tr>
                       <tr className="bg-white dark:bg-slate-900">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">/api/detect-beats</td>
                         <td className="px-6 py-4 whitespace-nowrap"><span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">POST</span></td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600 dark:text-red-400">2/minute</td>
-                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">Heavy processing, resource intensive</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600 dark:text-red-400">{t('docs.perMinute', { count: 2 })}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{t('docs.reasonHeavy')}</td>
                       </tr>
                       <tr className="bg-white dark:bg-slate-900">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">/api/recognize-chords*</td>
                         <td className="px-6 py-4 whitespace-nowrap"><span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">POST</span></td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600 dark:text-red-400">2/minute</td>
-                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">Heavy processing, ML inference</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600 dark:text-red-400">{t('docs.perMinute', { count: 2 })}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{t('docs.reasonMl')}</td>
                       </tr>
                       <tr className="bg-white dark:bg-slate-900">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">/api/lrclib-lyrics</td>
                         <td className="px-6 py-4 whitespace-nowrap"><span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">POST</span></td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">10/minute</td>
-                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">Synchronized lyrics with timestamps</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">{t('docs.perMinute', { count: 10 })}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{t('docs.reasonLyrics')}</td>
                       </tr>
                       <tr className="bg-white dark:bg-slate-900">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">LRCLIB direct search</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">{t('docs.lrclibSearch')}</td>
                         <td className="px-6 py-4 whitespace-nowrap"><span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">POST</span></td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">10/minute</td>
-                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">Lyrics lookup and synchronization</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">{t('docs.perMinute', { count: 10 })}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{t('docs.reasonLookup')}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -366,67 +360,62 @@ export default function DocsPage() {
 
               {/* Models */}
               <section id="models" className="scroll-mt-8">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Available Models</h2>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">{t('docs.modelsTitle')}</h2>
                 <div className="prose prose-gray dark:prose-invert max-w-none mb-8">
                   <p>
-                    ChordMini provides multiple machine learning models for different audio analysis tasks. Each model is optimized for specific use cases and performance characteristics.
+                    {t('docs.modelsBody')}
                   </p>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Beat Detection Models</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('docs.beatModels')}</h3>
                 <div className="grid md:grid-cols-2 gap-6 mb-8">
                   <ModelCard
-                    status="Operational"
                     title="Madmom"
-                    badgeLabel="Default"
-                    description="Neural network with high accuracy and speed, best for common time signatures (3/4, 4/4)."
-                    footer={<><strong>Best for:</strong> Pop, Rock, Electronic music</>}
+                    badgeLabel={t('docs.defaultBadge')}
+                    description={t('docs.madmomBody')}
+                    footer={<><strong>{t('docs.bestFor')}</strong> {t('docs.madmomBest')}</>}
                   />
                   <ModelCard
-                    status="Operational"
                     title="Beat-Transformer"
-                    description="DL model with 5-channel audio separation, flexible in time signatures, slow processing speed."
-                    footer={<><strong>Best for:</strong> Complex mixes, layered instrumentation</>}
+                    description={t('docs.beatTransformerBody')}
+                    footer={<><strong>{t('docs.bestFor')}</strong> {t('docs.beatTransformerBest')}</>}
                   />
                 </div>
 
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Chord Recognition Models</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('docs.chordModels')}</h3>
                 <div className="grid gap-6">
                   <ModelCard
-                    status="Operational"
                     title="Chord-CNN-LSTM"
-                    badgeLabel="Default"
-                    description="Convolutional and LSTM neural network for chord recognition with 301 chord labels. Excellent balance of accuracy and performance."
-                    footer={<><strong>Labels:</strong> 301 chord types • <strong>Best for:</strong> General purpose chord recognition</>}
+                    badgeLabel={t('docs.defaultBadge')}
+                    description={t('docs.cnnBody')}
+                    footer={<><strong>{t('docs.labels')}</strong> {t('docs.cnnLabels')} • <strong>{t('docs.bestFor')}</strong> {t('docs.cnnBest')}</>}
                   />
                   {isDevelopmentEnvironment() && (
                     <>
                       <ModelCard
-                        status="Degraded"
-                        title="BTC SL (Supervised Learning)"
-                        badgeLabel="DEV ONLY"
+                        title="BTC SL"
+                        badgeLabel={t('docs.devOnly')}
                         badgeColor="warning"
                         accentClassName="border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20"
                         description={
                           <>
-                            Transformer model with 170 chord labels, supervised learning approach.
-                            <strong className="text-orange-600 dark:text-orange-400"> Development only - requires local repository cloning.</strong>
+                            {t('docs.btcBody')} {t('docs.btcSlExtra')}
+                            <strong className="text-orange-600 dark:text-orange-400"> {t('docs.btcDevNote')}</strong>
                           </>
                         }
-                        footer={<><strong>Labels:</strong> 170 chord types • <strong>Best for:</strong> Research and development</>}
+                        footer={<><strong>{t('docs.labels')}</strong> {t('docs.btcLabels')} • <strong>{t('docs.bestFor')}</strong> {t('docs.btcBest')}</>}
                       />
                       <ModelCard
-                        status="Degraded"
-                        title="BTC PL (Pseudo-Label)"
-                        badgeLabel="DEV ONLY"
+                        title="BTC PL"
+                        badgeLabel={t('docs.devOnly')}
                         badgeColor="warning"
                         accentClassName="border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20"
                         description={
                           <>
-                            Transformer model with 170 chord labels, pseudo-label training approach.
-                            <strong className="text-orange-600 dark:text-orange-400"> Development only - requires local repository cloning.</strong>
+                            {t('docs.btcBody')} {t('docs.btcPlExtra')}
+                            <strong className="text-orange-600 dark:text-orange-400"> {t('docs.btcDevNote')}</strong>
                           </>
                         }
-                        footer={<><strong>Labels:</strong> 170 chord types • <strong>Best for:</strong> Research and development</>}
+                        footer={<><strong>{t('docs.labels')}</strong> {t('docs.btcLabels')} • <strong>{t('docs.bestFor')}</strong> {t('docs.btcBest')}</>}
                       />
                     </>
                   )}
@@ -435,17 +424,17 @@ export default function DocsPage() {
 
               {/* API Endpoints */}
               <section id="endpoints" className="scroll-mt-8">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">API Endpoints</h2>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">{t('docs.endpointsTitle')}</h2>
                 <div className="prose prose-gray dark:prose-invert max-w-none mb-8">
                   <p>
-                    When running locally, all endpoints are available at: <strong className="font-mono text-gray-900 dark:text-white">{localEndpoint}</strong>
+                    {t('docs.localEndpoints')} <strong className="font-mono text-gray-900 dark:text-white">{localEndpoint}</strong>
                   </p>
                 </div>
                 <div className={`rounded-lg p-4 mb-6 ${infoCardClass('info')}`}>
                   <div className="flex items-start gap-3">
                     <FiInfo className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                     <p className="text-sm text-gray-700 dark:text-gray-300">
-                      For remote/production endpoint access, please contact the maintainer. Be mindful of rate limits and usage constraints when testing remotely.
+                      {t('docs.remoteNote')}
                     </p>
                   </div>
                 </div>
@@ -457,10 +446,10 @@ export default function DocsPage() {
                         <span className="font-mono text-sm text-gray-900 dark:text-gray-100">/api/detect-beats</span>
                       </div>
                       <p className="text-gray-600 dark:text-gray-400 mb-4">
-                        Analyzes audio file and returns beat timestamps, BPM, and time signature.
+                        {t('docs.detectBeatsBody')}
                       </p>
                       <ul className="text-sm space-y-2">
-                        <li><strong>Parameters:</strong> `file` (audio file), `model` (optional: `beat-transformer`, `madmom`, `auto`)</li>
+                        <li><strong>{t('docs.parameters')}</strong> <span className="font-mono">{t('docs.detectBeatsParams')}</span></li>
                       </ul>
                     </CardBody>
                   </Card>
@@ -471,10 +460,10 @@ export default function DocsPage() {
                         <span className="font-mono text-sm text-gray-900 dark:text-gray-100">/api/recognize-chords</span>
                       </div>
                       <p className="text-gray-600 dark:text-gray-400 mb-4">
-                        Analyzes audio file and returns chord progression with timestamps.
+                        {t('docs.recognizeBody')}
                       </p>
                       <ul className="text-sm space-y-2">
-                        <li><strong>Parameters:</strong> `file` (audio file), `model` (optional: `chord-cnn-lstm`)</li>
+                        <li><strong>{t('docs.parameters')}</strong> <span className="font-mono">{t('docs.recognizeParams')}</span></li>
                       </ul>
                     </CardBody>
                   </Card>
@@ -483,16 +472,16 @@ export default function DocsPage() {
 
               {/* Examples */}
               <section id="examples" className="scroll-mt-8">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Usage Examples</h2>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">{t('docs.examplesTitle')}</h2>
                 <div className="prose prose-gray dark:prose-invert max-w-none mb-8">
                   <p>
-                    Here are some practical examples of how to use the ChordMini API using Javascript and cURL.
+                    {t('docs.examplesBody')}
                   </p>
                 </div>
 
                 <div className="space-y-8">
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Chord Recognition with Javascript</h3>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('docs.exampleChordJs')}</h3>
                     <CodeBlock
                       title="Javascript"
                       language="javascript"
@@ -513,7 +502,7 @@ console.log(result);`}
                     />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Beat Detection with cURL</h3>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('docs.exampleBeatCurl')}</h3>
                     <CodeBlock
                       title="cURL"
                       language="bash"
@@ -523,7 +512,7 @@ console.log(result);`}
                     />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Chord Recognition with cURL</h3>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('docs.exampleChordCurl')}</h3>
                     <CodeBlock
                       title="cURL"
                       language="bash"
@@ -537,10 +526,10 @@ console.log(result);`}
 
               {/* Status Page */}
               <section id="status" className="scroll-mt-8">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">API Status</h2>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">{t('docs.statusTitle')}</h2>
                 <div className="prose prose-gray dark:prose-invert max-w-none mb-8">
                   <p>
-                    Monitor the real-time status of ChordMini API services and endpoints.
+                    {t('docs.statusBody')}
                   </p>
                 </div>
 
@@ -548,21 +537,21 @@ console.log(result);`}
                   <Card shadow="sm" className="hover:shadow-lg transition-all border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900">
                     <CardBody>
                       <div className="flex items-center gap-3 mb-4">
-                        <StatusIcon status="Operational" />
-                        <h3 className="font-semibold text-gray-900 dark:text-white">Backend Services</h3>
+                        <div className="w-3 h-3 bg-slate-400 rounded-full" aria-hidden="true" />
+                        <h3 className="font-semibold text-gray-900 dark:text-white">{t('docs.backendServices')}</h3>
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
-                          <span>Beat Detection</span>
-                          <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">Operational</span>
+                          <span>{t('docs.beatTitle')}</span>
+                          <span className="text-xs bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2 py-1 rounded-full">{t('docs.unverified')}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
-                          <span>Chord Recognition</span>
-                          <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">Operational</span>
+                          <span>{t('docs.chordTitle')}</span>
+                          <span className="text-xs bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2 py-1 rounded-full">{t('docs.unverified')}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
-                          <span>Lyrics Services</span>
-                          <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">Operational</span>
+                          <span>{t('docs.lyricsServices')}</span>
+                          <span className="text-xs bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2 py-1 rounded-full">{t('docs.unverified')}</span>
                         </div>
                       </div>
                     </CardBody>
@@ -570,21 +559,21 @@ console.log(result);`}
                   <Card shadow="sm" className="hover:shadow-lg transition-all border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900">
                     <CardBody>
                       <div className="flex items-center gap-3 mb-4">
-                        <FiServer className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                        <h3 className="font-semibold text-gray-900 dark:text-white">Infrastructure</h3>
+                        <FiServer className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                        <h3 className="font-semibold text-gray-900 dark:text-white">{t('docs.infrastructure')}</h3>
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
                           <span>Google Cloud Run</span>
-                          <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">Online</span>
+                          <span className="text-xs bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2 py-1 rounded-full">{t('docs.unverified')}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
-                          <span>Rate Limiting</span>
-                          <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">Active</span>
+                          <span>{t('docs.rateLimiting')}</span>
+                          <span className="text-xs bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2 py-1 rounded-full">{t('docs.unverified')}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
-                          <span>CORS Support</span>
-                          <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">Enabled</span>
+                          <span>{t('docs.cors')}</span>
+                          <span className="text-xs bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2 py-1 rounded-full">{t('docs.unverified')}</span>
                         </div>
                       </div>
                     </CardBody>
@@ -594,12 +583,12 @@ console.log(result);`}
                   <div className="flex items-start gap-3">
                     <FiExternalLink className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
                     <div>
-                      <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Detailed Status Page</h3>
+                      <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">{t('docs.detailedStatus')}</h3>
                       <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
-                        For real-time monitoring and detailed service metrics, visit our dedicated status page.
+                        {t('docs.detailedStatusBody')}
                       </p>
                       <a href="/status" className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium text-sm transition-colors">
-                        View Status Page
+                        {t('docs.viewStatus')}
                         <FiExternalLink className="w-4 h-4" />
                       </a>
                     </div>

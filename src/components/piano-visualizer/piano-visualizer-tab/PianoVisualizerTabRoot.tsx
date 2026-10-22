@@ -25,6 +25,7 @@ import { usePianoOnlyPlayback } from './usePianoOnlyPlayback';
 import { usePianoVisualizerTimelineModel } from './usePianoVisualizerTimelineModel';
 import { useSheetMusicModel } from './useSheetMusicModel';
 import type { PianoVisualizerTabProps, VisualizerDisplayMode } from './types';
+import { useI18n } from '@/i18n/I18nProvider';
 
 export const PianoVisualizerTab: React.FC<PianoVisualizerTabProps> = ({
   analysisResults,
@@ -44,6 +45,7 @@ export const PianoVisualizerTab: React.FC<PianoVisualizerTabProps> = ({
   showMelodicOverlay = false,
   gridLyrics = null,
 }) => {
+  const { t } = useI18n();
   const storeAnalysisResults = useAnalysisResults();
   const storeShowCorrectedChords = useShowCorrectedChords();
   const storeChordCorrections = useChordCorrections();
@@ -259,7 +261,7 @@ export const PianoVisualizerTab: React.FC<PianoVisualizerTabProps> = ({
   if (!mergedAnalysisResults) {
     return (
       <div className={`flex items-center justify-center rounded-lg bg-white p-8 shadow-card dark:bg-content-bg ${className}`}>
-        <p className="text-gray-500 dark:text-gray-400">Run chord analysis to see piano visualization.</p>
+        <p className="text-gray-500 dark:text-gray-400">{t('piano.needAnalysis')}</p>
       </div>
     );
   }

@@ -13,6 +13,7 @@ import {
   mergeConsecutiveChordEvents,
   type ScheduledNote,
 } from '@/utils/instrumentNoteGeneration';
+import { useI18n } from '@/i18n/I18nProvider';
 import type { DynamicsAnalyzer } from '@/services/audio/dynamicsAnalyzer';
 import {
   ScrollingChordStrip,
@@ -472,6 +473,7 @@ export const GuitarTablature = React.memo<GuitarTablatureProps>(({
   gridLyrics = null,
   className = '',
 }) => {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(800);
@@ -684,7 +686,7 @@ export const GuitarTablature = React.memo<GuitarTablatureProps>(({
         className={`relative overflow-hidden rounded-sm flex items-center justify-center ${className}`}
         style={{ height: STRIP_HEIGHT + STAFF_HEIGHT }}
       >
-        <span className="font-varela text-xs text-gray-500">No chord events</span>
+        <span className="font-varela text-xs text-gray-500">{t('piano.noEvents')}</span>
       </div>
     );
   }

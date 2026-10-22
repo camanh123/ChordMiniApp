@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ApiKeyModalProps, API_KEY_HELP_URLS } from '@/types/apiKeyTypes';
 import { HiLightBulb, HiGift, HiInformationCircle } from 'react-icons/hi2';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const SEGMENTATION_ACCESS_REQUEST_EMAIL = process.env.NEXT_PUBLIC_SEGMENTATION_ACCESS_REQUEST_EMAIL || 'phantrongnghia510@gmail.com';
 
@@ -16,6 +17,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
   currentError
 }) => {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const [apiKey, setApiKey] = useState('');
   const [isValidating, setIsValidating] = useState(false);
   const [showKey, setShowKey] = useState(false);
@@ -39,7 +41,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
     e.preventDefault();
     
     if (!apiKey.trim()) {
-      setError(service === 'songformerAccess' ? 'Please enter an access code' : 'Please enter an API key');
+      setError(service === 'songformerAccess' ? t('settings.enterCode') : t('settings.enterKey'));
       return;
     }
 
@@ -51,8 +53,8 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
       // Modal will be closed by parent component on success
     } catch (error) {
       const fallbackMessage = service === 'songformerAccess'
-        ? 'Failed to validate access code'
-        : 'Failed to validate API key';
+        ? t('settings.validateCodeFailed')
+        : t('settings.validateKeyFailed');
       setError(error instanceof Error ? error.message : fallbackMessage);
     } finally {
       setIsValidating(false);
@@ -64,58 +66,62 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
       case 'musicAi':
         return {
           name: 'Music.ai',
-          description: 'Music.ai services require your own API key due to high processing costs.',
+          description: t('settings.musicAiDescription'),
           features: 'lyrics transcription and chord generation',
           helpUrl: API_KEY_HELP_URLS.MUSIC_AI,
-          placeholder: 'Enter your Music.ai API key...',
-          keyFormat: 'API keys are typically 40+ characters long',
-          freeInfo: 'Free to start: $20 credit included with new accounts',
+          placeholder: t('settings.musicAiPlaceholder'),
+          keyFormat: t('settings.musicAiFormat'),
+          freeInfo: t('settings.musicAiFree'),
           freeIcon: <HiLightBulb className="w-3 h-3 mt-0.5 flex-shrink-0" />,
-          fieldLabel: 'API Key',
-          submitLabel: 'Save API Key',
-          helpLabel: 'How to get a Music.ai API key →',
+          fieldLabel: t('settings.apiKeyLabel'),
+          submitLabel: t('settings.saveApiKey'),
+          helpLabel: t('settings.musicAiHelp'),
+          storedNote: t('settings.storedKey'),
         };
       case 'gemini':
         return {
           name: 'Gemini',
-          description: 'Provide your own Gemini API key to bypass rate limits and ensure uninterrupted translation services.',
+          description: t('settings.geminiDescription'),
           features: 'lyrics translation',
           helpUrl: API_KEY_HELP_URLS.GEMINI,
-          placeholder: 'Enter your Gemini API key (AIza...)...',
-          keyFormat: 'API keys start with "AIza" and are 39 characters long',
-          freeInfo: 'Free tier available: Generous usage limits for personal projects',
+          placeholder: t('settings.geminiPlaceholder'),
+          keyFormat: t('settings.geminiFormat'),
+          freeInfo: t('settings.geminiFree'),
           freeIcon: <HiGift className="w-3 h-3 mt-0.5 flex-shrink-0" />,
-          fieldLabel: 'API Key',
-          submitLabel: 'Save API Key',
-          helpLabel: 'How to get a Gemini API key →',
+          fieldLabel: t('settings.apiKeyLabel'),
+          submitLabel: t('settings.saveApiKey'),
+          helpLabel: t('settings.geminiHelp'),
+          storedNote: t('settings.storedKey'),
         };
       case 'songformerAccess':
         return {
-          name: 'Song Segmentation',
-          description: 'First-time SongFormer segmentation requests are protected by an access code because backend runs are expensive. Completed cached results remain available without a code.',
+          name: t('settings.segmentation'),
+          description: t('settings.songformerDescription'),
           features: 'new SongFormer segmentation requests',
           helpUrl: `mailto:${SEGMENTATION_ACCESS_REQUEST_EMAIL}`,
-          placeholder: 'Enter your SongFormer access code...',
-          keyFormat: 'Access codes are case-sensitive',
-          freeInfo: `Request access through ${SEGMENTATION_ACCESS_REQUEST_EMAIL}`,
+          placeholder: t('settings.songformerPlaceholder'),
+          keyFormat: t('settings.songformerFormat'),
+          freeInfo: t('settings.songformerFree', { email: SEGMENTATION_ACCESS_REQUEST_EMAIL }),
           freeIcon: <HiInformationCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />,
-          fieldLabel: 'Access Code',
-          submitLabel: 'Save Access Code',
-          helpLabel: 'Request access code via email →',
+          fieldLabel: t('settings.accessCode'),
+          submitLabel: t('settings.saveAccessCode'),
+          helpLabel: t('settings.requestCode'),
+          storedNote: t('settings.storedCode'),
         };
       default:
         return {
           name: 'API',
-          description: 'This service requires an API key.',
+          description: t('settings.genericDescription'),
           features: 'advanced features',
           helpUrl: '#',
-          placeholder: 'Enter your API key...',
+          placeholder: t('settings.genericPlaceholder'),
           keyFormat: '',
           freeInfo: '',
           freeIcon: null,
-          fieldLabel: 'API Key',
-          submitLabel: 'Save API Key',
-          helpLabel: 'How to get this API key →',
+          fieldLabel: t('settings.apiKeyLabel'),
+          submitLabel: t('settings.saveApiKey'),
+          helpLabel: t('settings.genericHelp'),
+          storedNote: t('settings.storedKey'),
         };
     }
   };
@@ -139,11 +145,16 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
             <h2 className={`text-xl font-semibold ${
               theme === 'dark' ? 'text-white' : 'text-gray-900'
             }`}>
-              {serviceInfo.name} {serviceInfo.fieldLabel} {required ? 'Required' : 'Setup'}
+              {t('settings.keyDialog', {
+                name: serviceInfo.name,
+                field: serviceInfo.fieldLabel,
+                state: required ? t('settings.required') : t('settings.setupWord'),
+              })}
             </h2>
             {!required && (
               <button
                 onClick={onClose}
+                aria-label={t('settings.closeDialog')}
                 className={`p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
                 }`}
@@ -175,7 +186,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
                   </div>
                 )}
                 <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}>
-                  Your {serviceInfo.fieldLabel.toLowerCase()} is stored locally and encrypted. It never leaves your browser.
+                  {serviceInfo.storedNote}
                 </p>
               </div>
             </div>
@@ -207,6 +218,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowKey(!showKey)}
+                  aria-label={showKey ? t('settings.hideSecret') : t('settings.showSecret')}
                   className={`absolute right-2 top-2 p-1 ${
                     theme === 'dark' ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
                   }`}
@@ -260,7 +272,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Validating...
+                    {t('settings.validating')}
                   </span>
                 ) : (
                   serviceInfo.submitLabel
@@ -279,7 +291,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
                     }
                   `}
                 >
-                  Cancel
+                  {t('settings.cancel')}
                 </button>
               )}
             </div>
