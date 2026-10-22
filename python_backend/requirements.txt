@@ -60,7 +60,10 @@ ffmpeg-python==0.2.0
 # pip install madmom --no-build-isolation
 # ============================================================================
 # madmom for DBN beat tracking (with Python 3.10+ compatibility fixes in code)
-# madmom==0.16.1
+# Pinned to the CPJKU commit verified with Python 3.10.22, numpy 1.26.4,
+# and setuptools 79.0.1. The package reports version 0.17.dev0.
+# Its RNN weight files are CC BY-NC-SA 4.0; the source files are BSD-like.
+madmom @ git+https://github.com/CPJKU/madmom.git@27f032e8947204902c675e5e341a3faf5dc86dae
 
 # Music analysis libraries
 pretty_midi==0.2.10

@@ -1,0 +1,55 @@
+{
+  "purpose": "Pinned model assets required for the minimum CPU beat and chord proof. Hashes are of the checked-out blobs. This file does not claim those blobs were executed.",
+  "models": [
+    {
+      "name": "Beat-Transformer",
+      "repository": "https://github.com/ptnghia-j/beat-transformer-model.git",
+      "commit": "aba61e0bc962ee9c95efcacbfc3d274d5816b76d",
+      "license": "MIT",
+      "license_file": "python_backend/models/Beat-Transformer/LICENSE",
+      "copyright": "Copyright (c) 2022 Zhao Jingwei",
+      "paths": [
+        {
+          "path": "python_backend/models/Beat-Transformer/checkpoint/fold_4_trf_param.pt",
+          "bytes": 37235863,
+          "sha256": "b76033014dd07d12307743b92337b7dffadf1f20a6ccd5a1edb03276e99a4512"
+        }
+      ]
+    },
+    {
+      "name": "Chord-CNN-LSTM",
+      "repository": "https://github.com/ptnghia-j/chord-cnn-lstm-model.git",
+      "commit": "9d784d1ce975452266ed60fbaf015d537b585046",
+      "license": "MIT",
+      "license_file": "python_backend/models/Chord-CNN-LSTM/LICENSE",
+      "copyright": "Copyright (c) 2023 Music X Lab",
+      "paths": [
+        {
+          "path": "python_backend/models/Chord-CNN-LSTM/cache_data/joint_chord_net_ismir_naive_v1.0_reweight(0.0,10.0)_s0.best.sdict",
+          "bytes": 5746183,
+          "sha256": "921b42d5d1cf9ce1c0c0e45a74d409b8066e0acec46058ef74e24ee0fb540761"
+        },
+        {
+          "path": "python_backend/models/Chord-CNN-LSTM/cache_data/joint_chord_net_ismir_naive_v1.0_reweight(0.0,10.0)_s1.best.sdict",
+          "bytes": 5746175,
+          "sha256": "bcb75859e0efa256696cf5da396b320093317b9b1d9560c304f46c25fe1f8b17"
+        },
+        {
+          "path": "python_backend/models/Chord-CNN-LSTM/cache_data/joint_chord_net_ismir_naive_v1.0_reweight(0.0,10.0)_s2.best.sdict",
+          "bytes": 5746179,
+          "sha256": "acddf85c3fff29954c4877021177d72e2cba9f729ce80c1010f054c477bf3f61"
+        },
+        {
+          "path": "python_backend/models/Chord-CNN-LSTM/cache_data/joint_chord_net_ismir_naive_v1.0_reweight(0.0,10.0)_s3.best.sdict",
+          "bytes": 5746175,
+          "sha256": "65d81a3ab73435aaaade586981b4cabdf57b8953d76052703e6968c32ef8421c"
+        },
+        {
+          "path": "python_backend/models/Chord-CNN-LSTM/cache_data/joint_chord_net_ismir_naive_v1.0_reweight(0.0,10.0)_s4.best.sdict",
+          "bytes": 5746227,
+          "sha256": "5ff6b0ec85640e17a09a9b3de68c93fdd45adc24488e8fa9be5715c28d561122"
+        }
+      ]
+    }
+  ]
+}

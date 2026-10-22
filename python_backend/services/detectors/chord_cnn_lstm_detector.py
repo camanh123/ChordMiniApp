@@ -14,6 +14,16 @@ from typing import Dict, Any, Optional, List
 from utils.logging import log_info, log_error, log_debug
 
 
+# These are the pretrained files NetworkInterface loads for names ending in
+# ".best" (it appends ".sdict"). A missing or tiny file must not be treated
+# as a usable model.
+CHORD_CNN_LSTM_WEIGHTS = [
+    f"cache_data/joint_chord_net_ismir_naive_v1.0_reweight(0.0,10.0)_s{index}.best.sdict"
+    for index in range(5)
+]
+MIN_WEIGHT_BYTES = 1_000_000
+
+
 class ChordCNNLSTMDetectorService:
     """
     Service wrapper for Chord-CNN-LSTM with normalized interface.
@@ -45,13 +55,23 @@ class ChordCNNLSTMDetectorService:
                 self._available = False
                 return False
 
-            # Check for required files
-            required_files = ['chord_recognition.py']
-            for file in required_files:
-                if not (self.model_dir / file).exists():
-                    log_error(f"Required file not found: {file}")
-                    self._available = False
-                    return False
+            if not (self.model_dir / 'chord_recognition.py').is_file():
+                log_error("Required file not found: chord_recognition.py")
+                self._available = False
+                return False
+
+            missing_weights = []
+            for relative in CHORD_CNN_LSTM_WEIGHTS:
+                weight_path = self.model_dir / relative
+                if not weight_path.is_file() or weight_path.stat().st_size < MIN_WEIGHT_BYTES:
+                    missing_weights.append(relative)
+            if missing_weights:
+                log_error(
+                    "Chord-CNN-LSTM weights missing or incomplete: "
+                    + ", ".join(missing_weights)
+                )
+                self._available = False
+                return False
 
             # Try to import the module
             original_dir = os.getcwd()
@@ -59,14 +79,17 @@ class ChordCNNLSTMDetectorService:
                 sys.path.insert(0, str(self.model_dir))
                 os.chdir(str(self.model_dir))
                 from chord_recognition import chord_recognition
+                if not callable(chord_recognition):
+                    log_error("Chord-CNN-LSTM chord_recognition is not callable")
+                    self._available = False
+                    return False
                 self._available = True
                 log_debug("Chord-CNN-LSTM availability: True")
                 return True
             except ImportError as e:
                 log_error(f"Chord-CNN-LSTM import failed: {e}")
-                # TEMPORARY: Return True for testing response format
-                self._available = True
-                return True
+                self._available = False
+                return False
             finally:
                 os.chdir(original_dir)
 
@@ -118,39 +141,28 @@ class ChordCNNLSTMDetectorService:
             temp_lab_path = temp_lab_file.name
             temp_lab_file.close()
 
-            # Try to run real recognition
-            try:
-                # Change to model directory and run recognition
-                sys.path.insert(0, str(self.model_dir))
-                os.chdir(str(self.model_dir))
+            # Change to model directory and run recognition.
+            # An import failure must surface as an error. It must not be
+            # replaced with a fabricated chord sequence.
+            sys.path.insert(0, str(self.model_dir))
+            os.chdir(str(self.model_dir))
 
-                from chord_recognition import chord_recognition
+            from chord_recognition import chord_recognition
 
-                success = chord_recognition(file_path, temp_lab_path, chord_dict)
+            success = chord_recognition(file_path, temp_lab_path, chord_dict)
 
-                if not success:
-                    return {
-                        "success": False,
-                        "error": "Chord recognition failed. See server logs for details.",
-                        "model_used": "chord-cnn-lstm",
-                        "model_name": "Chord-CNN-LSTM",
-                        "chord_dict": chord_dict,
-                        "processing_time": time.time() - start_time
-                    }
+            if not success:
+                return {
+                    "success": False,
+                    "error": "Chord recognition failed. See server logs for details.",
+                    "model_used": "chord-cnn-lstm",
+                    "model_name": "Chord-CNN-LSTM",
+                    "chord_dict": chord_dict,
+                    "processing_time": time.time() - start_time
+                }
 
-                # Parse the lab file
-                chord_data = self._parse_lab_file(temp_lab_path)
+            chord_data = self._parse_lab_file(temp_lab_path)
 
-            except ImportError:
-                # TEMPORARY: Create mock data for testing response format
-                log_info("Using mock chord data for testing response format")
-                chord_data = [
-                    {"start": 0.0, "end": 2.0, "chord": "C:maj", "confidence": 1.0},
-                    {"start": 2.0, "end": 4.0, "chord": "F:maj", "confidence": 1.0},
-                    {"start": 4.0, "end": 6.0, "chord": "G:maj", "confidence": 1.0},
-                    {"start": 6.0, "end": 8.0, "chord": "C:maj", "confidence": 1.0}
-                ]
-            
             # Calculate duration (using "end" field to match frontend expectations)
             duration = chord_data[-1]["end"] if chord_data else 0.0
             

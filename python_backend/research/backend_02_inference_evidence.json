@@ -1,0 +1,186 @@
+{
+  "python": "3.10.22 (main, Oct  9 2026, 15:21:30) [Clang 22.1.3 ]",
+  "installed": {
+    "torch": "2.6.0+cpu",
+    "numpy": "1.26.4",
+    "scipy": "1.13.1",
+    "librosa": "0.10.1",
+    "numba": "0.59.1",
+    "soundfile": "0.12.1",
+    "madmom": "0.17.dev0",
+    "setuptools": "79.0.1",
+    "Cython": "3.3.0",
+    "h5py": "3.13.0",
+    "pretty_midi": "0.2.10",
+    "pydub": "0.25.1",
+    "scikit-learn": "1.6.1",
+    "soxr": "0.5.0.post1",
+    "audioread": "3.0.1",
+    "joblib": "1.4.2"
+  },
+  "fixture": {
+    "path": "/tmp/chordmini-bt02-fixture.wav",
+    "bytes": 529244,
+    "sha256": "9f28c07ea70690c82a1b7b4b883ab0624489020950e782210dbddaeab1b73914",
+    "sample_rate": 22050,
+    "duration_seconds": 12.0,
+    "click_interval_seconds": 0.5,
+    "synthesized_regions": [
+      {
+        "start": 0.0,
+        "end": 4.0,
+        "frequencies_hz": [
+          261.63,
+          329.63,
+          392.0
+        ]
+      },
+      {
+        "start": 4.0,
+        "end": 8.0,
+        "frequencies_hz": [
+          349.23,
+          440.0,
+          523.25
+        ]
+      },
+      {
+        "start": 8.0,
+        "end": 12.0,
+        "frequencies_hz": [
+          392.0,
+          493.88,
+          587.33
+        ]
+      }
+    ],
+    "license": "Generated in this script. No external recording."
+  },
+  "peak_memory_mb_after_fixture": 45.41,
+  "peak_memory_mb_after_import": 45.41,
+  "beats": {
+    "success": true,
+    "beats": [
+      0.0,
+      0.5,
+      1.0,
+      1.5,
+      2.0,
+      2.5,
+      3.0,
+      3.5,
+      4.0,
+      4.49,
+      4.99,
+      5.49,
+      5.99,
+      6.49,
+      6.99,
+      7.49,
+      7.99,
+      8.49,
+      8.99,
+      9.49,
+      9.99,
+      10.49,
+      10.99,
+      11.49,
+      11.99
+    ],
+    "downbeats": [
+      0.0,
+      2.0,
+      4.0,
+      5.99,
+      7.99,
+      9.99,
+      11.99
+    ],
+    "downbeat_candidates": {
+      "3": [
+        0.0,
+        1.5,
+        3.0,
+        4.49,
+        5.99,
+        7.49,
+        8.99,
+        10.49,
+        11.99
+      ],
+      "4": [
+        0.0,
+        2.0,
+        4.0,
+        5.99,
+        7.99,
+        9.99,
+        11.99
+      ]
+    },
+    "downbeat_candidates_meta": {
+      "default": 4,
+      "strategy": "heuristic_slices_from_beats"
+    },
+    "total_beats": 25,
+    "total_downbeats": 7,
+    "bpm": 120.0,
+    "time_signature": "4/4",
+    "duration": 12.0,
+    "model_used": "madmom",
+    "model_name": "Madmom",
+    "processing_time": 1.1042840480804443,
+    "file_size_mb": 0.5047264099121094,
+    "detector_selected": "madmom",
+    "detector_requested": "madmom",
+    "force_used": false,
+    "total_processing_time": 2.611164093017578
+  },
+  "beat_wall_seconds": 2.6112,
+  "peak_memory_mb_after_beats": 432.18,
+  "chords": {
+    "success": true,
+    "chords": [
+      {
+        "start": 0.0,
+        "end": 0.023219954648526078,
+        "chord": "N",
+        "confidence": 1.0
+      },
+      {
+        "start": 0.023219954648526078,
+        "end": 3.9938321995464854,
+        "chord": "C:maj",
+        "confidence": 1.0
+      },
+      {
+        "start": 3.9938321995464854,
+        "end": 7.987664399092971,
+        "chord": "F:maj",
+        "confidence": 1.0
+      },
+      {
+        "start": 7.987664399092971,
+        "end": 12.004716553287983,
+        "chord": "G:maj",
+        "confidence": 1.0
+      }
+    ],
+    "total_chords": 4,
+    "duration": 12.004716553287983,
+    "model_used": "chord-cnn-lstm",
+    "model_name": "Chord-CNN-LSTM",
+    "chord_dict": "submission",
+    "processing_time": 0.7741250991821289,
+    "file_size_mb": 0.5047264099121094,
+    "detector_selected": "chord-cnn-lstm",
+    "detector_requested": "chord-cnn-lstm",
+    "force_used": false,
+    "spleeter_info": null,
+    "total_processing_time": 0.8530199527740479
+  },
+  "chord_wall_seconds": 0.853,
+  "peak_memory_mb": 493.81,
+  "fabricated_pattern_returned": false,
+  "failures": []
+}
