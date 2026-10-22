@@ -74,6 +74,7 @@ import { useProcessing } from '@/contexts/ProcessingContext';
 import BeatTimeline from '@/components/analysis/BeatTimeline';
 import { simplifyChordArray } from '@/utils/chordSimplification';
 import { useUIStore, useIsLoopEnabled, useLoopStartBeat, useLoopEndBeat, useIsPitchShiftEnabled, useIsPitchShiftReady } from '@/stores/uiStore';
+import { AUDIO_FILE_ACCEPT } from '@/runtime/audioFileInput';
 
 import { useMetronomeSync } from '@/hooks/chord-playback/useMetronomeSync';
 import { useMelodicTranscriptionPlayback } from '@/hooks/chord-playback/useMelodicTranscriptionPlayback';
@@ -1166,7 +1167,7 @@ const simplifiedChordGridData = useMemo(() => {
                       {audioFile ? audioFile.name : 'Choose Audio File'}
                       <input
                         type="file"
-                        accept="audio/*"
+                        accept={AUDIO_FILE_ACCEPT}
                         onChange={handleFileChange}
                         className="hidden"
                       />
