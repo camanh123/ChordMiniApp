@@ -177,11 +177,15 @@ function assertNoShellMeta(value, label) {
 async function runInstaller(installer) {
   assertNoShellMeta(installer, 'Installer path');
   assertNoShellMeta(installDir, 'Install directory');
-  const comspec = process.env.ComSpec || 'cmd.exe';
-  // NSIS requires /D= to be last and unquoted. cmd /d /s /c keeps that path
-  // one argument, including the space in "ChordMini Acceptance".
+  // NSIS requires /D= to be last and unquoted, including the space in the
+  // directory. shell:true uses cmd /d /s /c without turning those quotes into
+  // \", which cmd.exe treats as part of the program name.
   const command = `"${installer.replace(/"/g, '')}" /S /D=${installDir}`;
-  const child = startProcess(comspec, ['/d', '/s', '/c', command], { stdio: 'inherit' });
+  const child = spawn(command, {
+    shell: true,
+    stdio: 'inherit',
+    windowsHide: true,
+  });
   owned.installerPid = child.pid ?? null;
   try {
     const code = await waitForExit(child, 180000, 'install');
