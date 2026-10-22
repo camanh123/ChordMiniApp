@@ -1008,6 +1008,7 @@ async function main() {
         await window.getByRole('switch', { name: 'Chế độ tối' }).click();
         await window.waitForFunction((previous) => localStorage.getItem('theme') !== previous, beforeTheme, { timeout: 5000 });
         const nextTheme = await window.evaluate(() => localStorage.getItem('theme'));
+        await window.getByRole('tab', { name: 'Khóa API' }).click();
         await window.waitForSelector('text=Chưa cấu hình', { timeout: 20000 });
         await window.screenshot({ path: path.join(artifactDir, 'packaged-settings-vi.png') });
         await window.goto(`${pageUrl.origin}/games`, { timeout: 30000 });
