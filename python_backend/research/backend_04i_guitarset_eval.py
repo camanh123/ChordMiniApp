@@ -1013,6 +1013,27 @@ def main() -> int:
     return 0
 
 
+def attach_gateway(path: Path) -> int:
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    gateway = json.loads(path.read_text(encoding="utf-8"))
+    hwm_kb = gateway.get("flaskVmHwmKb")
+    evidence["next_gateway"] = {
+        "source": (
+            "Jest mocked-identity localhost gateway. verifyIdToken is mocked. "
+            "This is not production Firebase authentication. Flask was already warm."
+        ),
+        "firebase_identity": gateway.get("firebaseIdentity"),
+        "timings": gateway.get("timings"),
+        "flask_vm_hwm_kb": hwm_kb,
+        "flask_vm_hwm_mb": None if not hwm_kb else round(hwm_kb / 1024.0, 2),
+        "vm_hwm_note": "This peak is for the Flask process after the earlier synthetic requests in the same Jest file.",
+        "real_music_accuracy": gateway.get("realMusicAccuracy"),
+    }
+    EVIDENCE_PATH.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+    print(f"gateway_attached={EVIDENCE_PATH}")
+    return 0
+
+
 def annotate_existing() -> int:
     evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
     for item in evidence["recordings"]:
@@ -1032,4 +1053,6 @@ def annotate_existing() -> int:
 if __name__ == "__main__":
     if len(sys.argv) == 2 and sys.argv[1] == "--annotate-existing":
         raise SystemExit(annotate_existing())
+    if len(sys.argv) == 3 and sys.argv[1] == "--attach-gateway":
+        raise SystemExit(attach_gateway(Path(sys.argv[2])))
     raise SystemExit(main())

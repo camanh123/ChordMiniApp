@@ -2934,5 +2934,40 @@
   "peak_memory_mb": 749.12,
   "model_changes": false,
   "firebase_identity": "NOT_USED_IN_PROCESS_OR_DIRECT_FLASK",
-  "failures": []
+  "failures": [],
+  "next_gateway": {
+    "source": "Jest mocked-identity localhost gateway. verifyIdToken is mocked. This is not production Firebase authentication. Flask was already warm.",
+    "firebase_identity": "MOCKED_NOT_PRODUCTION_AUTH",
+    "timings": {
+      "00_BN2-131-B_comp": {
+        "beatsMs": 2505,
+        "chordsMs": 631,
+        "combinedRtf": 0.10700736136259681
+      },
+      "00_Funk2-108-Eb_comp": {
+        "beatsMs": 3042,
+        "chordsMs": 666,
+        "combinedRtf": 0.1043085214267088
+      },
+      "00_Jazz2-110-Bb_comp": {
+        "beatsMs": 2993,
+        "chordsMs": 630,
+        "combinedRtf": 0.10380137956990015
+      },
+      "00_Rock2-85-F_comp": {
+        "beatsMs": 3852,
+        "chordsMs": 820,
+        "combinedRtf": 0.10342416101300068
+      },
+      "00_SS2-88-F_comp": {
+        "beatsMs": 3742,
+        "chordsMs": 752,
+        "combinedRtf": 0.10300440989062372
+      }
+    },
+    "flask_vm_hwm_kb": 1187264,
+    "flask_vm_hwm_mb": 1159.44,
+    "vm_hwm_note": "This peak is for the Flask process after the earlier synthetic requests in the same Jest file.",
+    "real_music_accuracy": "MEASURED"
+  }
 }
