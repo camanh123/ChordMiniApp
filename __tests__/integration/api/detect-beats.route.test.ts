@@ -88,6 +88,8 @@ describe('POST /api/detect-beats', () => {
     delete process.env.CHORDMINI_DESKTOP_MODE;
     delete process.env.CHORDMINI_HOSTED_STAGING_AUTH;
     delete process.env.CHORDMINI_STAGING_ALLOWED_UIDS;
+    delete process.env.CHORDMINI_HOSTED_GATEWAY_URL;
+    delete process.env.CHORDMINI_HOSTED_GATEWAY_TEST_LOOPBACK;
     global.fetch = fetchMock as any;
     mockCreateSafeTimeoutSignal.mockReturnValue(new AbortController().signal);
     mockGetAudioDurationFromFile.mockResolvedValue(42.1);
