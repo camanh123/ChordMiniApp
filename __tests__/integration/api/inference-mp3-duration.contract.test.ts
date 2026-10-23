@@ -207,6 +207,20 @@ describe('MP3 frame duration', () => {
     const crc = readMp3Duration(mpeg1Frames(2, FRAME_32K, [0xff, 0xfa, 0x10, 0xc0]), MAX_SECONDS);
     expect(crc.ok).toBe(true);
 
+    const stereo = readMp3Duration(mpeg1Frames(4, FRAME_32K, [0xff, 0xfb, 0x10, 0x00]), MAX_SECONDS);
+    expect(stereo.ok).toBe(true);
+    if (stereo.ok) {
+      expect(stereo.seconds).toBeCloseTo((4 * MPEG1_SAMPLES) / MPEG1_RATE, 8);
+    }
+    const channelChange = new Uint8Array(FRAME_32K * 2);
+    channelChange.set([0xff, 0xfb, 0x10, 0xc0]);
+    channelChange.set([0xff, 0xfb, 0x10, 0x00], FRAME_32K);
+    const changedChannels = readMp3Duration(channelChange, MAX_SECONDS);
+    expect(changedChannels.ok).toBe(true);
+    if (changedChannels.ok) {
+      expect(changedChannels.seconds).toBeCloseTo((2 * MPEG1_SAMPLES) / MPEG1_RATE, 8);
+    }
+
     const mpeg2Length = 208;
     const mpeg2 = readMp3Duration(
       mpeg1Frames(4, mpeg2Length, [0xff, 0xf3, 0x80, 0xc0]),
