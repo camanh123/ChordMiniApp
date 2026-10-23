@@ -2881,5 +2881,25 @@
     "gateway_bound_ms_unchanged": 300000,
     "gateway_duration_cap_seconds_unchanged": 300
   },
-  "failures": []
+  "failures": [],
+  "gateway": {
+    "source": "Jest mocked-identity localhost gateway on these fixtures. verifyIdToken is mocked. This is not production Firebase authentication.",
+    "firebase_identity": "MOCKED_NOT_PRODUCTION_AUTH",
+    "audio_duration_seconds": 96,
+    "timings": {
+      "long_wav": {
+        "beatsMs": 8361,
+        "chordsMs": 2206,
+        "combinedRtf": 0.11007291666666667
+      },
+      "long_mp3": {
+        "beatsMs": 8369,
+        "chordsMs": 2737,
+        "combinedRtf": 0.1156875
+      }
+    },
+    "flask_vm_hwm_kb": 1151416,
+    "flask_vm_hwm_mb": 1124.43,
+    "real_music_accuracy": "BLOCKED"
+  }
 }

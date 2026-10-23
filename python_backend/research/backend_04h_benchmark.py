@@ -658,5 +658,33 @@ def main() -> int:
     return 0
 
 
+def attach_gateway(path: Path) -> int:
+    """Record an already measured mocked-identity gateway run.
+
+    This does not rerun the models. The timings file is produced by the
+    genuine-inference Jest test.
+    """
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    gateway = json.loads(path.read_text(encoding="utf-8"))
+    hwm_kb = gateway.get("flaskVmHwmKb")
+    evidence["gateway"] = {
+        "source": (
+            "Jest mocked-identity localhost gateway on these fixtures. "
+            "verifyIdToken is mocked. This is not production Firebase authentication."
+        ),
+        "firebase_identity": gateway.get("firebaseIdentity"),
+        "audio_duration_seconds": gateway.get("audioDurationSeconds"),
+        "timings": gateway.get("timings"),
+        "flask_vm_hwm_kb": hwm_kb,
+        "flask_vm_hwm_mb": None if not hwm_kb else round(hwm_kb / 1024.0, 2),
+        "real_music_accuracy": gateway.get("realMusicAccuracy"),
+    }
+    EVIDENCE_PATH.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+    print(f"gateway_attached={EVIDENCE_PATH}")
+    return 0
+
+
 if __name__ == "__main__":
+    if len(sys.argv) == 3 and sys.argv[1] == "--attach-gateway":
+        raise SystemExit(attach_gateway(Path(sys.argv[2])))
     raise SystemExit(main())
