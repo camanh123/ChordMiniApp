@@ -1,4 +1,6 @@
 /**
+ * @jest-environment node
+ *
  * MOCKED Firebase Admin SDK. These tests do not contact Firebase Auth and
  * are not a production authentication result.
  */
@@ -48,6 +50,7 @@ jest.mock('@/utils/firebaseAdmin', () => ({
 
 import { POST as postBeats } from '@/app/api/detect-beats/route';
 import { POST as postChords } from '@/app/api/recognize-chords/route';
+import { resetGatewayAdmissionForTests } from '@/server/gatewayAdmission';
 
 const FLASK_SECRET = 'staging-route-secret-0123456789abcdef01234567';
 const ATTACKER_FLASK_TOKEN = 'attacker-flask-token-0123456789abcdef0123';
@@ -60,9 +63,35 @@ const FAKE_ADMIN = JSON.stringify({
 });
 const fetchMock = jest.fn();
 
+function stagingWav(): File {
+  const sampleRate = 8000;
+  const data = new Uint8Array(sampleRate);
+  const header = new ArrayBuffer(44);
+  const view = new DataView(header);
+  const write = (offset: number, text: string) => {
+    for (let index = 0; index < text.length; index += 1) {
+      view.setUint8(offset + index, text.charCodeAt(index));
+    }
+  };
+  write(0, 'RIFF');
+  view.setUint32(4, 36 + data.length, true);
+  write(8, 'WAVE');
+  write(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  write(36, 'data');
+  view.setUint32(40, data.length, true);
+  return new File([header, data], 'clip.wav', { type: 'audio/wav' });
+}
+
 const makeRequest = (headers?: Record<string, string>, extra?: (form: FormData) => void) => {
   const formData = new FormData();
-  formData.append('file', new File([new Uint8Array([1, 2, 3])], 'clip.wav', { type: 'audio/wav' }));
+  formData.append('file', stagingWav());
   formData.append('detector', 'madmom');
   extra?.(formData);
   return {
@@ -99,7 +128,19 @@ describe('MOCKED Firebase staging gate on inference routes', () => {
     process.env.CHORDMINI_INFERENCE_SECRET = FLASK_SECRET;
     process.env.FIREBASE_SERVICE_ACCOUNT_KEY = FAKE_ADMIN;
     process.env.PYTHON_API_URL = 'http://127.0.0.1:5001';
+    process.env.CHORDMINI_GATEWAY_ADMISSION = 'process';
+    process.env.CHORDMINI_GATEWAY_INSTANCES = '1';
     delete process.env.CHORDMINI_DESKTOP_MODE;
+    delete process.env.CHORDMINI_GATEWAY_UID_PER_MINUTE;
+    delete process.env.CHORDMINI_GATEWAY_UID_PER_DAY;
+    delete process.env.CHORDMINI_GATEWAY_UID_ACTIVE;
+    delete process.env.CHORDMINI_GATEWAY_GLOBAL_ACTIVE;
+    delete process.env.CHORDMINI_GATEWAY_MAX_UPLOAD_BYTES;
+    delete process.env.CHORDMINI_GATEWAY_MAX_AUDIO_SECONDS;
+    delete process.env.CHORDMINI_GATEWAY_INFERENCE_BOUND_MS;
+    delete process.env.REDIS_URL;
+    delete process.env.WEB_CONCURRENCY;
+    resetGatewayAdmissionForTests();
     delete process.env.CHORDMINI_HOSTED_GATEWAY_URL;
     delete process.env.CHORDMINI_HOSTED_GATEWAY_TEST_LOOPBACK;
     global.fetch = fetchMock as never;
@@ -124,6 +165,9 @@ describe('MOCKED Firebase staging gate on inference routes', () => {
     else process.env.CHORDMINI_DESKTOP_MODE = original.desktop;
     if (original.python === undefined) delete process.env.PYTHON_API_URL;
     else process.env.PYTHON_API_URL = original.python;
+    delete process.env.CHORDMINI_GATEWAY_ADMISSION;
+    delete process.env.CHORDMINI_GATEWAY_INSTANCES;
+    resetGatewayAdmissionForTests();
   });
 
   it('rejects a missing or malformed user token before inference', async () => {
