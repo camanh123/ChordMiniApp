@@ -1,0 +1,1790 @@
+{
+  "dataset": {
+    "annotation_archive_md5": "b39b78e63d3446f2e54ddb7a54df9b10",
+    "annotation_archive_sha256": "8daa02e6417ccca1685feb44b135e95928ad7037e5032ecb326b5791856fda99",
+    "audio_archive_md5": "275966d6610ac34999b58426beb119c3",
+    "doi": "10.5281/zenodo.3371780",
+    "license": "Creative Commons Attribution 4.0 International",
+    "local_annotation_archive_md5": "b39b78e63d3446f2e54ddb7a54df9b10",
+    "local_audio_archive_md5": "275966d6610ac34999b58426beb119c3",
+    "name": "GuitarSet",
+    "version": "1.1.0"
+  },
+  "detector_config": {
+    "beat_processor": "RNNBeatProcessor()",
+    "beat_tracker": "DBNBeatTrackingProcessor(fps=100)",
+    "beat_weights": "madmom BEATS_BLSTM beats/2015/beats_blstm_1.pkl through beats_blstm_8.pkl",
+    "chord_detector": "chord-cnn-lstm",
+    "chord_dict": "submission",
+    "chord_weights": "joint_chord_net_ismir_naive_v1.0_reweight(0.0,10.0)_s0.best.sdict through s4",
+    "dbn_defaults": {
+      "correct": true,
+      "max_bpm": 215.0,
+      "min_bpm": 55.0,
+      "num_tempi": null,
+      "observation_lambda": 16,
+      "threshold": 0,
+      "transition_lambda": 100
+    },
+    "downbeats": "heuristic beat_times[::4], with [::3] retained as a candidate. DBNDownBeatTrackingProcessor is not called.",
+    "hmm": "XHMMDecoder defaults, decode_to_chordlab(use_layer_decode=False, use_beats=False, use_downbeats=False)",
+    "key_context_at_inference": false,
+    "use_spleeter": false
+  },
+  "metric_contract": {
+    "aggregates": "Macro is the unweighted mean of per-recording scores. Duration-weighted chord scores sum time. Micro beat scores pool counts. Styles are aggregated the same way.",
+    "bare_triad_recall": "Among reference time whose shorthand is exactly maj or min, the prediction shorthand is that same triad. min7 does not count as min. This is not a major/minor swap rate.",
+    "beats": "70 ms one-to-one. The BACKEND-04I greedy matcher is always reported. When either series has a gap at or under 140 ms, the official count is a deterministic maximum-cardinality matching.",
+    "boundary": "Pair a reference segment only when a prediction shares its root pitch class and covers at least half of it. Unmatched segments stay out of the mean and are counted.",
+    "enharmonic_shorthand": "Same root pitch class, shorthand, and bass. Spelling may differ. Extensions stay unmatched.",
+    "exact": "Raw Harte string equality. No enharmonic rewrite and no seventh folding.",
+    "ground_truth": "Lead-sheet JAMS layer for chords. beat_position for beats. Tempo annotation for BPM error. Labels are not supplied to the models.",
+    "half_diminished_confusion": "Reference shorthand is hdim7 and the prediction is not the same shorthand and bass on the same root pitch class. Enharmonic hdim7 is not confusion.",
+    "no_chord_false_positive": "Reference is a chord and the prediction is N.",
+    "root": "Root pitch class. Enharmonic spellings match. N matches neither a chord root.",
+    "same_root_major_minor_swap": "Both shorthands are bare triads, the root pitch class matches, and the qualities differ.",
+    "seventh_versus_triad": "Same root pitch class, reference shorthand is a bare triad, and prediction shorthand is 7, maj7, or min7. Reported separately and not added to the exact score."
+  },
+  "model_files": {
+    "chord_cnn_lstm_sdict_sha256": {
+      "joint_chord_net_ismir_naive_v1.0_reweight(0.0,10.0)_s0.best.sdict": "921b42d5d1cf9ce1c0c0e45a74d409b8066e0acec46058ef74e24ee0fb540761",
+      "joint_chord_net_ismir_naive_v1.0_reweight(0.0,10.0)_s1.best.sdict": "bcb75859e0efa256696cf5da396b320093317b9b1d9560c304f46c25fe1f8b17",
+      "joint_chord_net_ismir_naive_v1.0_reweight(0.0,10.0)_s2.best.sdict": "acddf85c3fff29954c4877021177d72e2cba9f729ce80c1010f054c477bf3f61",
+      "joint_chord_net_ismir_naive_v1.0_reweight(0.0,10.0)_s3.best.sdict": "65d81a3ab73435aaaade586981b4cabdf57b8953d76052703e6968c32ef8421c",
+      "joint_chord_net_ismir_naive_v1.0_reweight(0.0,10.0)_s4.best.sdict": "5ff6b0ec85640e17a09a9b3de68c93fdd45adc24488e8fa9be5715c28d561122"
+    },
+    "config_sha256": {
+      "models/Chord-CNN-LSTM/chord_recognition.py": "44dd29d45713ed8e40afea7b9e8903bb29e1319599a34c2dcaf7a23b2481168a",
+      "models/Chord-CNN-LSTM/data/submission_chord_list.txt": "ac68a26e87242fc58c946d476028d4e8c8d12c9e707ced7020a4d7e31c794d7b",
+      "models/Chord-CNN-LSTM/extractors/xhmm_ismir.py": "58503e4682d8f5327e732623417d50e33a660bf14eda95a1616397844b93a2d5",
+      "services/detectors/madmom_detector.py": "a088fb8bf8070a74281b5b0ded4fa0824bdd8719f501e5aa29fac9a94e5aca4a"
+    },
+    "madmom_blstm_2015_sha256": {
+      "beats_blstm_1.pkl": "bd6545fe694264491ee95e03508d318d164b7f2abac1f48edd0121389506bf5f",
+      "beats_blstm_2.pkl": "89ab1defb1b34712bdd0c9f84a756178e809612720733ed7b3a5cc47420689d7",
+      "beats_blstm_3.pkl": "4a3f63f1fe361a354cb5f646349522b87482f29baadacf2d20441d5c52c5282a",
+      "beats_blstm_4.pkl": "4a4469fc00dc4c90b028866a9d268fd19429c6a3f298c70838571e90db248f18",
+      "beats_blstm_5.pkl": "017fd2e6808f43b9cddb61ac115c8d899f6fcdd3801338c6f76b1b30c3c3dbfd",
+      "beats_blstm_6.pkl": "055e8c8715ce4e71e9855e348ff1816fb7630a4d10117d8e4c11684770d64240",
+      "beats_blstm_7.pkl": "35ba5622e6c8f6c24b7efee1dbb31a78468b3106a7e4a8e3bfa2761f326b51dc",
+      "beats_blstm_8.pkl": "fc25b6890baaeecd2304e18078ee1ce6a0014a69fdba95590a4ebee6cd847f64"
+    }
+  },
+  "phase": "BACKEND-04K",
+  "pre_registration": "Written before model inference. Selection and metric text are fixed here.",
+  "recordings": {
+    "00_BN2-131-B_comp": {
+      "annotation": {
+        "bytes": 1955855,
+        "jams_duration_seconds": 29.306400000000053,
+        "sha256": "ff206228f1a98eaf579d6964bf96590e52e886208d0d7b90cf662d662df11025"
+      },
+      "audio": {
+        "bytes": 2584868,
+        "channels": 1,
+        "duration_seconds": 29.306395,
+        "frames": 1292412,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "eff298aea64674e2976d1d80ab73612375fc7b59819867435fa295357de51146"
+      },
+      "identity": {
+        "filename_bpm": 131,
+        "filename_key": "B",
+        "id": "00_BN2-131-B_comp",
+        "player": "00",
+        "progression": "2",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "00_Funk2-108-Eb_comp": {
+      "annotation": {
+        "bytes": 3672811,
+        "jams_duration_seconds": 35.5483999999999,
+        "sha256": "2d0786127549389b9076680b114900e802569740f1ea276d5711298988c2b53d"
+      },
+      "audio": {
+        "bytes": 3135412,
+        "channels": 1,
+        "duration_seconds": 35.54839,
+        "frames": 1567684,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "8e6a1c38db071723f91444c597e39adf8ced5e980ecf21bf9f61f2c1464e9010"
+      },
+      "identity": {
+        "filename_bpm": 108,
+        "filename_key": "Eb",
+        "id": "00_Funk2-108-Eb_comp",
+        "player": "00",
+        "progression": "2",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "00_Jazz2-110-Bb_comp": {
+      "annotation": {
+        "bytes": 3494180,
+        "jams_duration_seconds": 34.90319999999997,
+        "sha256": "b2c70a3b3cbcc011e1bb006fce09052109a713b2d10e88175e9e7eb6b6e51bab"
+      },
+      "audio": {
+        "bytes": 3078506,
+        "channels": 1,
+        "duration_seconds": 34.903197,
+        "frames": 1539231,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "47f1d3da58af0239febcbe1fb8d27da9d17a21b403f5011d01f011eda4406764"
+      },
+      "identity": {
+        "filename_bpm": 110,
+        "filename_key": "Bb",
+        "id": "00_Jazz2-110-Bb_comp",
+        "player": "00",
+        "progression": "2",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "00_Rock2-85-F_comp": {
+      "annotation": {
+        "bytes": 6139892,
+        "jams_duration_seconds": 45.173199999999994,
+        "sha256": "cdf7a9bf2756222a4042e896a4aff40959cc17f6990dd2b705350505e063815f"
+      },
+      "audio": {
+        "bytes": 3984320,
+        "channels": 1,
+        "duration_seconds": 45.173197,
+        "frames": 1992138,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "5d5882f6fcdcb7f87fec383be08fed1fe69e650a855d4bea6481c092454a5181"
+      },
+      "identity": {
+        "filename_bpm": 85,
+        "filename_key": "F",
+        "id": "00_Rock2-85-F_comp",
+        "player": "00",
+        "progression": "2",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "00_SS2-88-F_comp": {
+      "annotation": {
+        "bytes": 3837380,
+        "jams_duration_seconds": 43.629200000000026,
+        "sha256": "bb4942bd8a25bfaa5fa78cb7134b52f4a16c7586fd590ebc26e219437a29aa27"
+      },
+      "audio": {
+        "bytes": 3848140,
+        "channels": 1,
+        "duration_seconds": 43.629206,
+        "frames": 1924048,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "2f2c5c65d86fd135a15c47d38e9d61e3748c0c31a5ca163632b36eba239811f4"
+      },
+      "identity": {
+        "filename_bpm": 88,
+        "filename_key": "F",
+        "id": "00_SS2-88-F_comp",
+        "player": "00",
+        "progression": "2",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    },
+    "01_BN1-129-Eb_comp": {
+      "annotation": {
+        "bytes": 1265012,
+        "jams_duration_seconds": 22.32439999999997,
+        "sha256": "5591debe5bf770446f431a9148ade1577d8def54936b5ce82289ff859787795f"
+      },
+      "audio": {
+        "bytes": 1969056,
+        "channels": 1,
+        "duration_seconds": 22.324399,
+        "frames": 984506,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "4f7f2359cc26d32307c8cc6793579d9d5ce602f483194ca079efd719a870b671"
+      },
+      "identity": {
+        "filename_bpm": 129,
+        "filename_key": "Eb",
+        "id": "01_BN1-129-Eb_comp",
+        "player": "01",
+        "progression": "1",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "01_BN1-147-Gb_comp": {
+      "annotation": {
+        "bytes": 1598413,
+        "jams_duration_seconds": 19.5856,
+        "sha256": "f53f1be11b4c97f67fd0b05f71953edf229fbb120144f4750e9948e269c1234b"
+      },
+      "audio": {
+        "bytes": 1727494,
+        "channels": 1,
+        "duration_seconds": 19.585601,
+        "frames": 863725,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "dff0776bdba3e9ed3c7d8fb313f5c775cc66d2f9607a9dc16433722be0ceb89e"
+      },
+      "identity": {
+        "filename_bpm": 147,
+        "filename_key": "Gb",
+        "id": "01_BN1-147-Gb_comp",
+        "player": "01",
+        "progression": "1",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "01_BN3-119-G_comp": {
+      "annotation": {
+        "bytes": 1453767,
+        "jams_duration_seconds": 32.26319999999998,
+        "sha256": "43d33e716db7cc94e1e83cdaa1f9c3dd509c93beb4d0fe462dcf4757ad6cee1d"
+      },
+      "audio": {
+        "bytes": 2845658,
+        "channels": 1,
+        "duration_seconds": 32.263197,
+        "frames": 1422807,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "fea30c0096900151e49c1593db6aa6cb7c4da1f71d5e5d2f040db34a87856889"
+      },
+      "identity": {
+        "filename_bpm": 119,
+        "filename_key": "G",
+        "id": "01_BN3-119-G_comp",
+        "player": "01",
+        "progression": "3",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "01_BN3-154-E_comp": {
+      "annotation": {
+        "bytes": 1606279,
+        "jams_duration_seconds": 24.932000000000016,
+        "sha256": "f755d5acc51fbb8dbc99c2fb4306c90e1e7c721adebc605b2f8a36faeddc6482"
+      },
+      "audio": {
+        "bytes": 2199046,
+        "channels": 1,
+        "duration_seconds": 24.931995,
+        "frames": 1099501,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "e7cd59dc3006ed366f8e30eebc129768542b308a38047f95808f0dca7a6b6b17"
+      },
+      "identity": {
+        "filename_bpm": 154,
+        "filename_key": "E",
+        "id": "01_BN3-154-E_comp",
+        "player": "01",
+        "progression": "3",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "01_Funk1-114-Ab_comp": {
+      "annotation": {
+        "bytes": 891285,
+        "jams_duration_seconds": 25.25840000000005,
+        "sha256": "429e06078c84f38ae3d551bdf594d0cac75a58c43783b23e1d436363a9fbe97a"
+      },
+      "audio": {
+        "bytes": 2227834,
+        "channels": 1,
+        "duration_seconds": 25.25839,
+        "frames": 1113895,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "9ee4888317faba89ba1a9929d6e3b044a3363eb925e6c432b2b30e4f3c83ab22"
+      },
+      "identity": {
+        "filename_bpm": 114,
+        "filename_key": "Ab",
+        "id": "01_Funk1-114-Ab_comp",
+        "player": "01",
+        "progression": "1",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "01_Funk1-97-C_comp": {
+      "annotation": {
+        "bytes": 1151495,
+        "jams_duration_seconds": 29.6884,
+        "sha256": "635cc48670d0db2303b172e8e9ddd09baae1124ff3e6066bd1cf18b972bd37b7"
+      },
+      "audio": {
+        "bytes": 2618560,
+        "channels": 1,
+        "duration_seconds": 29.68839,
+        "frames": 1309258,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "c6dc6620cbd1a1c5e1bb4c24beca3f5c7176ce7a8685bc56f067dfea1b2ae289"
+      },
+      "identity": {
+        "filename_bpm": 97,
+        "filename_key": "C",
+        "id": "01_Funk1-97-C_comp",
+        "player": "01",
+        "progression": "1",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "01_Funk3-112-C#_comp": {
+      "annotation": {
+        "bytes": 1744055,
+        "jams_duration_seconds": 34.284400000000005,
+        "sha256": "84aefceb87c15ba8135900308cbf1dc4777a530901e0b1a22239705bbad90686"
+      },
+      "audio": {
+        "bytes": 3023928,
+        "channels": 1,
+        "duration_seconds": 34.284399,
+        "frames": 1511942,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "1279e6cce685a8bdff6d4a185a5b12637d75a52c3e6539ff7ac6048a460a735a"
+      },
+      "identity": {
+        "filename_bpm": 112,
+        "filename_key": "C#",
+        "id": "01_Funk3-112-C#_comp",
+        "player": "01",
+        "progression": "3",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "01_Funk3-98-A_comp": {
+      "annotation": {
+        "bytes": 1493406,
+        "jams_duration_seconds": 39.17879999999991,
+        "sha256": "4b53738c5137c1db6f61b2d32135b5f9a3575d1811cb6a5278b8f88623fd3c74"
+      },
+      "audio": {
+        "bytes": 3455614,
+        "channels": 1,
+        "duration_seconds": 39.178798,
+        "frames": 1727785,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "ef267891e9fc18679c8a5339b2c55096d971736061f8dc40a02cee3cde2ddce3"
+      },
+      "identity": {
+        "filename_bpm": 98,
+        "filename_key": "A",
+        "id": "01_Funk3-98-A_comp",
+        "player": "01",
+        "progression": "3",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "01_Jazz1-130-D_comp": {
+      "annotation": {
+        "bytes": 1255625,
+        "jams_duration_seconds": 22.147199999999998,
+        "sha256": "23c5bad0ce5eb208786ac1823957600bee8a0bb588aab80d7b335a2e2ca90352"
+      },
+      "audio": {
+        "bytes": 1953428,
+        "channels": 1,
+        "duration_seconds": 22.147211,
+        "frames": 976692,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "d45184fa42482eefc1d21d5cef3777bf85e772bf9d8ba7508ff441b77a8ee199"
+      },
+      "identity": {
+        "filename_bpm": 130,
+        "filename_key": "D",
+        "id": "01_Jazz1-130-D_comp",
+        "player": "01",
+        "progression": "1",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "01_Jazz1-200-B_comp": {
+      "annotation": {
+        "bytes": 958792,
+        "jams_duration_seconds": 14.399999999999977,
+        "sha256": "a46edbacea54722d34283f668978f77e0f7423dba537aefb91213ed63eaff5b6"
+      },
+      "audio": {
+        "bytes": 1270124,
+        "channels": 1,
+        "duration_seconds": 14.4,
+        "frames": 635040,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "19a0eeb68e488b3cfe320bdba37d166079baaa2e1790f91d7e7864ca64648514"
+      },
+      "identity": {
+        "filename_bpm": 200,
+        "filename_key": "B",
+        "id": "01_Jazz1-200-B_comp",
+        "player": "01",
+        "progression": "1",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "01_Jazz3-137-Eb_comp": {
+      "annotation": {
+        "bytes": 1656448,
+        "jams_duration_seconds": 28.023199999999974,
+        "sha256": "1fef0a208bc0ab6487dd7764214321bd39f96d65238aef5b206201dc6acf274a"
+      },
+      "audio": {
+        "bytes": 2471690,
+        "channels": 1,
+        "duration_seconds": 28.023197,
+        "frames": 1235823,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "d4c9a0439ec37dc0dd0f4741a00ae40fd70458787dab89ebb459ba85758b6456"
+      },
+      "identity": {
+        "filename_bpm": 137,
+        "filename_key": "Eb",
+        "id": "01_Jazz3-137-Eb_comp",
+        "player": "01",
+        "progression": "3",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "01_Jazz3-150-C_comp": {
+      "annotation": {
+        "bytes": 954140,
+        "jams_duration_seconds": 25.600000000000023,
+        "sha256": "37686bb3ec0495f1a1b488472c087f9580b9c376e02ff8b312b3338e022d19cc"
+      },
+      "audio": {
+        "bytes": 2257964,
+        "channels": 1,
+        "duration_seconds": 25.6,
+        "frames": 1128960,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "052c25a49deb385d8a2cbc5a1834aad079eed0fd3686c6e83ceea561674286d9"
+      },
+      "identity": {
+        "filename_bpm": 150,
+        "filename_key": "C",
+        "id": "01_Jazz3-150-C_comp",
+        "player": "01",
+        "progression": "3",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "01_Rock1-130-A_comp": {
+      "annotation": {
+        "bytes": 1641218,
+        "jams_duration_seconds": 22.1472,
+        "sha256": "546bce99efd52256b4c6a03f0281292d5ba30761d7f799e3ada703d1617873d1"
+      },
+      "audio": {
+        "bytes": 1953428,
+        "channels": 1,
+        "duration_seconds": 22.147211,
+        "frames": 976692,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "1ead2a124768727b6ee3ddcfec2df7ad5f7087fa74ac0a49822d0028685f8731"
+      },
+      "identity": {
+        "filename_bpm": 130,
+        "filename_key": "A",
+        "id": "01_Rock1-130-A_comp",
+        "player": "01",
+        "progression": "1",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "01_Rock1-90-C#_comp": {
+      "annotation": {
+        "bytes": 3367087,
+        "jams_duration_seconds": 31.999999999999993,
+        "sha256": "75a1055d5c9b9a1a59af0296660ce23b1556d72114bbb52717a9564a07a23c96"
+      },
+      "audio": {
+        "bytes": 2822444,
+        "channels": 1,
+        "duration_seconds": 32.0,
+        "frames": 1411200,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "2dc712e3457bcde208ae59bf8fab8d7f0d7335368271dd211856a13323b50bee"
+      },
+      "identity": {
+        "filename_bpm": 90,
+        "filename_key": "C#",
+        "id": "01_Rock1-90-C#_comp",
+        "player": "01",
+        "progression": "1",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "01_Rock3-117-Bb_comp": {
+      "annotation": {
+        "bytes": 2814758,
+        "jams_duration_seconds": 32.816400000000016,
+        "sha256": "d4233f30397912dfc0081f65b4333a76dcf31a961becf10d3c8b082c189c638a"
+      },
+      "audio": {
+        "bytes": 2894450,
+        "channels": 1,
+        "duration_seconds": 32.816395,
+        "frames": 1447203,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "bf445156f5cfeaa54968c4933ea5d95f62e9d74f0f8bea36c95fe52312ebe320"
+      },
+      "identity": {
+        "filename_bpm": 117,
+        "filename_key": "Bb",
+        "id": "01_Rock3-117-Bb_comp",
+        "player": "01",
+        "progression": "3",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "01_Rock3-148-C_comp": {
+      "annotation": {
+        "bytes": 1085335,
+        "jams_duration_seconds": 25.940799999999996,
+        "sha256": "f92e264c3fedf850da87a09fb4e0cda147e80e517bd034f6012f51ca93d8c173"
+      },
+      "audio": {
+        "bytes": 2288022,
+        "channels": 1,
+        "duration_seconds": 25.940794,
+        "frames": 1143989,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "4c873326c1cafddb484cc0b25ee36217eeb443ce3ca39b32db008175b19cef4d"
+      },
+      "identity": {
+        "filename_bpm": 148,
+        "filename_key": "C",
+        "id": "01_Rock3-148-C_comp",
+        "player": "01",
+        "progression": "3",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "01_SS1-100-C#_comp": {
+      "annotation": {
+        "bytes": 2432092,
+        "jams_duration_seconds": 28.80000000000001,
+        "sha256": "556990d214788813d5088d1e8c9a933d6b34e8f64b3bf2747e396c476e3c2aec"
+      },
+      "audio": {
+        "bytes": 2540204,
+        "channels": 1,
+        "duration_seconds": 28.8,
+        "frames": 1270080,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "c8b3cb71fa42be463da53bc2114f42741366a9b1e5b80a158a38402961a3c5a2"
+      },
+      "identity": {
+        "filename_bpm": 100,
+        "filename_key": "C#",
+        "id": "01_SS1-100-C#_comp",
+        "player": "01",
+        "progression": "1",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    },
+    "01_SS1-68-E_comp": {
+      "annotation": {
+        "bytes": 5447348,
+        "jams_duration_seconds": 42.34640000000002,
+        "sha256": "1bea54e6d3f003e519d0afa5eee57bce7df57a535ef8c218198591fe096a52b8"
+      },
+      "audio": {
+        "bytes": 3734996,
+        "channels": 1,
+        "duration_seconds": 42.346395,
+        "frames": 1867476,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "278b9058cde0102ad19c58e22415fc73788a85a074b765250fea1370a0ed25d5"
+      },
+      "identity": {
+        "filename_bpm": 68,
+        "filename_key": "E",
+        "id": "01_SS1-68-E_comp",
+        "player": "01",
+        "progression": "1",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    },
+    "01_SS3-84-Bb_comp": {
+      "annotation": {
+        "bytes": 4806938,
+        "jams_duration_seconds": 45.70760000000001,
+        "sha256": "d32f411c3bcef170ec0c8baf9e13991c5d442ddf79728dc0bbb08e07cc0bf24f"
+      },
+      "audio": {
+        "bytes": 4031454,
+        "channels": 1,
+        "duration_seconds": 45.707596,
+        "frames": 2015705,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "67fe454c6afc1ecc59ffeb47932ebf4a2c3ecff00c1340fe26a5b95484be0201"
+      },
+      "identity": {
+        "filename_bpm": 84,
+        "filename_key": "Bb",
+        "id": "01_SS3-84-Bb_comp",
+        "player": "01",
+        "progression": "3",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    },
+    "01_SS3-98-C_comp": {
+      "annotation": {
+        "bytes": 5603089,
+        "jams_duration_seconds": 39.17879999999997,
+        "sha256": "53bbbc1c8d04f3a896307551e798c784ec1725d3fa0e8ba4da038da752f6e8c2"
+      },
+      "audio": {
+        "bytes": 3455614,
+        "channels": 1,
+        "duration_seconds": 39.178798,
+        "frames": 1727785,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "325cdcbb3adfac8c68f1b98b6c3e15a6746f063d3043d04af5dcbcb63925fedc"
+      },
+      "identity": {
+        "filename_bpm": 98,
+        "filename_key": "C",
+        "id": "01_SS3-98-C_comp",
+        "player": "01",
+        "progression": "3",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    },
+    "02_BN1-129-Eb_comp": {
+      "annotation": {
+        "bytes": 1543660,
+        "jams_duration_seconds": 22.32439999999997,
+        "sha256": "38208980f05c69d1560306553651f687a3c6260f47d98b64e33eb74c33e14931"
+      },
+      "audio": {
+        "bytes": 1969056,
+        "channels": 1,
+        "duration_seconds": 22.324399,
+        "frames": 984506,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "54d0b5d30a727ddbf3f9dbe18663063d6c55c979627ab6993fdede63f0a54cc0"
+      },
+      "identity": {
+        "filename_bpm": 129,
+        "filename_key": "Eb",
+        "id": "02_BN1-129-Eb_comp",
+        "player": "02",
+        "progression": "1",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "02_BN1-147-Gb_comp": {
+      "annotation": {
+        "bytes": 1583277,
+        "jams_duration_seconds": 19.5856,
+        "sha256": "74cabd97104c335fbe712351aa9ad361d93fca9e176132fabc3c359209e72a53"
+      },
+      "audio": {
+        "bytes": 1727494,
+        "channels": 1,
+        "duration_seconds": 19.585601,
+        "frames": 863725,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "8ec470a71b945327761f7a9001a0195ad32c29ec012c16ec86914f14ba60e05d"
+      },
+      "identity": {
+        "filename_bpm": 147,
+        "filename_key": "Gb",
+        "id": "02_BN1-147-Gb_comp",
+        "player": "02",
+        "progression": "1",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "02_BN3-119-G_comp": {
+      "annotation": {
+        "bytes": 3030987,
+        "jams_duration_seconds": 32.26319999999998,
+        "sha256": "e29cf0c5a0841468c6f40242cf2193766730ef9679d590a0b7f81add6fbeccbb"
+      },
+      "audio": {
+        "bytes": 2845658,
+        "channels": 1,
+        "duration_seconds": 32.263197,
+        "frames": 1422807,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "b72774cb9f5aeadf66ecd12124604c4d45b95721283f868db0e6abb5a2f62bb7"
+      },
+      "identity": {
+        "filename_bpm": 119,
+        "filename_key": "G",
+        "id": "02_BN3-119-G_comp",
+        "player": "02",
+        "progression": "3",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "02_BN3-154-E_comp": {
+      "annotation": {
+        "bytes": 2143119,
+        "jams_duration_seconds": 24.932000000000016,
+        "sha256": "7ca385bd4c04b5052d5d6548faeb05da6fbf34dd6b83fe0517a766e4f3437595"
+      },
+      "audio": {
+        "bytes": 2199046,
+        "channels": 1,
+        "duration_seconds": 24.931995,
+        "frames": 1099501,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "52ae768bd2a1deda7bc3889cc7438f821d2ca915e5fc7e84e4f168e55891e604"
+      },
+      "identity": {
+        "filename_bpm": 154,
+        "filename_key": "E",
+        "id": "02_BN3-154-E_comp",
+        "player": "02",
+        "progression": "3",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "02_Funk1-114-Ab_comp": {
+      "annotation": {
+        "bytes": 1454329,
+        "jams_duration_seconds": 25.25840000000005,
+        "sha256": "978f22805ee73be2299e215d2ccb1107cf2639c25829db9a5cdb285d56b2454c"
+      },
+      "audio": {
+        "bytes": 2227834,
+        "channels": 1,
+        "duration_seconds": 25.25839,
+        "frames": 1113895,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "cbe0eac7ebf0f5f0c38642d56b5317187a9fbc406bc8ab1425452d88b56420cf"
+      },
+      "identity": {
+        "filename_bpm": 114,
+        "filename_key": "Ab",
+        "id": "02_Funk1-114-Ab_comp",
+        "player": "02",
+        "progression": "1",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "02_Funk1-97-C_comp": {
+      "annotation": {
+        "bytes": 1295451,
+        "jams_duration_seconds": 29.6884,
+        "sha256": "292c8330635f53e35587e796c76ea47358647474471dfaeb8869167ff34a2549"
+      },
+      "audio": {
+        "bytes": 2618560,
+        "channels": 1,
+        "duration_seconds": 29.68839,
+        "frames": 1309258,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "297b0e0cda8e9e7018801b6adba68f19cfeccd5df48377285a204411648a4f81"
+      },
+      "identity": {
+        "filename_bpm": 97,
+        "filename_key": "C",
+        "id": "02_Funk1-97-C_comp",
+        "player": "02",
+        "progression": "1",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "02_Funk3-112-C#_comp": {
+      "annotation": {
+        "bytes": 1437493,
+        "jams_duration_seconds": 34.284400000000005,
+        "sha256": "ae214466db654739a47552149d6bdba7b0a663c99c4470bede81f88619eb019f"
+      },
+      "audio": {
+        "bytes": 3023928,
+        "channels": 1,
+        "duration_seconds": 34.284399,
+        "frames": 1511942,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "b85381638984aafa8aff67691ccdd839c2fa4fb10bdc6f18a52810059b0a44f7"
+      },
+      "identity": {
+        "filename_bpm": 112,
+        "filename_key": "C#",
+        "id": "02_Funk3-112-C#_comp",
+        "player": "02",
+        "progression": "3",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "02_Funk3-98-A_comp": {
+      "annotation": {
+        "bytes": 1826060,
+        "jams_duration_seconds": 39.17879999999991,
+        "sha256": "df788d7a5655f1b8a75f6540fef717111748162cddf18fd3275d76143ce81ef3"
+      },
+      "audio": {
+        "bytes": 3455614,
+        "channels": 1,
+        "duration_seconds": 39.178798,
+        "frames": 1727785,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "9fced33aa426bd1622a70f66d173c1689c0d5198e5664265c8e26c24cafa5d64"
+      },
+      "identity": {
+        "filename_bpm": 98,
+        "filename_key": "A",
+        "id": "02_Funk3-98-A_comp",
+        "player": "02",
+        "progression": "3",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "02_Jazz1-130-D_comp": {
+      "annotation": {
+        "bytes": 1954719,
+        "jams_duration_seconds": 22.147199999999998,
+        "sha256": "e06bd1f4e088b0a0892366193a2d951420288cd9709bfaaacdafd320bf55489e"
+      },
+      "audio": {
+        "bytes": 1953428,
+        "channels": 1,
+        "duration_seconds": 22.147211,
+        "frames": 976692,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "7b769c278bb3d44440420a79cba1e486119f823a33f78465aa9acdcdef277df5"
+      },
+      "identity": {
+        "filename_bpm": 130,
+        "filename_key": "D",
+        "id": "02_Jazz1-130-D_comp",
+        "player": "02",
+        "progression": "1",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "02_Jazz1-200-B_comp": {
+      "annotation": {
+        "bytes": 1236864,
+        "jams_duration_seconds": 14.399999999999977,
+        "sha256": "5196fef2b4160a9ee4c51a8ce5b56e647390e22bf9655aad3b318839bb39ba6d"
+      },
+      "audio": {
+        "bytes": 1270124,
+        "channels": 1,
+        "duration_seconds": 14.4,
+        "frames": 635040,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "429c8a7c7585691285d3699b2036177f1514ff7523dd3d21bfd004ec39e1797a"
+      },
+      "identity": {
+        "filename_bpm": 200,
+        "filename_key": "B",
+        "id": "02_Jazz1-200-B_comp",
+        "player": "02",
+        "progression": "1",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "02_Jazz3-137-Eb_comp": {
+      "annotation": {
+        "bytes": 1924657,
+        "jams_duration_seconds": 28.023199999999974,
+        "sha256": "28edf15cd04f6365834b95e1ca58365d38ccd7f384297fd18ce4e50bc65e1940"
+      },
+      "audio": {
+        "bytes": 2471690,
+        "channels": 1,
+        "duration_seconds": 28.023197,
+        "frames": 1235823,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "eb728567600f39832053569b7fd369a28b6fb8c1715d4498b88bde9bc21908b3"
+      },
+      "identity": {
+        "filename_bpm": 137,
+        "filename_key": "Eb",
+        "id": "02_Jazz3-137-Eb_comp",
+        "player": "02",
+        "progression": "3",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "02_Jazz3-150-C_comp": {
+      "annotation": {
+        "bytes": 2686101,
+        "jams_duration_seconds": 25.600000000000023,
+        "sha256": "9bee8b7b8233df84e1dfbc5f042eb0769f463c36a60a5234d10036ccb5e13e53"
+      },
+      "audio": {
+        "bytes": 2257964,
+        "channels": 1,
+        "duration_seconds": 25.6,
+        "frames": 1128960,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "5ef9f8b09a777aebeead918428a939679c8c1cd952d0418d8082b4fc544f9ea7"
+      },
+      "identity": {
+        "filename_bpm": 150,
+        "filename_key": "C",
+        "id": "02_Jazz3-150-C_comp",
+        "player": "02",
+        "progression": "3",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "02_Rock1-130-A_comp": {
+      "annotation": {
+        "bytes": 1961116,
+        "jams_duration_seconds": 22.1472,
+        "sha256": "fca5f9e779762fd4084d0eb015a4281ad858a8aae21c05e9fad76ce9ca6aa22e"
+      },
+      "audio": {
+        "bytes": 1953428,
+        "channels": 1,
+        "duration_seconds": 22.147211,
+        "frames": 976692,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "4fc7ab1c7da41459abe8c30d9ae70c944affdc5398dba171d08197add4b0e608"
+      },
+      "identity": {
+        "filename_bpm": 130,
+        "filename_key": "A",
+        "id": "02_Rock1-130-A_comp",
+        "player": "02",
+        "progression": "1",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "02_Rock1-90-C#_comp": {
+      "annotation": {
+        "bytes": 1922748,
+        "jams_duration_seconds": 31.999999999999993,
+        "sha256": "ee94fc549ea795742414281ec81a127f831c9c10d5588ebe67577b788e9db450"
+      },
+      "audio": {
+        "bytes": 2822444,
+        "channels": 1,
+        "duration_seconds": 32.0,
+        "frames": 1411200,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "9147eaf49e538d10e877229d550b4703323680ed9e8d6978bfbbf4bd62c1e908"
+      },
+      "identity": {
+        "filename_bpm": 90,
+        "filename_key": "C#",
+        "id": "02_Rock1-90-C#_comp",
+        "player": "02",
+        "progression": "1",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "02_Rock3-117-Bb_comp": {
+      "annotation": {
+        "bytes": 2291037,
+        "jams_duration_seconds": 32.816400000000016,
+        "sha256": "cf9bcbfab1d605d0b929a90ce58ef02b95f0343bc50da39c634a8e8911ad0855"
+      },
+      "audio": {
+        "bytes": 2894450,
+        "channels": 1,
+        "duration_seconds": 32.816395,
+        "frames": 1447203,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "31016348798736b434d542efa0b036daf5b56d9bd7b93a1f69cac0d4157fe52f"
+      },
+      "identity": {
+        "filename_bpm": 117,
+        "filename_key": "Bb",
+        "id": "02_Rock3-117-Bb_comp",
+        "player": "02",
+        "progression": "3",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "02_Rock3-148-C_comp": {
+      "annotation": {
+        "bytes": 2717339,
+        "jams_duration_seconds": 25.940799999999996,
+        "sha256": "d75dd5d5d0b5d569b86b8519972dc87241e22330f8692df419728cf5cd2a7d8f"
+      },
+      "audio": {
+        "bytes": 2288022,
+        "channels": 1,
+        "duration_seconds": 25.940794,
+        "frames": 1143989,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "0ce12b6c42e79f6d02e82577b7128de77c2c02d79f4b6600833df2afdbdfa5ff"
+      },
+      "identity": {
+        "filename_bpm": 148,
+        "filename_key": "C",
+        "id": "02_Rock3-148-C_comp",
+        "player": "02",
+        "progression": "3",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "02_SS1-100-C#_comp": {
+      "annotation": {
+        "bytes": 3007197,
+        "jams_duration_seconds": 28.80000000000001,
+        "sha256": "b5f238ad900ad97a92d35d7eb4a210f10ba98c1b6f9847d8d38795ef417a6505"
+      },
+      "audio": {
+        "bytes": 2540204,
+        "channels": 1,
+        "duration_seconds": 28.8,
+        "frames": 1270080,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "2010d893d0ee8c5aa8ed64eb9890f52c2bacb46d74878936002ae6d93a5c082a"
+      },
+      "identity": {
+        "filename_bpm": 100,
+        "filename_key": "C#",
+        "id": "02_SS1-100-C#_comp",
+        "player": "02",
+        "progression": "1",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    },
+    "02_SS1-68-E_comp": {
+      "annotation": {
+        "bytes": 3242195,
+        "jams_duration_seconds": 42.34640000000002,
+        "sha256": "845f7ab22de8e1fd9613577f596f423614190b03adb59c2dad5a0aab3f5ff17c"
+      },
+      "audio": {
+        "bytes": 3734996,
+        "channels": 1,
+        "duration_seconds": 42.346395,
+        "frames": 1867476,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "57ea3c4905aeb0dbf2aaac4fb10c57008a4a0e21220718b0d7b0e74c13cf4187"
+      },
+      "identity": {
+        "filename_bpm": 68,
+        "filename_key": "E",
+        "id": "02_SS1-68-E_comp",
+        "player": "02",
+        "progression": "1",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    },
+    "02_SS3-84-Bb_comp": {
+      "annotation": {
+        "bytes": 4318685,
+        "jams_duration_seconds": 45.70760000000001,
+        "sha256": "d2bb497030da8c15aaa2205f76047e2fa0abf65d748f3ac7c8b1234b4f307e11"
+      },
+      "audio": {
+        "bytes": 4031454,
+        "channels": 1,
+        "duration_seconds": 45.707596,
+        "frames": 2015705,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "85de753f245d0dc14bf3ba1cb9285631f4a973b6e67d8872c581f773332cbe97"
+      },
+      "identity": {
+        "filename_bpm": 84,
+        "filename_key": "Bb",
+        "id": "02_SS3-84-Bb_comp",
+        "player": "02",
+        "progression": "3",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    },
+    "02_SS3-98-C_comp": {
+      "annotation": {
+        "bytes": 3312014,
+        "jams_duration_seconds": 39.17879999999997,
+        "sha256": "8ad8f83679796775aadfb269cd92db0ac8d2017febc6784b0ad17bde4e164777"
+      },
+      "audio": {
+        "bytes": 3455614,
+        "channels": 1,
+        "duration_seconds": 39.178798,
+        "frames": 1727785,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "9306563753b3a65de235608a8c09032a7761bfdf137196be11c4f7af33d6c4c0"
+      },
+      "identity": {
+        "filename_bpm": 98,
+        "filename_key": "C",
+        "id": "02_SS3-98-C_comp",
+        "player": "02",
+        "progression": "3",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    },
+    "04_BN2-131-B_comp": {
+      "annotation": {
+        "bytes": 1742419,
+        "jams_duration_seconds": 29.306400000000053,
+        "sha256": "d125f917a574a661fab34c860a71110d81db3d4a5f8c03ea48ac070fbdcc4f2c"
+      },
+      "audio": {
+        "bytes": 2584868,
+        "channels": 1,
+        "duration_seconds": 29.306395,
+        "frames": 1292412,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "43f6a70622e8ff66237307768c38578e0d8cd5fdd16d48ac97733673965f863e"
+      },
+      "identity": {
+        "filename_bpm": 131,
+        "filename_key": "B",
+        "id": "04_BN2-131-B_comp",
+        "player": "04",
+        "progression": "2",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "04_BN2-166-Ab_comp": {
+      "annotation": {
+        "bytes": 1456520,
+        "jams_duration_seconds": 23.129999999999995,
+        "sha256": "21214af371ac2e113ce619b8e3d60123f829289af29ac230150d45729cb63c9d"
+      },
+      "audio": {
+        "bytes": 2040110,
+        "channels": 1,
+        "duration_seconds": 23.13,
+        "frames": 1020033,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "dbb14cb99fff84d5daddf9354faa71cb823b67beef61b9cf7b640c74362723a8"
+      },
+      "identity": {
+        "filename_bpm": 166,
+        "filename_key": "Ab",
+        "id": "04_BN2-166-Ab_comp",
+        "player": "04",
+        "progression": "2",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "04_Funk2-108-Eb_comp": {
+      "annotation": {
+        "bytes": 2102688,
+        "jams_duration_seconds": 35.5483999999999,
+        "sha256": "b536a29615bccc6c7fd531e3eb323edb051b4cb5134cb878c2a8c6051be5bc6d"
+      },
+      "audio": {
+        "bytes": 3135412,
+        "channels": 1,
+        "duration_seconds": 35.54839,
+        "frames": 1567684,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "5d111f9bf109a875d4775e2db980e43e4385dbb775580432a375e9ebd5f8b266"
+      },
+      "identity": {
+        "filename_bpm": 108,
+        "filename_key": "Eb",
+        "id": "04_Funk2-108-Eb_comp",
+        "player": "04",
+        "progression": "2",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "04_Funk2-119-G_comp": {
+      "annotation": {
+        "bytes": 2034348,
+        "jams_duration_seconds": 32.2632000000001,
+        "sha256": "7453b7207b821d89933e7d0e20c5189f284aec5d6736a0669d93ceed96fed578"
+      },
+      "audio": {
+        "bytes": 2845658,
+        "channels": 1,
+        "duration_seconds": 32.263197,
+        "frames": 1422807,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "a1241d1af68f1bad6b3eceb491d8bf9ccf91a14ab822ff5ee88d5ff170d53669"
+      },
+      "identity": {
+        "filename_bpm": 119,
+        "filename_key": "G",
+        "id": "04_Funk2-119-G_comp",
+        "player": "04",
+        "progression": "2",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "04_Jazz2-110-Bb_comp": {
+      "annotation": {
+        "bytes": 2773549,
+        "jams_duration_seconds": 34.90319999999997,
+        "sha256": "f93cdec6210d5c7cdba6b4c61f75d5c641a5c8a6b3ef0cb847cd043c5e3ab13a"
+      },
+      "audio": {
+        "bytes": 3078506,
+        "channels": 1,
+        "duration_seconds": 34.903197,
+        "frames": 1539231,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "5f028fbe1bde26d30494b2075a7c967812e866a33f5554a00078887336b14668"
+      },
+      "identity": {
+        "filename_bpm": 110,
+        "filename_key": "Bb",
+        "id": "04_Jazz2-110-Bb_comp",
+        "player": "04",
+        "progression": "2",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "04_Jazz2-187-F#_comp": {
+      "annotation": {
+        "bytes": 1278083,
+        "jams_duration_seconds": 20.53200000000004,
+        "sha256": "9ab8c1971171b03245b38e7bd07ccf0c8fc3628b18d30f7ee968b324da9bf645"
+      },
+      "audio": {
+        "bytes": 1810966,
+        "channels": 1,
+        "duration_seconds": 20.531995,
+        "frames": 905461,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "eaf2a0047227569c8b8c2359242ba6fdafdceca116f991cca17884d2808ad9c1"
+      },
+      "identity": {
+        "filename_bpm": 187,
+        "filename_key": "F#",
+        "id": "04_Jazz2-187-F#_comp",
+        "player": "04",
+        "progression": "2",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "04_Rock2-142-D_comp": {
+      "annotation": {
+        "bytes": 3218558,
+        "jams_duration_seconds": 27.041600000000003,
+        "sha256": "aaab63931089e7910af048ab49e10f99c2302b83cdfc78d077e74d5c228625ce"
+      },
+      "audio": {
+        "bytes": 2385114,
+        "channels": 1,
+        "duration_seconds": 27.04161,
+        "frames": 1192535,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "77589eeda2dfd7a8e8652b9b0c8a002529d911786e4be29c7bafda31fa32ba99"
+      },
+      "identity": {
+        "filename_bpm": 142,
+        "filename_key": "D",
+        "id": "04_Rock2-142-D_comp",
+        "player": "04",
+        "progression": "2",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "04_Rock2-85-F_comp": {
+      "annotation": {
+        "bytes": 3651723,
+        "jams_duration_seconds": 45.173199999999994,
+        "sha256": "19909e5f07540e8c368f053c1995398e021afdf7e00446f61ddb96439f625c52"
+      },
+      "audio": {
+        "bytes": 3984320,
+        "channels": 1,
+        "duration_seconds": 45.173197,
+        "frames": 1992138,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "922c7bf773689e55e059c86fd7055fcdc5b3dc33bda75d2ecc4a97ac1f5f431b"
+      },
+      "identity": {
+        "filename_bpm": 85,
+        "filename_key": "F",
+        "id": "04_Rock2-85-F_comp",
+        "player": "04",
+        "progression": "2",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "04_SS2-107-Ab_comp": {
+      "annotation": {
+        "bytes": 2912820,
+        "jams_duration_seconds": 35.88639999999998,
+        "sha256": "af25369890af9f973ff2452806a919bbb4db344dbe329c1aad88f29c4d3179de"
+      },
+      "audio": {
+        "bytes": 3165224,
+        "channels": 1,
+        "duration_seconds": 35.886395,
+        "frames": 1582590,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "6222641015ef25c1423453949988509353c7bd6cae2b16032a3c64b9d990cd7b"
+      },
+      "identity": {
+        "filename_bpm": 107,
+        "filename_key": "Ab",
+        "id": "04_SS2-107-Ab_comp",
+        "player": "04",
+        "progression": "2",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    },
+    "04_SS2-88-F_comp": {
+      "annotation": {
+        "bytes": 4373065,
+        "jams_duration_seconds": 43.629200000000026,
+        "sha256": "5228c2f884bf4c55c58579d9a26c0bdcfb99b948038eae203f83e040b0457cd2"
+      },
+      "audio": {
+        "bytes": 3848140,
+        "channels": 1,
+        "duration_seconds": 43.629206,
+        "frames": 1924048,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "1c1c5351e498a64ec226e06a114c846ee2c6eaf575083339b534ad911aa56f12"
+      },
+      "identity": {
+        "filename_bpm": 88,
+        "filename_key": "F",
+        "id": "04_SS2-88-F_comp",
+        "player": "04",
+        "progression": "2",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    },
+    "05_BN2-131-B_comp": {
+      "annotation": {
+        "bytes": 2216723,
+        "jams_duration_seconds": 29.306400000000053,
+        "sha256": "bacdcb8de89900a80950f030860a45086b2dec027f26dd740842508c26f8a743"
+      },
+      "audio": {
+        "bytes": 2584868,
+        "channels": 1,
+        "duration_seconds": 29.306395,
+        "frames": 1292412,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "33171facce77240e81474bb0ea1e023a3892af2448bc03feebe4b193f1ad967e"
+      },
+      "identity": {
+        "filename_bpm": 131,
+        "filename_key": "B",
+        "id": "05_BN2-131-B_comp",
+        "player": "05",
+        "progression": "2",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "05_BN2-166-Ab_comp": {
+      "annotation": {
+        "bytes": 1518258,
+        "jams_duration_seconds": 23.129999999999995,
+        "sha256": "410e7373f7753871225bdc99f0f96d4f9e911fb72602427e1b177458430a4fda"
+      },
+      "audio": {
+        "bytes": 2040110,
+        "channels": 1,
+        "duration_seconds": 23.13,
+        "frames": 1020033,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "58e771edbaedf69eb0216b8e77c82f468e8f0dd6045bfdcda585a0f346f86213"
+      },
+      "identity": {
+        "filename_bpm": 166,
+        "filename_key": "Ab",
+        "id": "05_BN2-166-Ab_comp",
+        "player": "05",
+        "progression": "2",
+        "style_code": "BN",
+        "version": "comp"
+      }
+    },
+    "05_Funk2-108-Eb_comp": {
+      "annotation": {
+        "bytes": 1914920,
+        "jams_duration_seconds": 35.5483999999999,
+        "sha256": "cdf773d3d9d8dda211fed2e728a4bc7e9d2461e1b2f1ce65bde2d3a02b2c46bc"
+      },
+      "audio": {
+        "bytes": 3135412,
+        "channels": 1,
+        "duration_seconds": 35.54839,
+        "frames": 1567684,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "39bd4f7812fa252c6ef89d1d14004436cb3d1ef43cbe422332ccf1712def513b"
+      },
+      "identity": {
+        "filename_bpm": 108,
+        "filename_key": "Eb",
+        "id": "05_Funk2-108-Eb_comp",
+        "player": "05",
+        "progression": "2",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "05_Funk2-119-G_comp": {
+      "annotation": {
+        "bytes": 1055609,
+        "jams_duration_seconds": 32.2632000000001,
+        "sha256": "c2b5c294beeb9575f118bdbf8ae8e71f98e35ef977134a977e28626efe3f829b"
+      },
+      "audio": {
+        "bytes": 2845658,
+        "channels": 1,
+        "duration_seconds": 32.263197,
+        "frames": 1422807,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "d8056eeace67f5451907b7a1d779e1ea576fee79f2df73e68909c7e944ac43a2"
+      },
+      "identity": {
+        "filename_bpm": 119,
+        "filename_key": "G",
+        "id": "05_Funk2-119-G_comp",
+        "player": "05",
+        "progression": "2",
+        "style_code": "Funk",
+        "version": "comp"
+      }
+    },
+    "05_Jazz2-110-Bb_comp": {
+      "annotation": {
+        "bytes": 2346936,
+        "jams_duration_seconds": 34.90319999999997,
+        "sha256": "c420a87840a1e19b4641bfac47a3198a7de1ba1aeb304af24731d627cfaf9cef"
+      },
+      "audio": {
+        "bytes": 3078506,
+        "channels": 1,
+        "duration_seconds": 34.903197,
+        "frames": 1539231,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "0ff82f67a72707cfa4f263aac890baeb9a11f50d0e1487c8f187a2e614b6bd9d"
+      },
+      "identity": {
+        "filename_bpm": 110,
+        "filename_key": "Bb",
+        "id": "05_Jazz2-110-Bb_comp",
+        "player": "05",
+        "progression": "2",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "05_Jazz2-187-F#_comp": {
+      "annotation": {
+        "bytes": 1401959,
+        "jams_duration_seconds": 20.53200000000004,
+        "sha256": "825f47bfe2b6b7cb12b5289315bb356108b21d919f3c95337526b373ca681e90"
+      },
+      "audio": {
+        "bytes": 1810966,
+        "channels": 1,
+        "duration_seconds": 20.531995,
+        "frames": 905461,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "06a01d0db47078e587b29399c5445e7cbd90665a1da278cb0614f28523e2fe01"
+      },
+      "identity": {
+        "filename_bpm": 187,
+        "filename_key": "F#",
+        "id": "05_Jazz2-187-F#_comp",
+        "player": "05",
+        "progression": "2",
+        "style_code": "Jazz",
+        "version": "comp"
+      }
+    },
+    "05_Rock2-142-D_comp": {
+      "annotation": {
+        "bytes": 2811516,
+        "jams_duration_seconds": 27.041600000000003,
+        "sha256": "989dcd1622894619d6a08775dc7d79a6d3a35a10a244f27af88a27d5983741a5"
+      },
+      "audio": {
+        "bytes": 2385114,
+        "channels": 1,
+        "duration_seconds": 27.04161,
+        "frames": 1192535,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "5f5b02aa23a36c31f59e56ccec16212d60549d15d60f7f0f61f516c02ee0fa7c"
+      },
+      "identity": {
+        "filename_bpm": 142,
+        "filename_key": "D",
+        "id": "05_Rock2-142-D_comp",
+        "player": "05",
+        "progression": "2",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "05_Rock2-85-F_comp": {
+      "annotation": {
+        "bytes": 3666518,
+        "jams_duration_seconds": 45.173199999999994,
+        "sha256": "1ff66959f3a7cbe742cfa0ba876c69a1d5f00489f70093e5f01676ece6109d1a"
+      },
+      "audio": {
+        "bytes": 3984320,
+        "channels": 1,
+        "duration_seconds": 45.173197,
+        "frames": 1992138,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "4be5240ae9037dd577544dc456bf73d4ff64c60e24f2cf678888d44338e02d3e"
+      },
+      "identity": {
+        "filename_bpm": 85,
+        "filename_key": "F",
+        "id": "05_Rock2-85-F_comp",
+        "player": "05",
+        "progression": "2",
+        "style_code": "Rock",
+        "version": "comp"
+      }
+    },
+    "05_SS2-107-Ab_comp": {
+      "annotation": {
+        "bytes": 2703210,
+        "jams_duration_seconds": 35.88639999999998,
+        "sha256": "c1633add5661e3dd8020b70d934ff147a137789662d4fd8bb0f526d138a8328c"
+      },
+      "audio": {
+        "bytes": 3165224,
+        "channels": 1,
+        "duration_seconds": 35.886395,
+        "frames": 1582590,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "c892d100e7ba04f50c4a112da2e9e41633241384b5de14c346e55110d89d626f"
+      },
+      "identity": {
+        "filename_bpm": 107,
+        "filename_key": "Ab",
+        "id": "05_SS2-107-Ab_comp",
+        "player": "05",
+        "progression": "2",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    },
+    "05_SS2-88-F_comp": {
+      "annotation": {
+        "bytes": 4117286,
+        "jams_duration_seconds": 43.629200000000026,
+        "sha256": "871e3da7016e5c472e0abf351bcd4aea8f041924ea1afbf9f18b1d460f86550e"
+      },
+      "audio": {
+        "bytes": 3848140,
+        "channels": 1,
+        "duration_seconds": 43.629206,
+        "frames": 1924048,
+        "sample_rate": 44100,
+        "sample_width_bytes": 2,
+        "sha256": "c6e469ea28ec2b3def19d17c9498db09fd9a7b095ea44cea3313cf424e323220"
+      },
+      "identity": {
+        "filename_bpm": 88,
+        "filename_key": "F",
+        "id": "05_SS2-88-F_comp",
+        "player": "05",
+        "progression": "2",
+        "style_code": "SS",
+        "version": "comp"
+      }
+    }
+  },
+  "runtime": {
+    "madmom": "0.17.dev0",
+    "platform": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "python": "3.10.22",
+    "torch": "2.6.0+cpu"
+  },
+  "runtime_pin_note": "Python, torch, and madmom versions are recorded at seal time and checked again at run time.",
+  "split": {
+    "development_count_after_errata": 40,
+    "development_ids": [
+      "01_BN1-129-Eb_comp",
+      "01_BN1-147-Gb_comp",
+      "01_BN3-119-G_comp",
+      "01_BN3-154-E_comp",
+      "01_Funk1-114-Ab_comp",
+      "01_Funk1-97-C_comp",
+      "01_Funk3-112-C#_comp",
+      "01_Funk3-98-A_comp",
+      "01_Jazz1-130-D_comp",
+      "01_Jazz1-200-B_comp",
+      "01_Jazz3-137-Eb_comp",
+      "01_Jazz3-150-C_comp",
+      "01_Rock1-130-A_comp",
+      "01_Rock1-90-C#_comp",
+      "01_Rock3-117-Bb_comp",
+      "01_Rock3-148-C_comp",
+      "01_SS1-100-C#_comp",
+      "01_SS1-68-E_comp",
+      "01_SS3-84-Bb_comp",
+      "01_SS3-98-C_comp",
+      "02_BN1-129-Eb_comp",
+      "02_BN1-147-Gb_comp",
+      "02_BN3-119-G_comp",
+      "02_BN3-154-E_comp",
+      "02_Funk1-114-Ab_comp",
+      "02_Funk1-97-C_comp",
+      "02_Funk3-112-C#_comp",
+      "02_Funk3-98-A_comp",
+      "02_Jazz1-130-D_comp",
+      "02_Jazz1-200-B_comp",
+      "02_Jazz3-137-Eb_comp",
+      "02_Jazz3-150-C_comp",
+      "02_Rock1-130-A_comp",
+      "02_Rock1-90-C#_comp",
+      "02_Rock3-117-Bb_comp",
+      "02_Rock3-148-C_comp",
+      "02_SS1-100-C#_comp",
+      "02_SS1-68-E_comp",
+      "02_SS3-84-Bb_comp",
+      "02_SS3-98-C_comp"
+    ],
+    "diagnostic_ids": [
+      "00_BN2-131-B_comp",
+      "00_Funk2-108-Eb_comp",
+      "00_Jazz2-110-Bb_comp",
+      "00_Rock2-85-F_comp",
+      "00_SS2-88-F_comp"
+    ],
+    "errata_excluded": [
+      "04_BN3-154-E_comp",
+      "04_Jazz1-200-B_comp",
+      "02_Funk2-119-G_comp"
+    ],
+    "errata_inside_scored_splits": [],
+    "locked_test_count_after_errata": 20,
+    "locked_test_ids": [
+      "04_BN2-131-B_comp",
+      "04_BN2-166-Ab_comp",
+      "04_Funk2-108-Eb_comp",
+      "04_Funk2-119-G_comp",
+      "04_Jazz2-110-Bb_comp",
+      "04_Jazz2-187-F#_comp",
+      "04_Rock2-142-D_comp",
+      "04_Rock2-85-F_comp",
+      "04_SS2-107-Ab_comp",
+      "04_SS2-88-F_comp",
+      "05_BN2-131-B_comp",
+      "05_BN2-166-Ab_comp",
+      "05_Funk2-108-Eb_comp",
+      "05_Funk2-119-G_comp",
+      "05_Jazz2-110-Bb_comp",
+      "05_Jazz2-187-F#_comp",
+      "05_Rock2-142-D_comp",
+      "05_Rock2-85-F_comp",
+      "05_SS2-107-Ab_comp",
+      "05_SS2-88-F_comp"
+    ]
+  }
+}
