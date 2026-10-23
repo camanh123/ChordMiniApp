@@ -117,6 +117,8 @@ async function waitForHealth(origin: string, child: ChildProcess): Promise<void>
     process.env.CHORDMINI_INFERENCE_SECRET = secret;
     process.env.PYTHON_API_URL = origin;
     delete process.env.CHORDMINI_DESKTOP_MODE;
+    delete process.env.CHORDMINI_HOSTED_STAGING_AUTH;
+    delete process.env.CHORDMINI_STAGING_ALLOWED_UIDS;
     global.fetch = realFetch;
 
     child = spawn(PYTHON, [

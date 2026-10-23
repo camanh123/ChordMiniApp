@@ -86,6 +86,8 @@ describe('POST /api/recognize-chords', () => {
     delete process.env.CHORDMINI_INFERENCE_AUTH;
     delete process.env.CHORDMINI_INFERENCE_SECRET;
     delete process.env.CHORDMINI_DESKTOP_MODE;
+    delete process.env.CHORDMINI_HOSTED_STAGING_AUTH;
+    delete process.env.CHORDMINI_STAGING_ALLOWED_UIDS;
     global.fetch = fetchMock as any;
     mockCreateSafeTimeoutSignal.mockReturnValue(new AbortController().signal);
     mockGetAudioDurationFromFile.mockResolvedValue(87.4);

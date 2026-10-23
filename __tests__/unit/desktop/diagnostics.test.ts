@@ -31,4 +31,16 @@ describe('desktop diagnostics', () => {
     expect(sanitized).toContain('CHORDMINI_INFERENCE_SECRET=[redacted]');
     expect(sanitized).toContain('ready');
   });
+
+  it('redacts a staging uid allowlist from diagnostics', () => {
+    const allowlist = 'owner-uid-0123456789abcdef';
+    const env = { CHORDMINI_STAGING_ALLOWED_UIDS: allowlist };
+    const sanitized = sanitizeDiagnostic(
+      `CHORDMINI_STAGING_ALLOWED_UIDS=${allowlist} ready`,
+      secretsFromEnv(env),
+    );
+
+    expect(sanitized).not.toContain(allowlist);
+    expect(sanitized).toContain('CHORDMINI_STAGING_ALLOWED_UIDS=[redacted]');
+  });
 });
