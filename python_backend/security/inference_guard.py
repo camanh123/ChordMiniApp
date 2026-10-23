@@ -352,12 +352,45 @@ def _write_capped(stream, destination: str, limit: int) -> str:
     return "ok"
 
 
+def _synchsafe(raw: bytes) -> Optional[int]:
+    if len(raw) != 4 or any(byte & 0x80 for byte in raw):
+        return None
+    return (
+        ((raw[0] & 0x7F) << 21)
+        | ((raw[1] & 0x7F) << 14)
+        | ((raw[2] & 0x7F) << 7)
+        | (raw[3] & 0x7F)
+    )
+
+
+def _id3v2_audio_offset(header: bytes, file_size: int) -> Optional[int]:
+    """Byte offset of the audio that follows one leading ID3v2 tag.
+
+    A file that does not start with ID3 returns 0. A tag with a bad version,
+    a non-synchsafe size, or a declared span past the file returns None.
+    The optional footer flag adds its 10 bytes. The tag body is not read.
+    """
+    if len(header) < 3 or header[:3] != b"ID3":
+        return 0
+    if len(header) < 10 or file_size < 10:
+        return None
+    major = header[3]
+    if major < 2 or major > 4:
+        return None
+    size = _synchsafe(header[6:10])
+    if size is None:
+        return None
+    total = 10 + size
+    if header[5] & 0x10:
+        total += 10
+    if total < 10 or total > file_size:
+        return None
+    return total
+
+
 def _mp3_frame(sample: bytes) -> bool:
-    start = 0
-    if sample[:3] == b"ID3":
-        start = 10
-    last = max(start, len(sample) - 3)
-    for index in range(start, last):
+    last = max(0, len(sample) - 3)
+    for index in range(0, last):
         if sample[index] != 0xFF:
             continue
         second = sample[index + 1]
@@ -400,7 +433,13 @@ def sniff_audio(path: str) -> Optional[str]:
             return "aiff"
         if len(head) >= 8 and head[4:8] == b"ftyp":
             return "mp4"
-        handle.seek(0)
+        file_size = os.path.getsize(path)
+        audio_at = _id3v2_audio_offset(head, file_size)
+        if audio_at is None:
+            return None
+        if audio_at > file_size:
+            return None
+        handle.seek(audio_at)
         sample = handle.read(4096)
     if _mp3_frame(sample):
         return "mp3"

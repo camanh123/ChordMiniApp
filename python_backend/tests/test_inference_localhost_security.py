@@ -43,9 +43,10 @@ FROZEN_PATHS = [
     "package.json",
     "package-lock.json",
 ]
-# BACKEND-04A through 04E.1 may change the forwarder, the staging gate, the
-# desktop bridge, the single-process admission guard, and the MP3 frame walk.
-# i18n, the Electron shell, and Windows packaging stay frozen.
+# BACKEND-04A through 04G may change the forwarder, the staging gate, the
+# desktop bridge, the single-process admission guard, the MP3 frame walk,
+# and the Flask ID3v2 sniff skip. i18n, the Electron shell, and Windows
+# packaging stay frozen.
 ALLOWED_INTEGRATION_PATHS = {
     "src/app/api/detect-beats/route.ts",
     "src/app/api/recognize-chords/route.ts",
@@ -557,6 +558,70 @@ class InferenceSecurityTests(unittest.TestCase):
             mp3_path = Path(directory) / "clip.txt"
             mp3_path.write_bytes(mp3_bytes())
             self.assertEqual(sniff_audio(str(mp3_path)), "mp3")
+
+    def test_large_id3v2_mp3_is_recognized_and_malformed_tags_are_rejected(self):
+        frame = mp3_bytes()
+
+        def tag(payload: bytes, major: int = 3, flags: int = 0, size: int | None = None) -> bytes:
+            declared = len(payload) if size is None else size
+            raw = bytes((
+                (declared >> 21) & 0x7F,
+                (declared >> 14) & 0x7F,
+                (declared >> 7) & 0x7F,
+                declared & 0x7F,
+            ))
+            return b"ID3" + bytes((major, 0, flags)) + raw + payload
+
+        with tempfile.TemporaryDirectory() as directory:
+            large = Path(directory) / "large.mp3"
+            large.write_bytes(tag(b"A" * 5000) + frame)
+            self.assertEqual(sniff_audio(str(large)), "mp3")
+            response = self.post_audio(
+                "/api/detect-beats",
+                large.read_bytes(),
+                "large.mp3",
+                extra={"detector": "madmom"},
+                headers=self.headers(),
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(self.beats.calls), 1)
+            self.assertTrue(self.beats.calls[0]["existed"])
+            self.assert_clean(response, [self.secret])
+            self.assertEqual(self.leftovers(), [])
+
+            self.beats.calls.clear()
+            footer_payload = b"META"
+            foot = tag(footer_payload, flags=0x10) + (b"3DI" + bytes(7)) + frame
+            foot_path = Path(directory) / "footer.mp3"
+            foot_path.write_bytes(foot)
+            self.assertEqual(sniff_audio(str(foot_path)), "mp3")
+
+            bad_size = bytearray(tag(b"A" * 32) + frame)
+            bad_size[6] = 0x80
+            bad_path = Path(directory) / "bad-size.mp3"
+            bad_path.write_bytes(bad_size)
+            self.assertIsNone(sniff_audio(str(bad_path)))
+
+            truncated = Path(directory) / "truncated.mp3"
+            truncated.write_bytes(tag(b"A" * 8, size=100000) + frame)
+            self.assertIsNone(sniff_audio(str(truncated)))
+
+            bad_version = Path(directory) / "version.mp3"
+            bad_version.write_bytes(tag(b"A" * 8, major=1) + frame)
+            self.assertIsNone(sniff_audio(str(bad_version)))
+
+            for path in (bad_path, truncated, bad_version):
+                self.beats.calls.clear()
+                rejected = self.post_audio(
+                    "/api/detect-beats",
+                    path.read_bytes(),
+                    path.name,
+                    extra={"detector": "madmom"},
+                    headers=self.headers(),
+                )
+                self.assertEqual(rejected.status_code, 400)
+                self.assertIn("INVALID_AUDIO", rejected.get_data(as_text=True))
+                self.assertEqual(self.beats.calls, [])
 
     def test_process_entry_binds_localhost_and_frozen_trees_are_untouched(self):
         source = (BACKEND_ROOT / "app.py").read_text(encoding="utf-8")
