@@ -72,7 +72,7 @@ describe('SECRET EXPOSURE public runtime and client sources', () => {
 
     const offenders = files.filter((file) => {
       const text = fs.readFileSync(file, 'utf8');
-      if (!text.includes('CHORDMINI_INFERENCE_SECRET')) {
+      if (!text.includes('CHORDMINI_INFERENCE_SECRET') && !text.includes('CHORDMINI_STAGING_ALLOWED_UIDS')) {
         return false;
       }
       return !allowed.some((prefix) => file.includes(prefix));

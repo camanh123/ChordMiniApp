@@ -8,12 +8,12 @@ import {
   desktopAnalysisConnectionResponse,
 } from '@/server/analysisServiceAvailability';
 import {
-  inferenceForwardPlan,
   redactInferenceSecret,
   scrubInferencePayload,
   stripUntrustedInferenceFields,
   upstreamAuthFailure,
 } from '@/server/inferenceUpstream';
+import { gateHostedStagingThenForward } from '@/server/hostedStagingAuth';
 
 
 
@@ -100,7 +100,9 @@ export async function POST(request: NextRequest) {
     const abortSignal = createSafeTimeoutSignal(timeoutValue);
 
     stripUntrustedInferenceFields(formData);
-    const forward = inferenceForwardPlan();
+    const forward = await gateHostedStagingThenForward(
+      request.headers?.get('authorization') ?? null,
+    );
     if (!forward.ok) {
       return NextResponse.json(forward.body, { status: forward.status });
     }

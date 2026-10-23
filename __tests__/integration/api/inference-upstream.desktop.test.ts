@@ -63,6 +63,8 @@ describe('CONTRACT desktop inference boundary', () => {
     delete process.env.CHORDMINI_INFERENCE_AUTH;
     delete process.env.CHORDMINI_INFERENCE_SECRET;
     delete process.env.CHORDMINI_DESKTOP_MODE;
+    delete process.env.CHORDMINI_HOSTED_STAGING_AUTH;
+    delete process.env.CHORDMINI_STAGING_ALLOWED_UIDS;
     delete process.env.PYTHON_API_URL;
     global.fetch = fetchMock as never;
     jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -139,5 +141,34 @@ describe('CONTRACT desktop inference boundary', () => {
     expect(JSON.stringify(body)).not.toContain(SECRET);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0][0])).toBe('http://127.0.0.1:5001/health');
+  });
+
+  it('does not start hosted staging from the desktop process', async () => {
+    process.env.CHORDMINI_DESKTOP_MODE = '1';
+    process.env.CHORDMINI_HOSTED_STAGING_AUTH = 'required';
+    process.env.CHORDMINI_STAGING_ALLOWED_UIDS = 'owner-uid';
+    process.env.CHORDMINI_INFERENCE_AUTH = 'required';
+    process.env.CHORDMINI_INFERENCE_SECRET = SECRET;
+    process.env.PYTHON_API_URL = 'http://127.0.0.1:5001';
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith('/health')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => ({ status: 'healthy' }),
+          text: async () => '{"status":"healthy"}',
+        };
+      }
+      throw new Error(`inference fetch was not allowed: ${url}`);
+    });
+
+    const response = await postBeats(makeRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body.code).toBe('INFERENCE_AUTH_NOT_AVAILABLE');
+    expect(JSON.stringify(body)).not.toContain(SECRET);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
