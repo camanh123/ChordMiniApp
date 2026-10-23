@@ -8,10 +8,10 @@
  * The walk reads chunk headers only. It does not decode PCM and it does not
  * write a temporary file.
  *
- * Other containers use music-metadata's duration, with covers and trailing
- * header scans skipped. A missing or non-finite duration is rejected. This
- * does not fully decode the audio. An MPEG Xing header can still under-report
- * duration; that remaining case is not claimed as a byte-level proof.
+ * MP3 duration is the sum of validated Layer III frames. Xing, VBRI, and ID3
+ * tags are not duration sources. FLAC, Ogg, MP4, and AIFF are rejected here:
+ * their container sample counts can under-report, and this hotfix does not
+ * claim a byte-level proof for those formats.
  *
  * Next.js has already buffered a multipart body before this route reads it.
  * Content-Length above the 50 MB cap plus framing is rejected before that
@@ -25,6 +25,7 @@ import {
   withHostedAdmission,
   type AdmissionContext,
 } from '@/server/gatewayAdmission';
+import { readMp3Duration } from '@/server/mp3FrameDuration';
 
 const HARD_UPLOAD_BYTES = 50 * 1024 * 1024;
 const MAX_WAV_CHUNKS = 32;
@@ -222,24 +223,26 @@ export async function inspectHostedAudio(
     return { ok: true };
   }
 
-  try {
-    const { parseBuffer } = await import('music-metadata');
-    const metadata = await parseBuffer(bytes, { size: bytes.byteLength }, {
-      duration: true,
-      skipCovers: true,
-      skipPostHeaders: true,
-    });
-    const duration = metadata.format.duration;
-    if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0) {
-      return failure(400, AUDIO_MALFORMED);
-    }
-    if (duration > config.limits.maxDurationSeconds) {
-      return failure(400, AUDIO_DURATION_EXCEEDED);
-    }
-    return { ok: true };
-  } catch {
+  if (unsupportedCompressedContainer(bytes)) {
     return failure(400, AUDIO_MALFORMED);
   }
+
+  const mp3 = readMp3Duration(bytes, config.limits.maxDurationSeconds);
+  if (!mp3.ok) {
+    return failure(400, mp3.reason === 'exceeded' ? AUDIO_DURATION_EXCEEDED : AUDIO_MALFORMED);
+  }
+  return { ok: true };
+}
+
+function unsupportedCompressedContainer(bytes: Uint8Array): boolean {
+  if (bytes.length >= 4 && (fourcc(bytes, 0) === 'fLaC' || fourcc(bytes, 0) === 'OggS')) {
+    return true;
+  }
+  if (bytes.length >= 12 && fourcc(bytes, 0) === 'FORM') {
+    const kind = fourcc(bytes, 8);
+    return kind === 'AIFF' || kind === 'AIFC';
+  }
+  return bytes.length >= 12 && fourcc(bytes, 4) === 'ftyp';
 }
 
 export async function runAdmittedHostedInference(
