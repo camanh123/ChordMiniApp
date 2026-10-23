@@ -1,0 +1,7 @@
+{
+  "acceptance_gate_passed": false,
+  "budget_passed": true,
+  "control_integrity": true,
+  "evidence_sha256": "ae36a0c6c981e77e40b2586af41ede6d5dde63fe00bddc1ad5a117324c8eb91f",
+  "locked_run_allowed": false
+}
