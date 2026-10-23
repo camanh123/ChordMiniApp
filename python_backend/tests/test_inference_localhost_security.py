@@ -43,10 +43,9 @@ FROZEN_PATHS = [
     "package.json",
     "package-lock.json",
 ]
-# BACKEND-04A, 04C, and 04D may change only the server-side forwarder,
-# the hosted staging identity gate, the desktop gateway bridge, and the
-# desktop secret boundary. i18n, the Electron shell, and Windows packaging
-# stay frozen.
+# BACKEND-04A through 04E may change the forwarder, the staging gate, the
+# desktop bridge, and the single-process hosted admission guard.
+# i18n, the Electron shell, and Windows packaging stay frozen.
 ALLOWED_INTEGRATION_PATHS = {
     "src/app/api/detect-beats/route.ts",
     "src/app/api/recognize-chords/route.ts",
@@ -54,6 +53,8 @@ ALLOWED_INTEGRATION_PATHS = {
     "src/server/inferenceUpstream.ts",
     "src/server/hostedStagingAuth.ts",
     "src/server/hostedGatewayForward.ts",
+    "src/server/gatewayAdmission.ts",
+    "src/server/gatewayAudioGuard.ts",
     "src/services/audio/inferenceUserToken.ts",
     "src/services/audio/beatDetectionService.ts",
     "src/services/chord-analysis/chordService.ts",

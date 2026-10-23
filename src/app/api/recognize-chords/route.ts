@@ -15,6 +15,8 @@ import {
 } from '@/server/inferenceUpstream';
 import { gateHostedStagingThenForward } from '@/server/hostedStagingAuth';
 import { desktopHostedGatewayResponse } from '@/server/hostedGatewayForward';
+import type { AdmissionContext } from '@/server/gatewayAdmission';
+import { declaredUploadRejection, runAdmittedHostedInference } from '@/server/gatewayAudioGuard';
 
 
 
@@ -37,6 +39,15 @@ export async function POST(request: NextRequest) {
     const hostedGateway = await desktopHostedGatewayResponse(request, 'chords');
     if (hostedGateway) {
       return hostedGateway;
+    }
+
+    const hostedStaging = (process.env.CHORDMINI_HOSTED_STAGING_AUTH || '').trim().toLowerCase() === 'required'
+      && process.env.CHORDMINI_DESKTOP_MODE !== '1';
+    if (hostedStaging) {
+      const declaredTooLarge = declaredUploadRejection(request.headers?.get('content-length') ?? null);
+      if (declaredTooLarge && !declaredTooLarge.ok) {
+        return NextResponse.json(declaredTooLarge.body, { status: declaredTooLarge.status });
+      }
     }
 
     const unavailable = await analysisServiceGateResponse();
@@ -113,16 +124,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(forward.body, { status: forward.status });
     }
 
+    const runInference = async (signal: AbortSignal, admission?: AdmissionContext) => {
     const targetUrl = `${backendUrl}/api/recognize-chords`;
+    const dispatch = (body: FormData) => {
+      const exec = () => fetch(targetUrl, {
+        method: 'POST',
+        body,
+        headers: forward.headers,
+        signal,
+      });
+      return admission ? admission.trackUpstream(exec) : exec();
+    };
     console.log(`🚀 Forwarding chord recognition request to: ${targetUrl}`);
 
     console.log(`📡 Making fetch request to Python backend...`);
-    const response = await fetch(targetUrl, {
-      method: 'POST',
-      body: formData,
-      headers: forward.headers,
-      signal: abortSignal,
-    });
+    const response = await dispatch(formData);
 
     console.log(`📊 Python backend response: ${response.status} ${response.statusText}`);
 
@@ -193,6 +209,18 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Chord recognition successful`);
 
     return NextResponse.json(scrubInferencePayload(result));
+    };
+
+    if (forward.uid) {
+      return await runAdmittedHostedInference(
+        forward.uid,
+        process.env,
+        request.signal,
+        file,
+        runInference,
+      );
+    }
+    return await runInference(abortSignal);
   } catch (error) {
     const safeError = redactInferenceSecret(error instanceof Error ? error.message : String(error));
     console.error('Error recognizing chords:', safeError);

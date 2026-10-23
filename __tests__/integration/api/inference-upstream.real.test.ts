@@ -23,6 +23,7 @@ jest.mock('@/utils/firebaseAdmin', () => ({
 }));
 
 import undici from 'undici';
+import { resetGatewayAdmissionForTests } from '@/server/gatewayAdmission';
 import { POST as postBeats } from '@/app/api/detect-beats/route';
 import { POST as postChords } from '@/app/api/recognize-chords/route';
 
@@ -129,6 +130,8 @@ async function waitForHealth(origin: string, child: ChildProcess): Promise<void>
     delete process.env.CHORDMINI_STAGING_ALLOWED_UIDS;
     delete process.env.CHORDMINI_HOSTED_GATEWAY_URL;
     delete process.env.CHORDMINI_HOSTED_GATEWAY_TEST_LOOPBACK;
+    delete process.env.CHORDMINI_GATEWAY_ADMISSION;
+    delete process.env.CHORDMINI_GATEWAY_INSTANCES;
     global.fetch = realFetch;
 
     child = spawn(PYTHON, [
@@ -335,6 +338,8 @@ async function waitForHealth(origin: string, child: ChildProcess): Promise<void>
         private_key: 'test-only-not-a-credential',
         client_email: 'staging-test@example.invalid',
       });
+      process.env.CHORDMINI_GATEWAY_ADMISSION = 'process';
+      process.env.CHORDMINI_GATEWAY_INSTANCES = '1';
       try {
         const headers = new Headers(init?.headers);
         const request = {
@@ -377,6 +382,7 @@ async function waitForHealth(origin: string, child: ChildProcess): Promise<void>
       return realFetch(input, init);
     };
 
+    resetGatewayAdmissionForTests();
     try {
       const audio = new File([bytes], 'fixture.wav', { type: 'audio/wav' });
       const beatsResponse = await postBeats({

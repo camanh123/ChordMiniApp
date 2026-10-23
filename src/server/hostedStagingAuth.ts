@@ -10,11 +10,10 @@
  * a body field, query string, or custom header. The desktop process never
  * receives the Flask secret and does not forward hosted staging calls.
  *
- * Future controls belong immediately after a UID is allowlisted and before
- * Flask is called: per-UID rate limits, a global concurrency cap, a maximum
- * audio duration, an idempotency key, and cancellation that deletes temporary
- * audio. An allowlist is not a quota system and is not sufficient for a
- * public production service.
+ * After this gate returns an allowlisted UID, the route applies the
+ * single-process quota and duration guard before Flask is called.
+ * A caller request id is not an authenticator. An allowlist is not a quota
+ * system and is not sufficient for a public production service.
  */
 
 import { getFirebaseAdminAuth } from '@/utils/firebaseAdmin';
@@ -97,7 +96,7 @@ export type StagingFailure = {
 };
 
 export type HostedInferenceAccess =
-  | { ok: true; headers: Record<string, string> }
+  | { ok: true; headers: Record<string, string>; uid: string | null }
   | StagingFailure;
 
 type VerifiedIdentity = { uid: string };
@@ -248,7 +247,11 @@ export async function gateHostedStagingThenForward(
 ): Promise<HostedInferenceAccess> {
   const mode = requestedStagingMode(env);
   if (mode === 'off') {
-    return inferenceForwardPlan(env);
+    const plan = inferenceForwardPlan(env);
+    if (!plan.ok) {
+      return plan;
+    }
+    return { ok: true, headers: plan.headers, uid: null };
   }
   if (mode === 'unknown') {
     return failure(503, STAGING_AUTH_NOT_CONFIGURED);
@@ -299,7 +302,8 @@ export async function gateHostedStagingThenForward(
     return failure(403, USER_NOT_ALLOWLISTED);
   }
 
-  // Per-UID quota, global concurrency, duration, and idempotency insert here.
+  // Quota and duration run after this returns, using uid, and before Flask.
+  // Repeated request IDs are not an authenticator and are not a replay cache.
   const forward: InferenceForwardPlan = inferenceForwardPlan(env);
   if (!forward.ok) {
     return forward;
@@ -307,5 +311,5 @@ export async function gateHostedStagingThenForward(
   if (!forward.headers[INFERENCE_TOKEN_HEADER]) {
     return failure(503, INFERENCE_NOT_CONFIGURED);
   }
-  return forward;
+  return { ok: true, headers: forward.headers, uid: identity.uid };
 }
