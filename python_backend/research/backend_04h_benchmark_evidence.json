@@ -1,0 +1,2905 @@
+{
+  "phase": "BACKEND-04H",
+  "firebase_identity": "NOT_USED_IN_THIS_PROCESS",
+  "listener": "none",
+  "real_music_accuracy_status": "BLOCKED",
+  "dataset": {
+    "recording_source": "Generated locally by backend_04h_benchmark.py and run_minimum_inference.write_fixture.",
+    "artist": null,
+    "license_status": "Original synthetic signal created for this local research run. No scraped audio and no external download. Not a musical performance.",
+    "real_performance_audio": false,
+    "independent_ground_truth": false,
+    "ground_truth": "Synthesizer schedule. Chord labels and click times were produced by this script, not by an independent annotator.",
+    "repository_search": {
+      "tracked_performance_recording": false,
+      "chord_placeholder_lab_bytes": 0,
+      "external_download": false,
+      "note": "Tracked wav, mp3, flac, and ogg assets are absent. chord_placeholder.lab is empty. External datasets named in third-party READMEs were not downloaded."
+    },
+    "duration_selection": {
+      "chosen_seconds": 96.0,
+      "testing_upload_cap_bytes": 5242880,
+      "pcm_bytes_at_chosen_duration": 4233644,
+      "pcm_bytes_at_120s": 5292044,
+      "pcm_bytes_at_180s": 7938044,
+      "reason": "A 120-second or 180-second 22050 Hz 16-bit mono WAV exceeds TestingConfig DIRECT_UPLOAD_SIZE_LIMIT_MB=5. The cap was not raised."
+    }
+  },
+  "cpu": {
+    "model": "Intel(R) Xeon(R) Processor",
+    "logical_cpus": 4,
+    "platform": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "python": "3.10.22"
+  },
+  "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+  "installed": {
+    "torch": "2.6.0+cpu",
+    "numpy": "1.26.4",
+    "librosa": "0.10.1",
+    "soundfile": "0.12.1",
+    "madmom": "0.17.dev0"
+  },
+  "fixtures": {
+    "reference_wav": {
+      "path": "/tmp/chordmini-04h/reference-12s.wav",
+      "bytes": 529244,
+      "sha256": "9f28c07ea70690c82a1b7b4b883ab0624489020950e782210dbddaeab1b73914",
+      "provenance": "Existing 12-second synthetic WAV from run_minimum_inference.write_fixture. No external recording.",
+      "license": "Original synthetic signal. No third-party recording.",
+      "real_performance": false,
+      "independent_ground_truth": false,
+      "codec": "pcm_s16le",
+      "sample_rate": 22050,
+      "channels": 1,
+      "duration_seconds": 12.0,
+      "decoded_samples": 264600,
+      "decoded_rate": 22050,
+      "decoded_seconds": 12.0,
+      "peak_abs": 0.799957,
+      "duration_seconds_generated": 12.0
+    },
+    "long_wav": {
+      "path": "/tmp/chordmini-04h/synthetic-96s.wav",
+      "bytes": 4233644,
+      "sha256": "38b4d8420b593747063b929844def60e74cbeb4aa207ec7a4209351a9b3e9968",
+      "provenance": "Synthetic 96-second PCM generated in backend_04h_benchmark.py. Four-second C:maj/F:maj/G:maj cycle and a click every 0.5 seconds. Not a performance.",
+      "license": "Original synthetic signal. No third-party recording.",
+      "real_performance": false,
+      "independent_ground_truth": false,
+      "codec": "pcm_s16le",
+      "sample_rate": 22050,
+      "channels": 1,
+      "duration_seconds": 96.0,
+      "decoded_samples": 2116800,
+      "decoded_rate": 22050,
+      "decoded_seconds": 96.0,
+      "peak_abs": 0.799957,
+      "duration_seconds_generated": 96.0,
+      "sample_rate_generated": 22050,
+      "channels_generated": 1
+    },
+    "long_mp3": {
+      "path": "/tmp/chordmini-04h/synthetic-96s.mp3",
+      "bytes": 1537252,
+      "sha256": "f2ea9394a110dcc26d71500a7e9e4e1a0eb8d69f20a4331364364ae2c2b200c9",
+      "provenance": "LAME MPEG Layer III encoded from the 96-second synthetic WAV with ffmpeg libmp3lame 128k. Encoder ID3 was removed. Not a performance.",
+      "license": "Original synthetic signal. No third-party recording.",
+      "real_performance": false,
+      "independent_ground_truth": false,
+      "codec": "mp3",
+      "sample_rate": 22050,
+      "channels": 1,
+      "duration_seconds": 96.052245,
+      "decoded_samples": 2116800,
+      "decoded_rate": 22050,
+      "decoded_seconds": 96.0,
+      "peak_abs": 0.759994,
+      "duration_seconds_generated": 96.0
+    }
+  },
+  "flask_sniff": {
+    "reference_wav": "wav",
+    "long_wav": "wav",
+    "long_mp3": "mp3"
+  },
+  "model_init_seconds": 0.0045,
+  "cold_reference_pass_seconds": 4.8513,
+  "runs": {
+    "reference_cold": {
+      "beat_wall_seconds": 3.8903,
+      "chord_wall_seconds": 0.9608,
+      "combined_wall_seconds": 4.8511,
+      "real_time_factor": {
+        "beat": 0.3242,
+        "chord": 0.0801,
+        "combined": 0.4043
+      },
+      "beats": {
+        "success": true,
+        "beats": [
+          0.0,
+          0.5,
+          1.0,
+          1.5,
+          2.0,
+          2.5,
+          3.0,
+          3.5,
+          4.0,
+          4.49,
+          4.99,
+          5.49,
+          5.99,
+          6.49,
+          6.99,
+          7.49,
+          7.99,
+          8.49,
+          8.99,
+          9.49,
+          9.99,
+          10.49,
+          10.99,
+          11.49,
+          11.99
+        ],
+        "downbeats": [
+          0.0,
+          2.0,
+          4.0,
+          5.99,
+          7.99,
+          9.99,
+          11.99
+        ],
+        "bpm": 120.0,
+        "time_signature": "4/4",
+        "model_used": "madmom",
+        "model_name": "Madmom",
+        "duration": 12.0,
+        "processing_time": 1.5656061172485352
+      },
+      "chords": {
+        "success": true,
+        "model_used": "chord-cnn-lstm",
+        "model_name": "Chord-CNN-LSTM",
+        "chords": [
+          {
+            "start": 0.0,
+            "end": 0.023219954648526078,
+            "chord": "N",
+            "confidence": 1.0
+          },
+          {
+            "start": 0.023219954648526078,
+            "end": 3.9938321995464854,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 3.9938321995464854,
+            "end": 7.987664399092971,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 7.987664399092971,
+            "end": 12.004716553287983,
+            "chord": "G:maj",
+            "confidence": 1.0
+          }
+        ],
+        "total_chords": 4,
+        "duration": 12.004716553287983,
+        "chord_dict": "submission",
+        "processing_time": 0.8768208026885986
+      },
+      "synthetic_quality": {
+        "evaluation": "synthetic_generator_agreement",
+        "real_music_accuracy": "BLOCKED",
+        "vocabulary": "Exact Chord-CNN-LSTM submission strings. The generator uses C:maj, F:maj, and G:maj. N is the model's no-chord label. No enharmonic folding, no inversion folding, and no major/minor equivalence. A slice counts as correct only when the strings are equal.",
+        "beat_window_seconds": 0.07,
+        "beat_metric": "One-to-one greedy match inside a 70 ms window. Click spacing is 500 ms, so the windows do not overlap. This is not the mir_eval package.",
+        "tempo_change_sensitivity": "NOT_MEASURED",
+        "tempo_change_reason": "The click interval is constant. No tempo change was synthesized.",
+        "reference_clicks": 24,
+        "detected_beats": 25,
+        "matched_beats": 24,
+        "beat_precision": 0.96,
+        "beat_recall": 1.0,
+        "beat_f_measure": 0.979592,
+        "beat_mean_abs_seconds": 0.00625,
+        "beat_max_abs_seconds": 0.01,
+        "bpm": 120.0,
+        "bpm_error": 0.0,
+        "time_weighted_chord_accuracy": 0.996523,
+        "chord_disagreement_seconds": {
+          "match": 11.958277,
+          "no_chord": 0.02322,
+          "root": 0.018503,
+          "inversion": 0.0,
+          "major_minor": 0.0,
+          "extension_or_quality": 0.0
+        },
+        "chord_regions": 3,
+        "unmatched_chord_regions": 0,
+        "mean_abs_boundary_seconds": 0.010824,
+        "mean_abs_start_seconds": 0.013908,
+        "mean_abs_end_seconds": 0.00774,
+        "confidence_values": [
+          "1.0"
+        ],
+        "confidence_note": "confidence 1.0 is the lab parser placeholder, not a measured model score.",
+        "boundary_pairs": [
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": 0.02322,
+            "end_delta_seconds": -0.006168,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.006168,
+            "end_delta_seconds": -0.012336,
+            "overlap_seconds": 3.987664
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.012336,
+            "end_delta_seconds": 0.004717,
+            "overlap_seconds": 4.0
+          }
+        ]
+      },
+      "fabricated_pattern_returned": false,
+      "peak_memory_mb": 502.96
+    },
+    "reference_warm": {
+      "beat_wall_seconds": 1.0774,
+      "chord_wall_seconds": 0.3037,
+      "combined_wall_seconds": 1.3812,
+      "real_time_factor": {
+        "beat": 0.0898,
+        "chord": 0.0253,
+        "combined": 0.1151
+      },
+      "beats": {
+        "success": true,
+        "beats": [
+          0.0,
+          0.5,
+          1.0,
+          1.5,
+          2.0,
+          2.5,
+          3.0,
+          3.5,
+          4.0,
+          4.49,
+          4.99,
+          5.49,
+          5.99,
+          6.49,
+          6.99,
+          7.49,
+          7.99,
+          8.49,
+          8.99,
+          9.49,
+          9.99,
+          10.49,
+          10.99,
+          11.49,
+          11.99
+        ],
+        "downbeats": [
+          0.0,
+          2.0,
+          4.0,
+          5.99,
+          7.99,
+          9.99,
+          11.99
+        ],
+        "bpm": 120.0,
+        "time_signature": "4/4",
+        "model_used": "madmom",
+        "model_name": "Madmom",
+        "duration": 12.0,
+        "processing_time": 1.0753984451293945
+      },
+      "chords": {
+        "success": true,
+        "model_used": "chord-cnn-lstm",
+        "model_name": "Chord-CNN-LSTM",
+        "chords": [
+          {
+            "start": 0.0,
+            "end": 0.023219954648526078,
+            "chord": "N",
+            "confidence": 1.0
+          },
+          {
+            "start": 0.023219954648526078,
+            "end": 3.9938321995464854,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 3.9938321995464854,
+            "end": 7.987664399092971,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 7.987664399092971,
+            "end": 12.004716553287983,
+            "chord": "G:maj",
+            "confidence": 1.0
+          }
+        ],
+        "total_chords": 4,
+        "duration": 12.004716553287983,
+        "chord_dict": "submission",
+        "processing_time": 0.30335402488708496
+      },
+      "synthetic_quality": {
+        "evaluation": "synthetic_generator_agreement",
+        "real_music_accuracy": "BLOCKED",
+        "vocabulary": "Exact Chord-CNN-LSTM submission strings. The generator uses C:maj, F:maj, and G:maj. N is the model's no-chord label. No enharmonic folding, no inversion folding, and no major/minor equivalence. A slice counts as correct only when the strings are equal.",
+        "beat_window_seconds": 0.07,
+        "beat_metric": "One-to-one greedy match inside a 70 ms window. Click spacing is 500 ms, so the windows do not overlap. This is not the mir_eval package.",
+        "tempo_change_sensitivity": "NOT_MEASURED",
+        "tempo_change_reason": "The click interval is constant. No tempo change was synthesized.",
+        "reference_clicks": 24,
+        "detected_beats": 25,
+        "matched_beats": 24,
+        "beat_precision": 0.96,
+        "beat_recall": 1.0,
+        "beat_f_measure": 0.979592,
+        "beat_mean_abs_seconds": 0.00625,
+        "beat_max_abs_seconds": 0.01,
+        "bpm": 120.0,
+        "bpm_error": 0.0,
+        "time_weighted_chord_accuracy": 0.996523,
+        "chord_disagreement_seconds": {
+          "match": 11.958277,
+          "no_chord": 0.02322,
+          "root": 0.018503,
+          "inversion": 0.0,
+          "major_minor": 0.0,
+          "extension_or_quality": 0.0
+        },
+        "chord_regions": 3,
+        "unmatched_chord_regions": 0,
+        "mean_abs_boundary_seconds": 0.010824,
+        "mean_abs_start_seconds": 0.013908,
+        "mean_abs_end_seconds": 0.00774,
+        "confidence_values": [
+          "1.0"
+        ],
+        "confidence_note": "confidence 1.0 is the lab parser placeholder, not a measured model score.",
+        "boundary_pairs": [
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": 0.02322,
+            "end_delta_seconds": -0.006168,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.006168,
+            "end_delta_seconds": -0.012336,
+            "overlap_seconds": 3.987664
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.012336,
+            "end_delta_seconds": 0.004717,
+            "overlap_seconds": 4.0
+          }
+        ]
+      },
+      "fabricated_pattern_returned": false,
+      "peak_memory_mb": 525.14
+    },
+    "long_wav": {
+      "beat_wall_seconds": 10.0225,
+      "chord_wall_seconds": 2.0718,
+      "combined_wall_seconds": 12.0943,
+      "real_time_factor": {
+        "beat": 0.1044,
+        "chord": 0.0216,
+        "combined": 0.126
+      },
+      "beats": {
+        "success": true,
+        "beats": [
+          0.0,
+          0.5,
+          1.0,
+          1.49,
+          2.0,
+          2.49,
+          3.0,
+          3.49,
+          4.0,
+          4.49,
+          4.99,
+          5.49,
+          5.99,
+          6.49,
+          6.99,
+          7.49,
+          7.99,
+          8.49,
+          8.99,
+          9.49,
+          9.99,
+          10.49,
+          10.99,
+          11.49,
+          11.99,
+          12.5,
+          13.0,
+          13.5,
+          14.0,
+          14.49,
+          15.0,
+          15.5,
+          16.0,
+          16.49,
+          16.99,
+          17.49,
+          17.99,
+          18.49,
+          18.99,
+          19.49,
+          19.99,
+          20.49,
+          20.99,
+          21.49,
+          21.99,
+          22.49,
+          22.99,
+          23.49,
+          23.99,
+          24.5,
+          25.0,
+          25.5,
+          26.0,
+          26.5,
+          27.0,
+          27.5,
+          28.0,
+          28.49,
+          28.99,
+          29.49,
+          29.99,
+          30.49,
+          30.99,
+          31.49,
+          31.99,
+          32.49,
+          32.99,
+          33.49,
+          33.99,
+          34.49,
+          34.99,
+          35.49,
+          35.99,
+          36.5,
+          37.0,
+          37.5,
+          38.0,
+          38.5,
+          39.0,
+          39.5,
+          40.0,
+          40.49,
+          40.99,
+          41.49,
+          41.99,
+          42.49,
+          42.99,
+          43.49,
+          43.99,
+          44.49,
+          44.99,
+          45.49,
+          45.99,
+          46.49,
+          46.99,
+          47.49,
+          47.99,
+          48.5,
+          49.0,
+          49.5,
+          50.0,
+          50.5,
+          51.0,
+          51.5,
+          52.0,
+          52.49,
+          52.99,
+          53.49,
+          53.99,
+          54.49,
+          54.99,
+          55.49,
+          55.99,
+          56.49,
+          56.99,
+          57.49,
+          57.99,
+          58.49,
+          58.99,
+          59.49,
+          59.99,
+          60.5,
+          61.0,
+          61.5,
+          62.0,
+          62.5,
+          63.0,
+          63.5,
+          64.0,
+          64.49,
+          64.99,
+          65.49,
+          65.99,
+          66.49,
+          66.99,
+          67.49,
+          67.99,
+          68.49,
+          68.99,
+          69.49,
+          69.99,
+          70.49,
+          70.99,
+          71.49,
+          71.99,
+          72.5,
+          73.0,
+          73.5,
+          74.0,
+          74.5,
+          75.0,
+          75.5,
+          76.0,
+          76.49,
+          76.99,
+          77.49,
+          77.99,
+          78.49,
+          78.99,
+          79.49,
+          79.99,
+          80.49,
+          80.99,
+          81.49,
+          81.99,
+          82.49,
+          82.99,
+          83.49,
+          83.99,
+          84.5,
+          85.0,
+          85.5,
+          86.0,
+          86.5,
+          87.0,
+          87.5,
+          88.0,
+          88.49,
+          88.99,
+          89.49,
+          89.99,
+          90.49,
+          90.99,
+          91.49,
+          91.99,
+          92.49,
+          92.99,
+          93.49,
+          93.99,
+          94.49,
+          94.99,
+          95.49,
+          95.99
+        ],
+        "downbeats": [
+          0.0,
+          2.0,
+          4.0,
+          5.99,
+          7.99,
+          9.99,
+          11.99,
+          14.0,
+          16.0,
+          17.99,
+          19.99,
+          21.99,
+          23.99,
+          26.0,
+          28.0,
+          29.99,
+          31.99,
+          33.99,
+          35.99,
+          38.0,
+          40.0,
+          41.99,
+          43.99,
+          45.99,
+          47.99,
+          50.0,
+          52.0,
+          53.99,
+          55.99,
+          57.99,
+          59.99,
+          62.0,
+          64.0,
+          65.99,
+          67.99,
+          69.99,
+          71.99,
+          74.0,
+          76.0,
+          77.99,
+          79.99,
+          81.99,
+          83.99,
+          86.0,
+          88.0,
+          89.99,
+          91.99,
+          93.99,
+          95.99
+        ],
+        "bpm": 120.0,
+        "time_signature": "4/4",
+        "model_used": "madmom",
+        "model_name": "Madmom",
+        "duration": 96.0,
+        "processing_time": 10.015357732772827
+      },
+      "chords": {
+        "success": true,
+        "model_used": "chord-cnn-lstm",
+        "model_name": "Chord-CNN-LSTM",
+        "chords": [
+          {
+            "start": 0.0,
+            "end": 0.023219954648526078,
+            "chord": "N",
+            "confidence": 1.0
+          },
+          {
+            "start": 0.023219954648526078,
+            "end": 4.017052154195011,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 4.017052154195011,
+            "end": 7.987664399092971,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 7.987664399092971,
+            "end": 11.95827664399093,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 11.95827664399093,
+            "end": 15.998548752834468,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 15.998548752834468,
+            "end": 19.969160997732427,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 19.969160997732427,
+            "end": 23.962993197278912,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 23.962993197278912,
+            "end": 28.00326530612245,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 28.00326530612245,
+            "end": 31.973877551020408,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 31.973877551020408,
+            "end": 35.9677097505669,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 35.9677097505669,
+            "end": 40.00798185941043,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 40.00798185941043,
+            "end": 43.97859410430839,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 43.97859410430839,
+            "end": 47.972426303854874,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 47.972426303854874,
+            "end": 51.98947845804989,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 51.98947845804989,
+            "end": 55.98331065759637,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 55.98331065759637,
+            "end": 59.953922902494334,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 59.953922902494334,
+            "end": 63.99419501133787,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 63.99419501133787,
+            "end": 67.98802721088435,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 67.98802721088435,
+            "end": 71.95863945578232,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 71.95863945578232,
+            "end": 75.99891156462586,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 75.99891156462586,
+            "end": 79.9695238095238,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 79.9695238095238,
+            "end": 83.9633560090703,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 83.9633560090703,
+            "end": 88.00362811791383,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 88.00362811791383,
+            "end": 91.9742403628118,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 91.9742403628118,
+            "end": 96.01451247165534,
+            "chord": "G:maj",
+            "confidence": 1.0
+          }
+        ],
+        "total_chords": 25,
+        "duration": 96.01451247165534,
+        "chord_dict": "submission",
+        "processing_time": 2.0712647438049316
+      },
+      "synthetic_quality": {
+        "evaluation": "synthetic_generator_agreement",
+        "real_music_accuracy": "BLOCKED",
+        "vocabulary": "Exact Chord-CNN-LSTM submission strings. The generator uses C:maj, F:maj, and G:maj. N is the model's no-chord label. No enharmonic folding, no inversion folding, and no major/minor equivalence. A slice counts as correct only when the strings are equal.",
+        "beat_window_seconds": 0.07,
+        "beat_metric": "One-to-one greedy match inside a 70 ms window. Click spacing is 500 ms, so the windows do not overlap. This is not the mir_eval package.",
+        "tempo_change_sensitivity": "NOT_MEASURED",
+        "tempo_change_reason": "The click interval is constant. No tempo change was synthesized.",
+        "reference_clicks": 192,
+        "detected_beats": 193,
+        "matched_beats": 192,
+        "beat_precision": 0.994819,
+        "beat_recall": 1.0,
+        "beat_f_measure": 0.997403,
+        "beat_mean_abs_seconds": 0.006823,
+        "beat_max_abs_seconds": 0.01,
+        "bpm": 120.0,
+        "bpm_error": 0.0,
+        "time_weighted_chord_accuracy": 0.994664,
+        "chord_disagreement_seconds": {
+          "match": 95.48771,
+          "no_chord": 0.02322,
+          "root": 0.48907,
+          "inversion": 0.0,
+          "major_minor": 0.0,
+          "extension_or_quality": 0.0
+        },
+        "chord_regions": 24,
+        "unmatched_chord_regions": 0,
+        "mean_abs_boundary_seconds": 0.021164,
+        "mean_abs_start_seconds": 0.021345,
+        "mean_abs_end_seconds": 0.020983,
+        "confidence_values": [
+          "1.0"
+        ],
+        "confidence_note": "confidence 1.0 is the lab parser placeholder, not a measured model score.",
+        "boundary_pairs": [
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": 0.02322,
+            "end_delta_seconds": 0.017052,
+            "overlap_seconds": 3.97678
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.017052,
+            "end_delta_seconds": -0.012336,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.012336,
+            "end_delta_seconds": -0.041723,
+            "overlap_seconds": 3.958277
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.041723,
+            "end_delta_seconds": -0.001451,
+            "overlap_seconds": 3.998549
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.001451,
+            "end_delta_seconds": -0.030839,
+            "overlap_seconds": 3.969161
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.030839,
+            "end_delta_seconds": -0.037007,
+            "overlap_seconds": 3.962993
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.037007,
+            "end_delta_seconds": 0.003265,
+            "overlap_seconds": 4.0
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.003265,
+            "end_delta_seconds": -0.026122,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.026122,
+            "end_delta_seconds": -0.03229,
+            "overlap_seconds": 3.96771
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.03229,
+            "end_delta_seconds": 0.007982,
+            "overlap_seconds": 4.0
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.007982,
+            "end_delta_seconds": -0.021406,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.021406,
+            "end_delta_seconds": -0.027574,
+            "overlap_seconds": 3.972426
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.027574,
+            "end_delta_seconds": -0.010522,
+            "overlap_seconds": 3.989478
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.010522,
+            "end_delta_seconds": -0.016689,
+            "overlap_seconds": 3.983311
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.016689,
+            "end_delta_seconds": -0.046077,
+            "overlap_seconds": 3.953923
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.046077,
+            "end_delta_seconds": -0.005805,
+            "overlap_seconds": 3.994195
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.005805,
+            "end_delta_seconds": -0.011973,
+            "overlap_seconds": 3.988027
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.011973,
+            "end_delta_seconds": -0.041361,
+            "overlap_seconds": 3.958639
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.041361,
+            "end_delta_seconds": -0.001088,
+            "overlap_seconds": 3.998912
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.001088,
+            "end_delta_seconds": -0.030476,
+            "overlap_seconds": 3.969524
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.030476,
+            "end_delta_seconds": -0.036644,
+            "overlap_seconds": 3.963356
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.036644,
+            "end_delta_seconds": 0.003628,
+            "overlap_seconds": 4.0
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.003628,
+            "end_delta_seconds": -0.02576,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.02576,
+            "end_delta_seconds": 0.014512,
+            "overlap_seconds": 4.0
+          }
+        ]
+      },
+      "fabricated_pattern_returned": false,
+      "peak_memory_mb": 1024.57
+    },
+    "long_mp3": {
+      "beat_wall_seconds": 9.1099,
+      "chord_wall_seconds": 2.1013,
+      "combined_wall_seconds": 11.2112,
+      "real_time_factor": {
+        "beat": 0.0949,
+        "chord": 0.0219,
+        "combined": 0.1168
+      },
+      "beats": {
+        "success": true,
+        "beats": [
+          0.0,
+          0.5,
+          1.0,
+          1.5,
+          2.0,
+          2.49,
+          3.0,
+          3.49,
+          4.0,
+          4.49,
+          4.99,
+          5.49,
+          5.99,
+          6.49,
+          6.99,
+          7.49,
+          7.99,
+          8.49,
+          8.99,
+          9.49,
+          9.99,
+          10.49,
+          10.99,
+          11.49,
+          11.99,
+          12.5,
+          13.0,
+          13.49,
+          14.0,
+          14.49,
+          15.0,
+          15.5,
+          16.0,
+          16.49,
+          16.99,
+          17.49,
+          17.99,
+          18.49,
+          18.99,
+          19.49,
+          19.99,
+          20.49,
+          20.99,
+          21.49,
+          21.99,
+          22.49,
+          22.99,
+          23.49,
+          23.99,
+          24.5,
+          25.0,
+          25.5,
+          26.0,
+          26.5,
+          27.0,
+          27.5,
+          28.0,
+          28.49,
+          28.99,
+          29.49,
+          29.99,
+          30.49,
+          30.99,
+          31.49,
+          31.99,
+          32.49,
+          32.99,
+          33.49,
+          33.99,
+          34.49,
+          34.99,
+          35.49,
+          35.99,
+          36.5,
+          37.0,
+          37.5,
+          38.0,
+          38.5,
+          39.0,
+          39.5,
+          40.0,
+          40.49,
+          40.99,
+          41.49,
+          41.99,
+          42.49,
+          42.99,
+          43.49,
+          43.99,
+          44.49,
+          44.99,
+          45.49,
+          45.99,
+          46.49,
+          46.99,
+          47.49,
+          47.99,
+          48.5,
+          49.0,
+          49.5,
+          50.0,
+          50.5,
+          51.0,
+          51.5,
+          52.0,
+          52.49,
+          52.99,
+          53.49,
+          53.99,
+          54.49,
+          54.99,
+          55.49,
+          55.99,
+          56.49,
+          56.99,
+          57.49,
+          57.99,
+          58.49,
+          58.99,
+          59.49,
+          59.99,
+          60.5,
+          61.0,
+          61.5,
+          62.0,
+          62.5,
+          63.0,
+          63.5,
+          64.0,
+          64.49,
+          64.99,
+          65.49,
+          65.99,
+          66.49,
+          66.99,
+          67.49,
+          67.99,
+          68.49,
+          68.99,
+          69.49,
+          69.99,
+          70.49,
+          70.99,
+          71.49,
+          71.99,
+          72.5,
+          73.0,
+          73.5,
+          74.0,
+          74.5,
+          75.0,
+          75.5,
+          76.0,
+          76.49,
+          76.99,
+          77.49,
+          77.99,
+          78.49,
+          78.99,
+          79.49,
+          79.99,
+          80.49,
+          80.99,
+          81.49,
+          81.99,
+          82.49,
+          82.99,
+          83.49,
+          83.99,
+          84.51,
+          85.0,
+          85.5,
+          86.0,
+          86.5,
+          87.0,
+          87.5,
+          88.0,
+          88.49,
+          88.99,
+          89.49,
+          89.99,
+          90.49,
+          90.99,
+          91.49,
+          91.99,
+          92.49,
+          92.99,
+          93.49,
+          93.99,
+          94.49,
+          94.99,
+          95.49,
+          95.99
+        ],
+        "downbeats": [
+          0.0,
+          2.0,
+          4.0,
+          5.99,
+          7.99,
+          9.99,
+          11.99,
+          14.0,
+          16.0,
+          17.99,
+          19.99,
+          21.99,
+          23.99,
+          26.0,
+          28.0,
+          29.99,
+          31.99,
+          33.99,
+          35.99,
+          38.0,
+          40.0,
+          41.99,
+          43.99,
+          45.99,
+          47.99,
+          50.0,
+          52.0,
+          53.99,
+          55.99,
+          57.99,
+          59.99,
+          62.0,
+          64.0,
+          65.99,
+          67.99,
+          69.99,
+          71.99,
+          74.0,
+          76.0,
+          77.99,
+          79.99,
+          81.99,
+          83.99,
+          86.0,
+          88.0,
+          89.99,
+          91.99,
+          93.99,
+          95.99
+        ],
+        "bpm": 120.0,
+        "time_signature": "4/4",
+        "model_used": "madmom",
+        "model_name": "Madmom",
+        "duration": 96.0,
+        "processing_time": 9.105653524398804
+      },
+      "chords": {
+        "success": true,
+        "model_used": "chord-cnn-lstm",
+        "model_name": "Chord-CNN-LSTM",
+        "chords": [
+          {
+            "start": 0.0,
+            "end": 0.023219954648526078,
+            "chord": "N",
+            "confidence": 1.0
+          },
+          {
+            "start": 0.023219954648526078,
+            "end": 4.017052154195011,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 4.017052154195011,
+            "end": 7.987664399092971,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 7.987664399092971,
+            "end": 11.95827664399093,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 11.95827664399093,
+            "end": 15.998548752834468,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 15.998548752834468,
+            "end": 19.969160997732427,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 19.969160997732427,
+            "end": 23.962993197278912,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 23.962993197278912,
+            "end": 28.00326530612245,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 28.00326530612245,
+            "end": 31.973877551020408,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 31.973877551020408,
+            "end": 35.9677097505669,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 35.9677097505669,
+            "end": 40.00798185941043,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 40.00798185941043,
+            "end": 43.97859410430839,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 43.97859410430839,
+            "end": 47.972426303854874,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 47.972426303854874,
+            "end": 51.98947845804989,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 51.98947845804989,
+            "end": 55.98331065759637,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 55.98331065759637,
+            "end": 59.953922902494334,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 59.953922902494334,
+            "end": 63.99419501133787,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 63.99419501133787,
+            "end": 67.98802721088435,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 67.98802721088435,
+            "end": 71.95863945578232,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 71.95863945578232,
+            "end": 75.99891156462586,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 75.99891156462586,
+            "end": 79.9695238095238,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 79.9695238095238,
+            "end": 83.9633560090703,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 83.9633560090703,
+            "end": 88.00362811791383,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 88.00362811791383,
+            "end": 91.9742403628118,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 91.9742403628118,
+            "end": 96.01451247165534,
+            "chord": "G:maj",
+            "confidence": 1.0
+          }
+        ],
+        "total_chords": 25,
+        "duration": 96.01451247165534,
+        "chord_dict": "submission",
+        "processing_time": 2.100419759750366
+      },
+      "synthetic_quality": {
+        "evaluation": "synthetic_generator_agreement",
+        "real_music_accuracy": "BLOCKED",
+        "vocabulary": "Exact Chord-CNN-LSTM submission strings. The generator uses C:maj, F:maj, and G:maj. N is the model's no-chord label. No enharmonic folding, no inversion folding, and no major/minor equivalence. A slice counts as correct only when the strings are equal.",
+        "beat_window_seconds": 0.07,
+        "beat_metric": "One-to-one greedy match inside a 70 ms window. Click spacing is 500 ms, so the windows do not overlap. This is not the mir_eval package.",
+        "tempo_change_sensitivity": "NOT_MEASURED",
+        "tempo_change_reason": "The click interval is constant. No tempo change was synthesized.",
+        "reference_clicks": 192,
+        "detected_beats": 193,
+        "matched_beats": 192,
+        "beat_precision": 0.994819,
+        "beat_recall": 1.0,
+        "beat_f_measure": 0.997403,
+        "beat_mean_abs_seconds": 0.006875,
+        "beat_max_abs_seconds": 0.01,
+        "bpm": 120.0,
+        "bpm_error": 0.0,
+        "time_weighted_chord_accuracy": 0.994664,
+        "chord_disagreement_seconds": {
+          "match": 95.48771,
+          "no_chord": 0.02322,
+          "root": 0.48907,
+          "inversion": 0.0,
+          "major_minor": 0.0,
+          "extension_or_quality": 0.0
+        },
+        "chord_regions": 24,
+        "unmatched_chord_regions": 0,
+        "mean_abs_boundary_seconds": 0.021164,
+        "mean_abs_start_seconds": 0.021345,
+        "mean_abs_end_seconds": 0.020983,
+        "confidence_values": [
+          "1.0"
+        ],
+        "confidence_note": "confidence 1.0 is the lab parser placeholder, not a measured model score.",
+        "boundary_pairs": [
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": 0.02322,
+            "end_delta_seconds": 0.017052,
+            "overlap_seconds": 3.97678
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.017052,
+            "end_delta_seconds": -0.012336,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.012336,
+            "end_delta_seconds": -0.041723,
+            "overlap_seconds": 3.958277
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.041723,
+            "end_delta_seconds": -0.001451,
+            "overlap_seconds": 3.998549
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.001451,
+            "end_delta_seconds": -0.030839,
+            "overlap_seconds": 3.969161
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.030839,
+            "end_delta_seconds": -0.037007,
+            "overlap_seconds": 3.962993
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.037007,
+            "end_delta_seconds": 0.003265,
+            "overlap_seconds": 4.0
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.003265,
+            "end_delta_seconds": -0.026122,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.026122,
+            "end_delta_seconds": -0.03229,
+            "overlap_seconds": 3.96771
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.03229,
+            "end_delta_seconds": 0.007982,
+            "overlap_seconds": 4.0
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.007982,
+            "end_delta_seconds": -0.021406,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.021406,
+            "end_delta_seconds": -0.027574,
+            "overlap_seconds": 3.972426
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.027574,
+            "end_delta_seconds": -0.010522,
+            "overlap_seconds": 3.989478
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.010522,
+            "end_delta_seconds": -0.016689,
+            "overlap_seconds": 3.983311
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.016689,
+            "end_delta_seconds": -0.046077,
+            "overlap_seconds": 3.953923
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.046077,
+            "end_delta_seconds": -0.005805,
+            "overlap_seconds": 3.994195
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.005805,
+            "end_delta_seconds": -0.011973,
+            "overlap_seconds": 3.988027
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.011973,
+            "end_delta_seconds": -0.041361,
+            "overlap_seconds": 3.958639
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.041361,
+            "end_delta_seconds": -0.001088,
+            "overlap_seconds": 3.998912
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.001088,
+            "end_delta_seconds": -0.030476,
+            "overlap_seconds": 3.969524
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.030476,
+            "end_delta_seconds": -0.036644,
+            "overlap_seconds": 3.963356
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.036644,
+            "end_delta_seconds": 0.003628,
+            "overlap_seconds": 4.0
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.003628,
+            "end_delta_seconds": -0.02576,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.02576,
+            "end_delta_seconds": 0.014512,
+            "overlap_seconds": 4.0
+          }
+        ]
+      },
+      "fabricated_pattern_returned": false,
+      "peak_memory_mb": 1024.57
+    }
+  },
+  "results": {
+    "long_wav": {
+      "beat_wall_seconds": 10.0225,
+      "chord_wall_seconds": 2.0718,
+      "combined_wall_seconds": 12.0943,
+      "real_time_factor": {
+        "beat": 0.1044,
+        "chord": 0.0216,
+        "combined": 0.126
+      },
+      "beats": {
+        "success": true,
+        "beats": [
+          0.0,
+          0.5,
+          1.0,
+          1.49,
+          2.0,
+          2.49,
+          3.0,
+          3.49,
+          4.0,
+          4.49,
+          4.99,
+          5.49,
+          5.99,
+          6.49,
+          6.99,
+          7.49,
+          7.99,
+          8.49,
+          8.99,
+          9.49,
+          9.99,
+          10.49,
+          10.99,
+          11.49,
+          11.99,
+          12.5,
+          13.0,
+          13.5,
+          14.0,
+          14.49,
+          15.0,
+          15.5,
+          16.0,
+          16.49,
+          16.99,
+          17.49,
+          17.99,
+          18.49,
+          18.99,
+          19.49,
+          19.99,
+          20.49,
+          20.99,
+          21.49,
+          21.99,
+          22.49,
+          22.99,
+          23.49,
+          23.99,
+          24.5,
+          25.0,
+          25.5,
+          26.0,
+          26.5,
+          27.0,
+          27.5,
+          28.0,
+          28.49,
+          28.99,
+          29.49,
+          29.99,
+          30.49,
+          30.99,
+          31.49,
+          31.99,
+          32.49,
+          32.99,
+          33.49,
+          33.99,
+          34.49,
+          34.99,
+          35.49,
+          35.99,
+          36.5,
+          37.0,
+          37.5,
+          38.0,
+          38.5,
+          39.0,
+          39.5,
+          40.0,
+          40.49,
+          40.99,
+          41.49,
+          41.99,
+          42.49,
+          42.99,
+          43.49,
+          43.99,
+          44.49,
+          44.99,
+          45.49,
+          45.99,
+          46.49,
+          46.99,
+          47.49,
+          47.99,
+          48.5,
+          49.0,
+          49.5,
+          50.0,
+          50.5,
+          51.0,
+          51.5,
+          52.0,
+          52.49,
+          52.99,
+          53.49,
+          53.99,
+          54.49,
+          54.99,
+          55.49,
+          55.99,
+          56.49,
+          56.99,
+          57.49,
+          57.99,
+          58.49,
+          58.99,
+          59.49,
+          59.99,
+          60.5,
+          61.0,
+          61.5,
+          62.0,
+          62.5,
+          63.0,
+          63.5,
+          64.0,
+          64.49,
+          64.99,
+          65.49,
+          65.99,
+          66.49,
+          66.99,
+          67.49,
+          67.99,
+          68.49,
+          68.99,
+          69.49,
+          69.99,
+          70.49,
+          70.99,
+          71.49,
+          71.99,
+          72.5,
+          73.0,
+          73.5,
+          74.0,
+          74.5,
+          75.0,
+          75.5,
+          76.0,
+          76.49,
+          76.99,
+          77.49,
+          77.99,
+          78.49,
+          78.99,
+          79.49,
+          79.99,
+          80.49,
+          80.99,
+          81.49,
+          81.99,
+          82.49,
+          82.99,
+          83.49,
+          83.99,
+          84.5,
+          85.0,
+          85.5,
+          86.0,
+          86.5,
+          87.0,
+          87.5,
+          88.0,
+          88.49,
+          88.99,
+          89.49,
+          89.99,
+          90.49,
+          90.99,
+          91.49,
+          91.99,
+          92.49,
+          92.99,
+          93.49,
+          93.99,
+          94.49,
+          94.99,
+          95.49,
+          95.99
+        ],
+        "downbeats": [
+          0.0,
+          2.0,
+          4.0,
+          5.99,
+          7.99,
+          9.99,
+          11.99,
+          14.0,
+          16.0,
+          17.99,
+          19.99,
+          21.99,
+          23.99,
+          26.0,
+          28.0,
+          29.99,
+          31.99,
+          33.99,
+          35.99,
+          38.0,
+          40.0,
+          41.99,
+          43.99,
+          45.99,
+          47.99,
+          50.0,
+          52.0,
+          53.99,
+          55.99,
+          57.99,
+          59.99,
+          62.0,
+          64.0,
+          65.99,
+          67.99,
+          69.99,
+          71.99,
+          74.0,
+          76.0,
+          77.99,
+          79.99,
+          81.99,
+          83.99,
+          86.0,
+          88.0,
+          89.99,
+          91.99,
+          93.99,
+          95.99
+        ],
+        "bpm": 120.0,
+        "time_signature": "4/4",
+        "model_used": "madmom",
+        "model_name": "Madmom",
+        "duration": 96.0,
+        "processing_time": 10.015357732772827
+      },
+      "chords": {
+        "success": true,
+        "model_used": "chord-cnn-lstm",
+        "model_name": "Chord-CNN-LSTM",
+        "chords": [
+          {
+            "start": 0.0,
+            "end": 0.023219954648526078,
+            "chord": "N",
+            "confidence": 1.0
+          },
+          {
+            "start": 0.023219954648526078,
+            "end": 4.017052154195011,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 4.017052154195011,
+            "end": 7.987664399092971,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 7.987664399092971,
+            "end": 11.95827664399093,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 11.95827664399093,
+            "end": 15.998548752834468,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 15.998548752834468,
+            "end": 19.969160997732427,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 19.969160997732427,
+            "end": 23.962993197278912,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 23.962993197278912,
+            "end": 28.00326530612245,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 28.00326530612245,
+            "end": 31.973877551020408,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 31.973877551020408,
+            "end": 35.9677097505669,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 35.9677097505669,
+            "end": 40.00798185941043,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 40.00798185941043,
+            "end": 43.97859410430839,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 43.97859410430839,
+            "end": 47.972426303854874,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 47.972426303854874,
+            "end": 51.98947845804989,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 51.98947845804989,
+            "end": 55.98331065759637,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 55.98331065759637,
+            "end": 59.953922902494334,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 59.953922902494334,
+            "end": 63.99419501133787,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 63.99419501133787,
+            "end": 67.98802721088435,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 67.98802721088435,
+            "end": 71.95863945578232,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 71.95863945578232,
+            "end": 75.99891156462586,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 75.99891156462586,
+            "end": 79.9695238095238,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 79.9695238095238,
+            "end": 83.9633560090703,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 83.9633560090703,
+            "end": 88.00362811791383,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 88.00362811791383,
+            "end": 91.9742403628118,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 91.9742403628118,
+            "end": 96.01451247165534,
+            "chord": "G:maj",
+            "confidence": 1.0
+          }
+        ],
+        "total_chords": 25,
+        "duration": 96.01451247165534,
+        "chord_dict": "submission",
+        "processing_time": 2.0712647438049316
+      },
+      "synthetic_quality": {
+        "evaluation": "synthetic_generator_agreement",
+        "real_music_accuracy": "BLOCKED",
+        "vocabulary": "Exact Chord-CNN-LSTM submission strings. The generator uses C:maj, F:maj, and G:maj. N is the model's no-chord label. No enharmonic folding, no inversion folding, and no major/minor equivalence. A slice counts as correct only when the strings are equal.",
+        "beat_window_seconds": 0.07,
+        "beat_metric": "One-to-one greedy match inside a 70 ms window. Click spacing is 500 ms, so the windows do not overlap. This is not the mir_eval package.",
+        "tempo_change_sensitivity": "NOT_MEASURED",
+        "tempo_change_reason": "The click interval is constant. No tempo change was synthesized.",
+        "reference_clicks": 192,
+        "detected_beats": 193,
+        "matched_beats": 192,
+        "beat_precision": 0.994819,
+        "beat_recall": 1.0,
+        "beat_f_measure": 0.997403,
+        "beat_mean_abs_seconds": 0.006823,
+        "beat_max_abs_seconds": 0.01,
+        "bpm": 120.0,
+        "bpm_error": 0.0,
+        "time_weighted_chord_accuracy": 0.994664,
+        "chord_disagreement_seconds": {
+          "match": 95.48771,
+          "no_chord": 0.02322,
+          "root": 0.48907,
+          "inversion": 0.0,
+          "major_minor": 0.0,
+          "extension_or_quality": 0.0
+        },
+        "chord_regions": 24,
+        "unmatched_chord_regions": 0,
+        "mean_abs_boundary_seconds": 0.021164,
+        "mean_abs_start_seconds": 0.021345,
+        "mean_abs_end_seconds": 0.020983,
+        "confidence_values": [
+          "1.0"
+        ],
+        "confidence_note": "confidence 1.0 is the lab parser placeholder, not a measured model score.",
+        "boundary_pairs": [
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": 0.02322,
+            "end_delta_seconds": 0.017052,
+            "overlap_seconds": 3.97678
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.017052,
+            "end_delta_seconds": -0.012336,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.012336,
+            "end_delta_seconds": -0.041723,
+            "overlap_seconds": 3.958277
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.041723,
+            "end_delta_seconds": -0.001451,
+            "overlap_seconds": 3.998549
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.001451,
+            "end_delta_seconds": -0.030839,
+            "overlap_seconds": 3.969161
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.030839,
+            "end_delta_seconds": -0.037007,
+            "overlap_seconds": 3.962993
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.037007,
+            "end_delta_seconds": 0.003265,
+            "overlap_seconds": 4.0
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.003265,
+            "end_delta_seconds": -0.026122,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.026122,
+            "end_delta_seconds": -0.03229,
+            "overlap_seconds": 3.96771
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.03229,
+            "end_delta_seconds": 0.007982,
+            "overlap_seconds": 4.0
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.007982,
+            "end_delta_seconds": -0.021406,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.021406,
+            "end_delta_seconds": -0.027574,
+            "overlap_seconds": 3.972426
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.027574,
+            "end_delta_seconds": -0.010522,
+            "overlap_seconds": 3.989478
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.010522,
+            "end_delta_seconds": -0.016689,
+            "overlap_seconds": 3.983311
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.016689,
+            "end_delta_seconds": -0.046077,
+            "overlap_seconds": 3.953923
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.046077,
+            "end_delta_seconds": -0.005805,
+            "overlap_seconds": 3.994195
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.005805,
+            "end_delta_seconds": -0.011973,
+            "overlap_seconds": 3.988027
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.011973,
+            "end_delta_seconds": -0.041361,
+            "overlap_seconds": 3.958639
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.041361,
+            "end_delta_seconds": -0.001088,
+            "overlap_seconds": 3.998912
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.001088,
+            "end_delta_seconds": -0.030476,
+            "overlap_seconds": 3.969524
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.030476,
+            "end_delta_seconds": -0.036644,
+            "overlap_seconds": 3.963356
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.036644,
+            "end_delta_seconds": 0.003628,
+            "overlap_seconds": 4.0
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.003628,
+            "end_delta_seconds": -0.02576,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.02576,
+            "end_delta_seconds": 0.014512,
+            "overlap_seconds": 4.0
+          }
+        ]
+      },
+      "fabricated_pattern_returned": false,
+      "peak_memory_mb": 1024.57
+    },
+    "long_mp3": {
+      "beat_wall_seconds": 9.1099,
+      "chord_wall_seconds": 2.1013,
+      "combined_wall_seconds": 11.2112,
+      "real_time_factor": {
+        "beat": 0.0949,
+        "chord": 0.0219,
+        "combined": 0.1168
+      },
+      "beats": {
+        "success": true,
+        "beats": [
+          0.0,
+          0.5,
+          1.0,
+          1.5,
+          2.0,
+          2.49,
+          3.0,
+          3.49,
+          4.0,
+          4.49,
+          4.99,
+          5.49,
+          5.99,
+          6.49,
+          6.99,
+          7.49,
+          7.99,
+          8.49,
+          8.99,
+          9.49,
+          9.99,
+          10.49,
+          10.99,
+          11.49,
+          11.99,
+          12.5,
+          13.0,
+          13.49,
+          14.0,
+          14.49,
+          15.0,
+          15.5,
+          16.0,
+          16.49,
+          16.99,
+          17.49,
+          17.99,
+          18.49,
+          18.99,
+          19.49,
+          19.99,
+          20.49,
+          20.99,
+          21.49,
+          21.99,
+          22.49,
+          22.99,
+          23.49,
+          23.99,
+          24.5,
+          25.0,
+          25.5,
+          26.0,
+          26.5,
+          27.0,
+          27.5,
+          28.0,
+          28.49,
+          28.99,
+          29.49,
+          29.99,
+          30.49,
+          30.99,
+          31.49,
+          31.99,
+          32.49,
+          32.99,
+          33.49,
+          33.99,
+          34.49,
+          34.99,
+          35.49,
+          35.99,
+          36.5,
+          37.0,
+          37.5,
+          38.0,
+          38.5,
+          39.0,
+          39.5,
+          40.0,
+          40.49,
+          40.99,
+          41.49,
+          41.99,
+          42.49,
+          42.99,
+          43.49,
+          43.99,
+          44.49,
+          44.99,
+          45.49,
+          45.99,
+          46.49,
+          46.99,
+          47.49,
+          47.99,
+          48.5,
+          49.0,
+          49.5,
+          50.0,
+          50.5,
+          51.0,
+          51.5,
+          52.0,
+          52.49,
+          52.99,
+          53.49,
+          53.99,
+          54.49,
+          54.99,
+          55.49,
+          55.99,
+          56.49,
+          56.99,
+          57.49,
+          57.99,
+          58.49,
+          58.99,
+          59.49,
+          59.99,
+          60.5,
+          61.0,
+          61.5,
+          62.0,
+          62.5,
+          63.0,
+          63.5,
+          64.0,
+          64.49,
+          64.99,
+          65.49,
+          65.99,
+          66.49,
+          66.99,
+          67.49,
+          67.99,
+          68.49,
+          68.99,
+          69.49,
+          69.99,
+          70.49,
+          70.99,
+          71.49,
+          71.99,
+          72.5,
+          73.0,
+          73.5,
+          74.0,
+          74.5,
+          75.0,
+          75.5,
+          76.0,
+          76.49,
+          76.99,
+          77.49,
+          77.99,
+          78.49,
+          78.99,
+          79.49,
+          79.99,
+          80.49,
+          80.99,
+          81.49,
+          81.99,
+          82.49,
+          82.99,
+          83.49,
+          83.99,
+          84.51,
+          85.0,
+          85.5,
+          86.0,
+          86.5,
+          87.0,
+          87.5,
+          88.0,
+          88.49,
+          88.99,
+          89.49,
+          89.99,
+          90.49,
+          90.99,
+          91.49,
+          91.99,
+          92.49,
+          92.99,
+          93.49,
+          93.99,
+          94.49,
+          94.99,
+          95.49,
+          95.99
+        ],
+        "downbeats": [
+          0.0,
+          2.0,
+          4.0,
+          5.99,
+          7.99,
+          9.99,
+          11.99,
+          14.0,
+          16.0,
+          17.99,
+          19.99,
+          21.99,
+          23.99,
+          26.0,
+          28.0,
+          29.99,
+          31.99,
+          33.99,
+          35.99,
+          38.0,
+          40.0,
+          41.99,
+          43.99,
+          45.99,
+          47.99,
+          50.0,
+          52.0,
+          53.99,
+          55.99,
+          57.99,
+          59.99,
+          62.0,
+          64.0,
+          65.99,
+          67.99,
+          69.99,
+          71.99,
+          74.0,
+          76.0,
+          77.99,
+          79.99,
+          81.99,
+          83.99,
+          86.0,
+          88.0,
+          89.99,
+          91.99,
+          93.99,
+          95.99
+        ],
+        "bpm": 120.0,
+        "time_signature": "4/4",
+        "model_used": "madmom",
+        "model_name": "Madmom",
+        "duration": 96.0,
+        "processing_time": 9.105653524398804
+      },
+      "chords": {
+        "success": true,
+        "model_used": "chord-cnn-lstm",
+        "model_name": "Chord-CNN-LSTM",
+        "chords": [
+          {
+            "start": 0.0,
+            "end": 0.023219954648526078,
+            "chord": "N",
+            "confidence": 1.0
+          },
+          {
+            "start": 0.023219954648526078,
+            "end": 4.017052154195011,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 4.017052154195011,
+            "end": 7.987664399092971,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 7.987664399092971,
+            "end": 11.95827664399093,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 11.95827664399093,
+            "end": 15.998548752834468,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 15.998548752834468,
+            "end": 19.969160997732427,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 19.969160997732427,
+            "end": 23.962993197278912,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 23.962993197278912,
+            "end": 28.00326530612245,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 28.00326530612245,
+            "end": 31.973877551020408,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 31.973877551020408,
+            "end": 35.9677097505669,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 35.9677097505669,
+            "end": 40.00798185941043,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 40.00798185941043,
+            "end": 43.97859410430839,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 43.97859410430839,
+            "end": 47.972426303854874,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 47.972426303854874,
+            "end": 51.98947845804989,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 51.98947845804989,
+            "end": 55.98331065759637,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 55.98331065759637,
+            "end": 59.953922902494334,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 59.953922902494334,
+            "end": 63.99419501133787,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 63.99419501133787,
+            "end": 67.98802721088435,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 67.98802721088435,
+            "end": 71.95863945578232,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 71.95863945578232,
+            "end": 75.99891156462586,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 75.99891156462586,
+            "end": 79.9695238095238,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 79.9695238095238,
+            "end": 83.9633560090703,
+            "chord": "G:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 83.9633560090703,
+            "end": 88.00362811791383,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 88.00362811791383,
+            "end": 91.9742403628118,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 91.9742403628118,
+            "end": 96.01451247165534,
+            "chord": "G:maj",
+            "confidence": 1.0
+          }
+        ],
+        "total_chords": 25,
+        "duration": 96.01451247165534,
+        "chord_dict": "submission",
+        "processing_time": 2.100419759750366
+      },
+      "synthetic_quality": {
+        "evaluation": "synthetic_generator_agreement",
+        "real_music_accuracy": "BLOCKED",
+        "vocabulary": "Exact Chord-CNN-LSTM submission strings. The generator uses C:maj, F:maj, and G:maj. N is the model's no-chord label. No enharmonic folding, no inversion folding, and no major/minor equivalence. A slice counts as correct only when the strings are equal.",
+        "beat_window_seconds": 0.07,
+        "beat_metric": "One-to-one greedy match inside a 70 ms window. Click spacing is 500 ms, so the windows do not overlap. This is not the mir_eval package.",
+        "tempo_change_sensitivity": "NOT_MEASURED",
+        "tempo_change_reason": "The click interval is constant. No tempo change was synthesized.",
+        "reference_clicks": 192,
+        "detected_beats": 193,
+        "matched_beats": 192,
+        "beat_precision": 0.994819,
+        "beat_recall": 1.0,
+        "beat_f_measure": 0.997403,
+        "beat_mean_abs_seconds": 0.006875,
+        "beat_max_abs_seconds": 0.01,
+        "bpm": 120.0,
+        "bpm_error": 0.0,
+        "time_weighted_chord_accuracy": 0.994664,
+        "chord_disagreement_seconds": {
+          "match": 95.48771,
+          "no_chord": 0.02322,
+          "root": 0.48907,
+          "inversion": 0.0,
+          "major_minor": 0.0,
+          "extension_or_quality": 0.0
+        },
+        "chord_regions": 24,
+        "unmatched_chord_regions": 0,
+        "mean_abs_boundary_seconds": 0.021164,
+        "mean_abs_start_seconds": 0.021345,
+        "mean_abs_end_seconds": 0.020983,
+        "confidence_values": [
+          "1.0"
+        ],
+        "confidence_note": "confidence 1.0 is the lab parser placeholder, not a measured model score.",
+        "boundary_pairs": [
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": 0.02322,
+            "end_delta_seconds": 0.017052,
+            "overlap_seconds": 3.97678
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.017052,
+            "end_delta_seconds": -0.012336,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.012336,
+            "end_delta_seconds": -0.041723,
+            "overlap_seconds": 3.958277
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.041723,
+            "end_delta_seconds": -0.001451,
+            "overlap_seconds": 3.998549
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.001451,
+            "end_delta_seconds": -0.030839,
+            "overlap_seconds": 3.969161
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.030839,
+            "end_delta_seconds": -0.037007,
+            "overlap_seconds": 3.962993
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.037007,
+            "end_delta_seconds": 0.003265,
+            "overlap_seconds": 4.0
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.003265,
+            "end_delta_seconds": -0.026122,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.026122,
+            "end_delta_seconds": -0.03229,
+            "overlap_seconds": 3.96771
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.03229,
+            "end_delta_seconds": 0.007982,
+            "overlap_seconds": 4.0
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.007982,
+            "end_delta_seconds": -0.021406,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.021406,
+            "end_delta_seconds": -0.027574,
+            "overlap_seconds": 3.972426
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.027574,
+            "end_delta_seconds": -0.010522,
+            "overlap_seconds": 3.989478
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.010522,
+            "end_delta_seconds": -0.016689,
+            "overlap_seconds": 3.983311
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.016689,
+            "end_delta_seconds": -0.046077,
+            "overlap_seconds": 3.953923
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.046077,
+            "end_delta_seconds": -0.005805,
+            "overlap_seconds": 3.994195
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.005805,
+            "end_delta_seconds": -0.011973,
+            "overlap_seconds": 3.988027
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.011973,
+            "end_delta_seconds": -0.041361,
+            "overlap_seconds": 3.958639
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.041361,
+            "end_delta_seconds": -0.001088,
+            "overlap_seconds": 3.998912
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": -0.001088,
+            "end_delta_seconds": -0.030476,
+            "overlap_seconds": 3.969524
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.030476,
+            "end_delta_seconds": -0.036644,
+            "overlap_seconds": 3.963356
+          },
+          {
+            "chord": "C:maj",
+            "start_delta_seconds": -0.036644,
+            "end_delta_seconds": 0.003628,
+            "overlap_seconds": 4.0
+          },
+          {
+            "chord": "F:maj",
+            "start_delta_seconds": 0.003628,
+            "end_delta_seconds": -0.02576,
+            "overlap_seconds": 3.970612
+          },
+          {
+            "chord": "G:maj",
+            "start_delta_seconds": -0.02576,
+            "end_delta_seconds": 0.014512,
+            "overlap_seconds": 4.0
+          }
+        ]
+      },
+      "fabricated_pattern_returned": false,
+      "peak_memory_mb": 1024.57
+    }
+  },
+  "reference_versus_04g": {
+    "available": true,
+    "source": "python_backend/research/backend_04g_decode_evidence.json results.wav",
+    "beat_max_abs_seconds": 0.0,
+    "chord_labels_equal": true,
+    "note": "Reproduction of the frozen 12-second synthetic result. Not real-music accuracy."
+  },
+  "wav_versus_mp3": {
+    "beat_count_left": 193,
+    "beat_count_right": 193,
+    "beat_max_abs_seconds": 0.01,
+    "bpm_left": 120.0,
+    "bpm_right": 120.0,
+    "chord_count_left": 25,
+    "chord_count_right": 25,
+    "chord_labels_equal": true,
+    "chord_start_max_abs_seconds": 0.0
+  },
+  "scaling": {
+    "duration_ratio_long_over_reference": 8.0,
+    "warm_beat_wall_ratio": 9.3025,
+    "warm_chord_wall_ratio": 6.8219,
+    "note": "Wall-time ratios are observed on this machine. Linear scaling is not assumed and is not extrapolated to a commercial song."
+  },
+  "peak_memory_mb": 1024.57,
+  "decoder_failures": [],
+  "timeouts": {
+    "observed_on_these_fixtures": false,
+    "gateway_bound_ms_unchanged": 300000,
+    "gateway_duration_cap_seconds_unchanged": 300
+  },
+  "failures": [],
+  "gateway": {
+    "source": "Jest mocked-identity localhost gateway on these fixtures. verifyIdToken is mocked. This is not production Firebase authentication.",
+    "firebase_identity": "MOCKED_NOT_PRODUCTION_AUTH",
+    "audio_duration_seconds": 96,
+    "timings": {
+      "long_wav": {
+        "beatsMs": 8361,
+        "chordsMs": 2206,
+        "combinedRtf": 0.11007291666666667
+      },
+      "long_mp3": {
+        "beatsMs": 8369,
+        "chordsMs": 2737,
+        "combinedRtf": 0.1156875
+      }
+    },
+    "flask_vm_hwm_kb": 1151416,
+    "flask_vm_hwm_mb": 1124.43,
+    "real_music_accuracy": "BLOCKED"
+  }
+}
