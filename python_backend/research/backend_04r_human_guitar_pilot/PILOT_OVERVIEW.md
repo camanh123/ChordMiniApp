@@ -269,6 +269,7 @@ The following stay in force:
 | Sealed evaluation split | PLAYER_B, all sessions |
 | Maximum duration | 60 seconds per take |
 | Annotation agreement | optimal one-to-one pairs at most 35 ms inclusive, agreement = matches / max(count), pass at 0.95 inclusive |
+| Reference beats | proposed midpoint of each matched pair; unmatched taps are adjudicated, not dropped or interpolated; not yet granted |
 | Latency acceptance | abs(residual_samples) / sample_rate <= 0.005; exactly 5 ms passes |
 | Channels | guitar and click recorded separately; click is absent from the model input and from the annotator mix |
 | Labels | human taps only |

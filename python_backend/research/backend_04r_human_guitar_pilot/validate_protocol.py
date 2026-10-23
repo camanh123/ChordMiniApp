@@ -276,6 +276,102 @@ def check_trim_and_latency():
         require(int(nearest) * rate / 1000 == 0, "millisecond round trip dropped the sample")
 
 
+def consensus(a_times, b_times):
+    """Midpoints of matched pairs, plus unmatched taps that must not be dropped."""
+    _cardinality, _cost, pairs = match_streams(a_times, b_times)
+    series_a = [as_decimal(value) for value in a_times]
+    series_b = [as_decimal(value) for value in b_times]
+    matched_a = {index_a for index_a, _index_b in pairs}
+    matched_b = {index_b for _index_a, index_b in pairs}
+    midpoints = [(series_a[index_a] + series_b[index_b]) / 2 for index_a, index_b in pairs]
+    unmatched = [("A", index) for index in range(len(series_a)) if index not in matched_a]
+    unmatched += [("B", index) for index in range(len(series_b)) if index not in matched_b]
+    return midpoints, unmatched
+
+
+def median_gap(times):
+    gaps = [as_decimal(times[index + 1]) - as_decimal(times[index]) for index in range(len(times) - 1)]
+    ordered = sorted(gaps)
+    return ordered[len(ordered) // 2]
+
+
+def strictly_increasing(samples):
+    return all(samples[index] < samples[index + 1] for index in range(len(samples) - 1))
+
+
+def check_consensus():
+    identical = ["0", "1", "2"]
+    midpoints, unmatched = consensus(identical, identical)
+    require(midpoints == [Decimal(value) for value in identical], "identical midpoints")
+    require(unmatched == [], "identical streams have no unmatched taps")
+    require(strictly_increasing([0, 44100, 88200]), "identical sample order")
+
+    offset_a = [Decimal(0), Decimal(1)]
+    offset_b = [Decimal("0.020"), Decimal("1.020")]
+    midpoints, unmatched = consensus(offset_a, offset_b)
+    require(midpoints == [Decimal("0.010"), Decimal("1.010")], "offset midpoints")
+    require(unmatched == [], "valid offsets stay matched")
+
+    midpoints, unmatched = consensus(["0"], ["0.035"])
+    require(midpoints == [Decimal("0.0175")], "35 ms midpoint")
+    require(unmatched == [], "35 ms pair is matched")
+
+    twenty = [str(index) for index in range(20)]
+    midpoints, unmatched = consensus(twenty, twenty[:19])
+    require(agreement(twenty, twenty[:19]) == AGREEMENT_MIN, "95 percent with a missing beat")
+    require(len(midpoints) == 19, "provisional midpoints keep the matched beats")
+    require(len(unmatched) == 1, "missing beat is retained for adjudication")
+
+    midpoints, extra = consensus(twenty[:19], twenty)
+    require(len(extra) == 1 and extra[0][0] == "B", "extra beat is retained")
+
+    midpoints, unmatched = consensus(["0", "0", "0.5"], ["0", "0.5"])
+    require(len(midpoints) == 2, "duplicate contributes one matched midpoint")
+    require(len(unmatched) == 1, "duplicate partner is not silently deleted")
+
+    quarters = [Decimal(index) * Decimal("0.6") for index in range(8)]
+    half = [time + Decimal("0.3") for time in quarters]
+    require(agreement(quarters, half) == 0, "half-beat phase has no pairs")
+    _midpoints, unmatched = consensus(quarters, half)
+    require(len(unmatched) == len(quarters) + len(half), "half-beat leaves every tap unmatched")
+
+    eighths = [Decimal(index) * Decimal("0.3") for index in range(16)]
+    require(agreement(quarters, eighths) < AGREEMENT_MIN, "different metrical levels")
+
+    stepped = []
+    for index in range(64):
+        if index <= 32:
+            stepped.append(Fraction(index * 60, 80))
+        else:
+            stepped.append(Fraction(24) + Fraction((index - 32) * 60, 100))
+    require(median_gap(stepped) / median_gap(stepped) == 1, "tempo step ratio is annotator versus annotator")
+    crossing = Fraction(60, 80) / Fraction(60, 100)
+    require(crossing == Fraction(5, 4), "beat-32 gap ratio")
+    require(not (Fraction(9, 10) <= crossing <= Fraction(11, 10)), "do not apply 0.9-1.1 to the step gap")
+    quiet = [Fraction(index * 60, 100) for index in range(64)]
+    missed_boundary = quiet[:32] + quiet[33:]
+    require(agreement(quiet, missed_boundary) == Fraction(63, 64), "bar-9 miss still passes 95 percent")
+    midpoints, unmatched = consensus(quiet, missed_boundary)
+    require(len(midpoints) == 63 and len(unmatched) == 1, "bar-9 miss is adjudicated")
+    require(quiet[32] == Fraction(192, 10), "bar-9 time stays 19.2 s")
+
+    between = consensus(["0"], [Decimal(1) / Decimal(44100)])
+    sample = round_half_away_from_zero(between[0][0] * Decimal(44100))
+    require(between[0][0] * Decimal(44100) == Decimal("0.5"), "midpoint sits between samples")
+    require(sample == 1, "half-sample tie rounds away from zero")
+
+    start_sample = 1000
+    trimmed_sample = sample
+    canonical = trimmed_sample + start_sample
+    latency_samples = 100
+    require(canonical == 1001, "trim shift")
+    require(canonical - latency_samples != canonical, "latency must not be applied twice")
+
+    collided, _unmatched = consensus(["0", "0.000001"], ["0", "0.000001"])
+    collided_samples = [round_half_away_from_zero(value * Decimal(44100)) for value in collided]
+    require(not strictly_increasing(collided_samples), "collapsed samples are not a reference series")
+
+
 def check_documents():
     overview = (ROOT / "PILOT_OVERVIEW.md").read_text()
     annotation = (ROOT / "ANNOTATION_PROTOCOL.md").read_text()
@@ -288,6 +384,11 @@ def check_documents():
     require("TAKE_REJECTED" in annotation, "rejected outcome")
     require("0.035" in annotation and "0.95" in annotation, "thresholds")
     require("greedy" in annotation, "greedy contrast missing")
+    require("midpoint" in annotation and "not human-approved" in annotation, "midpoint contract")
+    require("The midpoint of a pair is not used" not in annotation, "old reference rule remains")
+    require("not a comparison of either annotator with the tempo map" in annotation, "ratio operand")
+    require("not subtracted again" in annotation, "latency applied once")
+    require("midpoint of each matched pair" in overview, "overview reference line")
     require("[start_sample, end_sample)" in sync, "trim notation")
     require("<= 0.005" in sync or "<= 0.005" in sync.replace("≤", "<="), "latency inequality")
     require("220" in sync and "240" in sync and "27562.5" in sync, "rate examples")
@@ -304,6 +405,7 @@ def main():
         rows = list(csv.DictReader(handle))
     check_manifest(rows)
     check_matcher()
+    check_consensus()
     check_trim_and_latency()
     check_documents()
     print("validate_protocol.py: PASS")
