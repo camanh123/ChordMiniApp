@@ -1,10 +1,11 @@
 # Recording checklist
 
-Status: PLAN. NEEDS_HUMAN_APPROVAL.
+Status: PLAN. GATE-1 is PENDING_FINAL_HUMAN_APPROVAL.
 
 Twenty-four takes are planned. None is recorded. Player names are
 placeholders. Instrument, room, and microphone are `NEEDS_HUMAN_APPROVAL`.
-Tempos below match `PILOT_OVERVIEW.md` and are part of GATE-1.
+Tempos below match `PILOT_OVERVIEW.md`. Final GATE-1 approval is still
+required before any of these rows is recorded.
 
 Every take:
 
@@ -23,21 +24,40 @@ unsigned checklist alone.
 
 ## Shared musical plan
 
-| Condition | Meter | Tempo | Tempo change | Planned duration |
-| --- | --- | --- | --- | --- |
-| straight_strum | 4/4 | 100 BPM | none | 38.4 s (16 bars) |
-| fingerpicking | 4/4 | 80 BPM | none | 48.0 s (16 bars) |
-| syncopated_strum | 4/4 | 96 BPM | none | 40.0 s (16 bars) |
-| offbeat_heavy | 4/4 | 90 BPM | none | 42.667 s (16 bars) |
-| tempo_change | 4/4 | 80 BPM, then 100 BPM | step at the downbeat of bar 9 | 43.2 s |
-| quiet_and_percussive | 4/4 | 100 BPM | none; texture changes at bar 9 | 38.4 s (16 bars) |
+Every condition is 4/4, 16 bars, 64 beats, indices 0 through 63. Duration
+is `t(64)` from the tempo-map section of `PILOT_OVERVIEW.md`. The displayed
+second value is three decimal places, half-up. No take is planned past 60
+seconds.
+
+| Condition | Type | Endpoints | Bar-9 event | Exact duration | Display |
+| --- | --- | --- | --- | --- | --- |
+| straight_strum | CONSTANT | 100 BPM | none | 64 × 60 / 100 = 192/5 s | 38.400 s |
+| fingerpicking | CONSTANT | 80 BPM | none | 64 × 60 / 80 = 48 s | 48.000 s |
+| syncopated_strum | CONSTANT | 96 BPM | none | 64 × 60 / 96 = 40 s | 40.000 s |
+| offbeat_heavy | CONSTANT | 90 BPM | none | 64 × 60 / 90 = 128/3 s | 42.667 s |
+| tempo_change | STEP | 80 BPM, then 100 BPM | tempo step at beat 32 | 32 × 60 / 80 + 32 × 60 / 100 = 216/5 s | 43.200 s |
+| quiet_and_percussive | CONSTANT | 100 BPM | texture change at beat 32, tempo unchanged | 64 × 60 / 100 = 192/5 s | 38.400 s |
+
+The 42.667 s display is 128/3 seconds rounded half-up to three decimals.
+128/3 is 42.666... seconds. Calculations keep the fraction.
+
+Click events: beat indices 0 through 63 inclusive. No click at index 64.
+No ramp. DAW software is not selected. Rendering these equations is
+NEEDS_HUMAN_APPROVAL once a DAW is chosen.
 
 `offbeat_heavy`: the click is the numbered beat. The player accents the
 and-of-each-beat. The evaluation tactus is the numbered beat.
 
-`quiet_and_percussive`: one take, two sections. Bars 1–8 are quiet. Bars
-9–16 are percussive. This reading keeps the pilot at 24 takes. See the
-overview.
+`quiet_and_percussive`: one take, not two. Bars 1–8 are quiet. Bars 9–16
+are percussive. Beat 32 is exactly 19.200 seconds (96/5 s) after beat 0.
+The click does not stop or restart there. A louder attack at the boundary
+is not the definition of beat 32. Percussive noise can pull a listener
+onto a different phase; that risk is annotated under the annotation
+protocol and does not add a 25th take.
+
+`tempo_change`: beat 32 is exactly 24 seconds after beat 0. The step is
+instantaneous at that beat. The first 32 beat intervals use 80 BPM. The
+next 32 use 100 BPM. There is no ramp and no third tempo.
 
 `tempo_change`: no ramp and no third tempo.
 

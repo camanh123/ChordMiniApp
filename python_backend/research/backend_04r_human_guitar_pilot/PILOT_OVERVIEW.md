@@ -1,13 +1,16 @@
 # BACKEND-04R human guitar beat benchmark approval pack
 
-Status: PROPOSAL. NEEDS_HUMAN_APPROVAL.
+Status: PROPOSAL. GATE-1 is PENDING_FINAL_HUMAN_APPROVAL.
 
-This directory is an approval package for a future recording pilot. It is not
-permission to record, not a signed consent, and not a dataset. No audio is
-included. No performer has been identified. No signature in this directory is
-valid, because none has been signed.
+BACKEND-04R.1 incorporates a conditional technical revision. The project
+owner accepted the 24-clip structure and did not grant final GATE-1
+approval. This file is not permission to record, not a signed consent, and
+not a dataset. No audio is included. No performer has been identified. No
+signature in this directory is valid, because none has been signed. GATE-2
+through GATE-8 are PENDING.
 
-Baseline commit for this proposal: `d81e12076b850e10cfb5099fbb87f49eaba54368`.
+Baseline of the BACKEND-04R pack: `72ef9148c64f9326b400e457c0bc5851f8b5d95a`.
+Sealed model baseline under that commit: `d81e12076b850e10cfb5099fbb87f49eaba54368`.
 
 ## Research purpose
 
@@ -32,33 +35,99 @@ The minimum pilot is 24 takes:
 - Two sessions per guitarist, S1 and S2.
 - Six conditions in every session, one take each.
 
-| Condition | Proposed tempo plan | Proposed length |
+| Condition | Tempo map | Displayed length |
 | --- | --- | --- |
-| straight_strum | 100 BPM, 4/4, no change, 16 bars | 38.4 s |
-| fingerpicking | 80 BPM, 4/4, no change, 16 bars | 48.0 s |
-| syncopated_strum | 96 BPM, 4/4, no change, 16 bars | 40.0 s |
-| offbeat_heavy | 90 BPM, 4/4, no change, 16 bars | 42.667 s |
-| tempo_change | 80 BPM for bars 1–8, step to 100 BPM at the downbeat of bar 9, through bar 16 | 43.2 s |
-| quiet_and_percussive | 100 BPM, 4/4, no change, 16 bars; bars 1–8 quiet, bars 9–16 percussive | 38.4 s |
+| straight_strum | CONSTANT 100 BPM, 4/4, 16 bars, 64 beats | 38.400 s |
+| fingerpicking | CONSTANT 80 BPM, 4/4, 16 bars, 64 beats | 48.000 s |
+| syncopated_strum | CONSTANT 96 BPM, 4/4, 16 bars, 64 beats | 40.000 s |
+| offbeat_heavy | CONSTANT 90 BPM, 4/4, 16 bars, 64 beats | 42.667 s |
+| tempo_change | STEP, 80 BPM for beats 0–31, 100 BPM from beat 32 | 43.200 s |
+| quiet_and_percussive | CONSTANT 100 BPM, 4/4, 16 bars, 64 beats; texture changes at beat 32 | 38.400 s |
 
-Every proposed length is under the 60-second cap. These tempos, the meter,
-and the bar counts are a proposal. They are NEEDS_HUMAN_APPROVAL before a
-session is scheduled. A human may replace them only by editing this overview,
-the recording checklist, and the manifest template together.
+Displayed lengths use three decimal places, half-up. Exact values are in
+the tempo-map section. Every length is under 60 seconds. Tempos were not
+chosen to favor a model. They remain NEEDS_HUMAN_APPROVAL as part of final
+GATE-1. A human may replace them only by editing this overview, the
+recording checklist, the manifest template, and `validate_protocol.py`
+together. No DAW has been selected. The equations below are vendor-neutral.
+Whether a particular DAW renders them unchanged is NEEDS_HUMAN_APPROVAL.
 
 PLAYER_A is the development split. PLAYER_B is the sealed evaluation split.
 Real names are unknown and are left blank in the consent template.
 
-### Sixth-condition ambiguity
+### Sixth condition
 
-BACKEND-04Q described the sixth slot as "a quiet take plus a percussive
-take" and also fixed the pilot at 24 takes, which is two players times two
-sessions times six conditions. This pack keeps the count at 24 by planning
-one take that contains both a quiet section and a percussive section, with
-the section boundary written in the tempo map before recording. Splitting
-that slot into two takes would make 28 takes or would require dropping
-another condition. That change is NEEDS_HUMAN_APPROVAL and is not authorized
-by this draft.
+The sixth condition stays one take. Bars 1–8 are quiet articulation. Bars
+9–16 are percussive articulation. It is not split into two recordings.
+
+The meter and the tactus stay 4/4 at 100 BPM through the boundary. There is
+no silent tempo reset at bar 9. The click continues without a gap. Bar 9
+begins at beat index 32, which is exactly 19.200 seconds after beat 0.
+A model prediction does not place that boundary. A louder transient is not
+a beat by itself.
+
+The intensity change can still confuse the tactus. Percussive attacks may
+land off the numbered beat, or they may sound like a new downbeat, so two
+listeners can lock onto different phases after bar 9 even though the click
+did not move. That risk is recorded here and does not change the 24-take
+structure. `ANNOTATION_PROTOCOL.md` says when that ambiguity rejects the
+take.
+
+### Tempo map
+
+Beat index 0 is the downbeat of bar 1, at time 0 on the tempo-map clock,
+before latency compensation and trim. Each bar holds 4 beats. Sixteen bars
+hold 64 beats, indices 0 through 63. The take ends at the time where beat
+index 64 would fall. Beat 64 is the downbeat of a bar 17 that is not played
+and is not a click.
+
+For a CONSTANT map at `BPM`:
+
+```
+t(n) = n × 60 / BPM
+duration = t(64) = 64 × 60 / BPM
+```
+
+For the STEP map, beats 0 through 31 use 80 BPM and beats 32 through 63 use
+100 BPM. The position of beat 32 is still computed from the first section:
+
+```
+t(n) = n × 60 / 80                         for 0 ≤ n ≤ 32
+t(n) = 24 + (n − 32) × 60 / 100            for 32 ≤ n ≤ 64
+duration = t(64) = 24 + 19.2 = 43.2 seconds exactly
+```
+
+There is no RAMP in this pilot. A ramp is not authorized. Linear BPM over
+time and linear BPM over beats are different conventions and must not be
+mixed. If a later approval adds a ramp, that convention is
+NEEDS_HUMAN_APPROVAL and has to be written before recording.
+
+The click grid is one event at each beat index 0, 1, ..., 63. That is 64
+clicks. Downbeats are indices 0, 4, 8, ..., 60. The bar-9 downbeat is index
+32. No click is placed at index 64.
+
+Exact durations:
+
+| Condition | Equation | Exact seconds | Display |
+| --- | --- | --- | --- |
+| straight_strum | 64 × 60 / 100 | 192/5 | 38.400 s |
+| fingerpicking | 64 × 60 / 80 | 48 | 48.000 s |
+| syncopated_strum | 64 × 60 / 96 | 40 | 40.000 s |
+| offbeat_heavy | 64 × 60 / 90 | 128/3 | 42.667 s |
+| tempo_change | 32 × 60 / 80 + 32 × 60 / 100 | 216/5 | 43.200 s |
+| quiet_and_percussive | 64 × 60 / 100 | 192/5 | 38.400 s |
+
+The previous 42.667 second figure for 16 bars of 4/4 at 90 BPM is this
+display rounding of 128/3, which is 42.666... seconds. It is not a second,
+rougher estimate. Full-precision timestamps keep 128/3. Rounding is applied
+only when a document shows three decimal places.
+
+Sample indices for the click are computed only after a person chooses the
+sample rate. Until then the rate is NEEDS_HUMAN_APPROVAL. The conversion
+rule is in `SYNC_AND_LATENCY_QA.md`. At 44100 Hz the 96 BPM grid places
+beat 1 halfway between two samples, so a DAW that truncates and a DAW that
+rounds can differ by one sample. That compatibility check is
+NEEDS_HUMAN_APPROVAL after the DAW is chosen.
 
 ### Offbeat relationship
 
@@ -138,9 +207,10 @@ was written down before the first take of that session.
 
 ## Acceptance criteria
 
-This documentation phase is accepted when the seven files in this directory
-agree on the constants below. It does not require a recording, a signature,
-or a recruited player.
+This documentation revision is consistent when the files in this directory
+agree on the constants below and `validate_protocol.py` passes. It does not
+grant GATE-1, and it does not require a recording, a signature, or a
+recruited player.
 
 A future recording phase, which is not started here, is accepted only when:
 
@@ -157,14 +227,14 @@ No future phase may treat these as already granted.
 
 | Gate | Required human act | Status |
 | --- | --- | --- |
-| GATE-1 | Project owner approves this scope, including the proposed tempos and the one-take reading of the quiet/percussive slot | NEEDS_HUMAN_APPROVAL |
-| GATE-2 | Two real performers are identified and assigned to PLAYER_A and PLAYER_B | NEEDS_HUMAN_APPROVAL |
-| GATE-3 | Each performer signs `PERFORMER_CONSENT_TEMPLATE.md` | NEEDS_HUMAN_APPROVAL |
-| GATE-4 | Composition rights for every take are recorded on `COMPOSITION_RIGHTS_TEMPLATE.md` | NEEDS_HUMAN_APPROVAL |
-| GATE-5 | Equipment and separate-channel routing are verified, including headphone click and a successful loopback | NEEDS_HUMAN_APPROVAL |
-| GATE-6 | Two annotators and one dispute reviewer are named | NEEDS_HUMAN_APPROVAL |
-| GATE-7 | PLAYER_B is assigned to sealed evaluation before any model scoring | NEEDS_HUMAN_APPROVAL |
-| GATE-8 | Storage location, access list, and privacy arrangements are approved | NEEDS_HUMAN_APPROVAL |
+| GATE-1 | Project owner gives final approval of this revised scope, the tempo equations, the matcher, and the trim convention | PENDING_FINAL_HUMAN_APPROVAL |
+| GATE-2 | Two real performers are identified and assigned to PLAYER_A and PLAYER_B | PENDING |
+| GATE-3 | Each performer signs `PERFORMER_CONSENT_TEMPLATE.md` | PENDING |
+| GATE-4 | Composition rights for every take are recorded on `COMPOSITION_RIGHTS_TEMPLATE.md` | PENDING |
+| GATE-5 | Equipment and separate-channel routing are verified, including headphone click and a successful loopback | PENDING |
+| GATE-6 | Two annotators and one dispute reviewer are named | PENDING |
+| GATE-7 | PLAYER_B is assigned to sealed evaluation before any model scoring | PENDING |
+| GATE-8 | Storage location, access list, and privacy arrangements are approved | PENDING |
 
 ## Research integrity
 
@@ -198,8 +268,8 @@ The following stay in force:
 | Development split | PLAYER_A, all sessions |
 | Sealed evaluation split | PLAYER_B, all sessions |
 | Maximum duration | 60 seconds per take |
-| Annotation agreement | absolute tap difference at most 35 ms on at least 95 percent of beats, using the pairing rule in the annotation protocol |
-| Latency rejection | residual strictly greater than 5 ms rejects the session |
+| Annotation agreement | optimal one-to-one pairs at most 35 ms inclusive, agreement = matches / max(count), pass at 0.95 inclusive |
+| Latency acceptance | abs(residual_samples) / sample_rate <= 0.005; exactly 5 ms passes |
 | Channels | guitar and click recorded separately; click is absent from the model input and from the annotator mix |
 | Labels | human taps only |
 
@@ -207,14 +277,13 @@ The following stay in force:
 
 These are written down so a later editor does not fill them in silently.
 
-- Sample rate and bit depth: NEEDS_HUMAN_APPROVAL. The 5 ms test is defined
-  in seconds in the latency protocol so it does not depend on rounding a
-  half sample at 44100 Hz.
-- How two tap streams are paired, and what the 95 percent denominator is:
-  a proposed formula is in `ANNOTATION_PROTOCOL.md` and is itself
-  NEEDS_HUMAN_APPROVAL.
-- Whether a trim interval is half-open: proposed as half-open
-  `[start, end)` in the latency protocol, NEEDS_HUMAN_APPROVAL.
+- Sample rate, bit depth, and which DAW renders the tempo equations:
+  NEEDS_HUMAN_APPROVAL. The 5 ms test is defined in seconds. At 44100 Hz
+  the largest integer residual that still passes is 220 samples. At 48000
+  Hz, 240 samples is exactly 5 ms and passes.
+- The matcher, the 95 percent denominator, and the half-open trim
+  `[start_sample, end_sample)` are now specified. They are still part of
+  final GATE-1 and are not granted by this revision.
 - Click-bleed judgment is a human listening check. No decibel threshold is
   set, because none was measured.
 - Legal effect of withdrawal after an analysis number has been written:
@@ -230,5 +299,10 @@ These are written down so a later editor does not fill them in silently.
 - `RECORDING_CHECKLIST.md` — the 24 planned takes.
 - `ANNOTATION_PROTOCOL.md` — human beat labels and rejection rules.
 - `SYNC_AND_LATENCY_QA.md` — loopback, trim, and bleed rules.
-- `DATA_MANIFEST_TEMPLATE.csv` — one row per planned take, evidence
-  `NOT_COLLECTED` or `NEEDS_HUMAN_APPROVAL`.
+- `DATA_MANIFEST_TEMPLATE.csv` — one row per planned take. Planned timing
+  fields are filled. Measured evidence stays `NOT_COLLECTED`. Consent,
+  composition rights, instrument, room, and sample rate stay
+  `NEEDS_HUMAN_APPROVAL`.
+- `validate_protocol.py` — checks the 24-row plan, the tempo arithmetic,
+  the matcher, the trim examples, and the 5 ms threshold. It does not
+  record or score audio.
