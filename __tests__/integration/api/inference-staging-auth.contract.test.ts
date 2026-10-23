@@ -100,6 +100,8 @@ describe('MOCKED Firebase staging gate on inference routes', () => {
     process.env.FIREBASE_SERVICE_ACCOUNT_KEY = FAKE_ADMIN;
     process.env.PYTHON_API_URL = 'http://127.0.0.1:5001';
     delete process.env.CHORDMINI_DESKTOP_MODE;
+    delete process.env.CHORDMINI_HOSTED_GATEWAY_URL;
+    delete process.env.CHORDMINI_HOSTED_GATEWAY_TEST_LOOPBACK;
     global.fetch = fetchMock as never;
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'warn').mockImplementation(() => {});

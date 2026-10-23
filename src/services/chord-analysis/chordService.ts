@@ -10,6 +10,7 @@ import { createSafeTimeoutSignal } from '@/utils/environmentUtils';
 import { offloadUploadService } from '@/services/storage/offloadUploadService';
 import type { ChordDetectorType, ChordDetectionResult, ChordRecognitionBackendResponse } from '@/types/audioAnalysis';
 import { analysisServiceError, readAnalysisServiceFailure } from '@/utils/analysisServiceError';
+import { inferenceAuthorizationHeader } from '@/services/audio/inferenceUserToken';
 
 /**
  * Recognize chords from a File with rate limiting.
@@ -51,7 +52,12 @@ export async function recognizeChordsWithRateLimit(
     const abortSignal = createSafeTimeoutSignal(timeoutValue);
 
     // Request
-    const response = await fetch(endpoint, { method: 'POST', body: formData, signal: abortSignal });
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      body: formData,
+      headers: await inferenceAuthorizationHeader(),
+      signal: abortSignal,
+    });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
       const availability = readAnalysisServiceFailure(errorData);

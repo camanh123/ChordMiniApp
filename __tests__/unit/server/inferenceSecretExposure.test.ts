@@ -70,12 +70,23 @@ describe('SECRET EXPOSURE public runtime and client sources', () => {
       `${path.sep}src${path.sep}app${path.sep}api${path.sep}recognize-chords${path.sep}`,
     ];
 
+    const gatewayAllowed = [
+      ...allowed,
+      `${path.sep}src${path.sep}app${path.sep}api${path.sep}config${path.sep}`,
+    ];
+
     const offenders = files.filter((file) => {
       const text = fs.readFileSync(file, 'utf8');
-      if (!text.includes('CHORDMINI_INFERENCE_SECRET') && !text.includes('CHORDMINI_STAGING_ALLOWED_UIDS')) {
-        return false;
+      const mentionsSecret = text.includes('CHORDMINI_INFERENCE_SECRET')
+        || text.includes('CHORDMINI_STAGING_ALLOWED_UIDS');
+      const mentionsGateway = text.includes('CHORDMINI_HOSTED_GATEWAY_URL');
+      if (mentionsSecret && !allowed.some((prefix) => file.includes(prefix))) {
+        return true;
       }
-      return !allowed.some((prefix) => file.includes(prefix));
+      if (mentionsGateway && !gatewayAllowed.some((prefix) => file.includes(prefix))) {
+        return true;
+      }
+      return false;
     });
 
     expect(offenders).toEqual([]);

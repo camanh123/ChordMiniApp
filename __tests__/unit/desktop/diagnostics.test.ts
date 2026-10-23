@@ -32,6 +32,18 @@ describe('desktop diagnostics', () => {
     expect(sanitized).toContain('ready');
   });
 
+  it('redacts a hosted gateway URL from diagnostics', () => {
+    const gateway = 'https://gateway.example.test';
+    const env = { CHORDMINI_HOSTED_GATEWAY_URL: gateway };
+    const sanitized = sanitizeDiagnostic(
+      `CHORDMINI_HOSTED_GATEWAY_URL=${gateway} ready`,
+      secretsFromEnv(env),
+    );
+
+    expect(sanitized).not.toContain(gateway);
+    expect(sanitized).toContain('CHORDMINI_HOSTED_GATEWAY_URL=[redacted]');
+  });
+
   it('redacts a staging uid allowlist from diagnostics', () => {
     const allowlist = 'owner-uid-0123456789abcdef';
     const env = { CHORDMINI_STAGING_ALLOWED_UIDS: allowlist };

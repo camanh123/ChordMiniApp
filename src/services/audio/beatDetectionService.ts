@@ -9,6 +9,7 @@ import {
   fetchModelInfoPayload,
 } from '@/services/query/modelInfo';
 import { analysisServiceError, readAnalysisServiceFailure } from '@/utils/analysisServiceError';
+import { inferenceAuthorizationHeader } from '@/services/audio/inferenceUserToken';
 
 // Interface for Python backend beat detection response
 export interface BeatDetectionBackendResponse {
@@ -176,7 +177,7 @@ export async function detectBeatsWithRateLimit(
       ? await getAppCheckTokenForApi()
       : null;
 
-    const headers: HeadersInit = {};
+    const headers: Record<string, string> = await inferenceAuthorizationHeader();
     if (appCheckToken) {
       headers['X-Firebase-AppCheck'] = appCheckToken;
     }
@@ -371,7 +372,7 @@ export async function detectBeatsFromPath(
       ? await getAppCheckTokenForApi()
       : null;
 
-    const headers: HeadersInit = {};
+    const headers: Record<string, string> = await inferenceAuthorizationHeader();
     if (appCheckToken) {
       headers['X-Firebase-AppCheck'] = appCheckToken;
     }

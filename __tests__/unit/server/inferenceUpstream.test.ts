@@ -124,10 +124,12 @@ describe('CONTRACT inference forwarder', () => {
   it('removes inference secrets from the desktop child environment', () => {
     const child = omitDesktopInferenceSecret({
       PYTHON_API_URL: 'http://127.0.0.1:5001',
+      CHORDMINI_HOSTED_GATEWAY_URL: 'https://gateway.example',
       CHORDMINI_INFERENCE_SECRET: SECRET,
       NEXT_PUBLIC_CHORDMINI_INFERENCE_SECRET: SECRET,
     });
     expect(child.PYTHON_API_URL).toBe('http://127.0.0.1:5001');
+    expect(child.CHORDMINI_HOSTED_GATEWAY_URL).toBe('https://gateway.example');
     expect(child.CHORDMINI_INFERENCE_SECRET).toBeUndefined();
     expect(child.NEXT_PUBLIC_CHORDMINI_INFERENCE_SECRET).toBeUndefined();
   });

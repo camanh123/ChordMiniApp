@@ -24,7 +24,9 @@ function isSensitiveConfigKey(key: string): boolean {
     || key.endsWith('_PRIVATE_KEY')
     || key === 'PYTHON_API_URL'
     || key === 'SONGFORMER_API_URL'
-    || key === 'SHEETSAGE_API_URL';
+    || key === 'SHEETSAGE_API_URL'
+    || key.includes('HOSTED_GATEWAY')
+    || key.includes('STAGING_ALLOWED');
 }
 
 /**

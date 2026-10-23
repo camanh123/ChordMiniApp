@@ -14,6 +14,7 @@ import {
   upstreamAuthFailure,
 } from '@/server/inferenceUpstream';
 import { gateHostedStagingThenForward } from '@/server/hostedStagingAuth';
+import { desktopHostedGatewayResponse } from '@/server/hostedGatewayForward';
 
 
 
@@ -31,6 +32,11 @@ export async function POST(request: NextRequest) {
     const appCheck = await verifyAppCheckRequest(request);
     if (!appCheck.ok) {
       return NextResponse.json({ success: false, error: appCheck.error }, { status: appCheck.status || 403 });
+    }
+
+    const hostedGateway = await desktopHostedGatewayResponse(request, 'chords');
+    if (hostedGateway) {
+      return hostedGateway;
     }
 
     const unavailable = await analysisServiceGateResponse();

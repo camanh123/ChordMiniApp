@@ -30,6 +30,14 @@ jest.mock('@/utils/modelFiltering', () => ({
   getSafeChordModel: jest.fn(),
 }));
 
+const mockWaitForAuthState = jest.fn(async () => false);
+const mockGetCurrentAuthUser = jest.fn(() => null);
+
+jest.mock('@/config/firebase', () => ({
+  waitForAuthState: (...args: unknown[]) => mockWaitForAuthState(...args),
+  getCurrentAuthUser: () => mockGetCurrentAuthUser(),
+}));
+
 describe('chordService', () => {
   const makeFile = (size = 256, name = 'audio.wav') =>
     new File([new Uint8Array(size)], name, { type: 'audio/wav' });
@@ -44,6 +52,8 @@ describe('chordService', () => {
     jest.spyOn(console, 'error').mockImplementation(() => {});
     jest.spyOn(console, 'log').mockImplementation(() => {});
 
+    mockWaitForAuthState.mockResolvedValue(false);
+    mockGetCurrentAuthUser.mockReturnValue(null);
     (getChordRecognitionEndpoint as jest.Mock).mockImplementation((model: string) => `/api/${model}`);
     (getSafeChordModel as jest.Mock).mockImplementation((model: string) => model);
     (createSafeTimeoutSignal as jest.Mock).mockReturnValue(new AbortController().signal);
@@ -138,6 +148,48 @@ describe('chordService', () => {
       'chord-cnn-lstm',
       { deleteAfterProcessing: true }
     );
+  });
+
+  it('sends the current firebase id token and does not send a uid', async () => {
+    mockWaitForAuthState.mockResolvedValue(true);
+    mockGetCurrentAuthUser.mockReturnValue({
+      getIdToken: async () => 'header.payload.signature',
+    } as never);
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        chords: [{ start: 0, end: 1, chord: 'C' }],
+      }),
+    } as any);
+
+    await recognizeChordsWithRateLimit(makeFile(), 'chord-cnn-lstm');
+
+    const init = fetchSpy.mock.calls[0][1];
+    const body = init.body as FormData;
+    expect(init.headers).toEqual({ Authorization: 'Bearer header.payload.signature' });
+    expect(body.get('uid')).toBeNull();
+    expect(body.get('file')).toBeInstanceOf(File);
+    expect(body.get('detector')).toBe('chord-cnn-lstm');
+  });
+
+  it('omits the bearer header when the firebase user or token is unavailable', async () => {
+    mockGetCurrentAuthUser.mockReturnValue({
+      getIdToken: async () => {
+        throw Object.assign(new Error('expired'), { code: 'auth/id-token-expired' });
+      },
+    } as never);
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        chords: [{ start: 0, end: 1, chord: 'C' }],
+      }),
+    } as any);
+
+    await recognizeChordsWithRateLimit(makeFile(), 'chord-cnn-lstm');
+
+    expect(fetchSpy.mock.calls[0][1].headers).toEqual({});
   });
 
   it('throws when offload chord payload is malformed', async () => {

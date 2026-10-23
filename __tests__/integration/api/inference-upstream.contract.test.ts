@@ -105,6 +105,8 @@ describe('CONTRACT mocked Next.js to Flask inference', () => {
     delete process.env.CHORDMINI_DESKTOP_MODE;
     delete process.env.CHORDMINI_HOSTED_STAGING_AUTH;
     delete process.env.CHORDMINI_STAGING_ALLOWED_UIDS;
+    delete process.env.CHORDMINI_HOSTED_GATEWAY_URL;
+    delete process.env.CHORDMINI_HOSTED_GATEWAY_TEST_LOOPBACK;
     process.env.PYTHON_API_URL = 'http://127.0.0.1:5001';
     global.fetch = fetchMock as never;
     mockCreateSafeTimeoutSignal.mockReturnValue(new AbortController().signal);

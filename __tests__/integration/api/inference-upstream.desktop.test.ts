@@ -65,6 +65,8 @@ describe('CONTRACT desktop inference boundary', () => {
     delete process.env.CHORDMINI_DESKTOP_MODE;
     delete process.env.CHORDMINI_HOSTED_STAGING_AUTH;
     delete process.env.CHORDMINI_STAGING_ALLOWED_UIDS;
+    delete process.env.CHORDMINI_HOSTED_GATEWAY_URL;
+    delete process.env.CHORDMINI_HOSTED_GATEWAY_TEST_LOOPBACK;
     delete process.env.PYTHON_API_URL;
     global.fetch = fetchMock as never;
     jest.spyOn(console, 'log').mockImplementation(() => {});
