@@ -150,11 +150,20 @@ Agreement does not prove they found the intended tactus. After both streams
 are stored, a QA pass that the annotators do not see during tapping computes
 four diagnostics. None of them moves a timestamp.
 
-- Interval ratio. Median gap between consecutive taps in A, divided by the
-  same median in B. A ratio from 0.9 through 1.1 is the same subdivision
-  rate. A ratio from 0.45 through 0.55, or from 1.8 through 2.2, means one
-  stream is tapping about twice as fast as the other. That is an alternating
-  metrical level, including quarters against eighths.
+- Interval ratio. This compares the two annotators with each other. It is
+  the median gap between consecutive taps in A, divided by the same median
+  in B. It is not a comparison of either annotator with the tempo map, and
+  it is not a comparison of one inter-tap gap with the next gap inside a
+  single stream. A ratio from 0.9 through 1.1 is the same subdivision rate.
+  A ratio from 0.45 through 0.55, or from 1.8 through 2.2, means one stream
+  is tapping about twice as fast as the other. That is an alternating
+  metrical level, including quarters against eighths. The 0.9–1.1 band is
+  unchanged and still needs final GATE-1 approval. On `tempo_change`, both
+  annotators who follow 80 BPM and then 100 BPM have the same median gap, so
+  the ratio stays 1 and the step is not rejected. The gap that crosses beat
+  32 changes from 0.75 s to 0.60 s, a ratio of 1.25. That local change must
+  not be run through the 0.9–1.1 band. The tempo map may be read after
+  tapping to name beat 32. It does not replace a human time.
 - Half-period phase against the click. For each human tap, take the signed
   offset to the nearest click time. If the median absolute offset is within
   35 ms, that stream sits on the click tactus. If it sits within 35 ms of
@@ -177,43 +186,80 @@ onto the labels.
 
 | Outcome | When |
 | --- | --- |
-| TAKE_ACCEPTED | Numeric agreement is at least 0.95, the interval ratio is inside 0.9 to 1.1, the half-beat diagnostic is not "both on the half-beat," bar flags do not show a shifted cycle, and neither annotator reported an unrecoverable loss of tactus. |
-| TAKE_REVIEW_REQUIRED | The numeric test failed, but the streams are not empty and are not a pure half-beat opposition; or both annotators landed on the half-beat together; or the interval ratio shows two metrical levels; or a transition note says the bar-9 texture change broke the pulse. |
-| TAKE_REJECTED | Either stream is empty; the reviewer cannot confirm one tactus; annotators were tapping onsets or heard the click or a model; click bleed; duration over 60 seconds; an unintended meter change; an unplanned tempo discontinuity; the bar-9 boundary in the files is not beat 32 of the tempo map; or the take is a duplicate or lacks composition rights. |
+| TAKE_ACCEPTED | Numeric agreement is at least 0.95, every tap is in a matched pair or an unmatched tap was explicitly resolved, the interval ratio is inside 0.9 to 1.1, the streams are not on different tactus levels, and the reference samples defined below are strictly increasing. |
+| TAKE_REVIEW_REQUIRED | Agreement is at least 0.95 but at least one tap is unmatched; or the numeric test failed and both streams are non-empty; or the interval ratio shows two metrical levels; or the taps are a half-beat apart; or a note says the beat-32 step or the bar-9 texture change broke the pulse; or rounded reference samples collide or go backwards. |
+| TAKE_REJECTED | Either stream is empty; the reviewer cannot resolve an unmatched tap or cannot confirm one tactus; annotators were tapping onsets or heard the click or a model; click bleed; duration over 60 seconds; an unintended meter change; an unplanned tempo discontinuity; the bar-9 boundary in the files is not beat 32 of the tempo map; or the take is a duplicate or lacks composition rights. |
 
 TAKE_ACCEPTED is a proposal outcome. No take has this status. The manifest
 field `final_acceptance_status` stays `NOT_COLLECTED`.
 `annotation_qa_status` stays `NOT_COLLECTED`.
 
-On TAKE_ACCEPTED without a reviewer, the reference times are the matched
-taps of the annotator with the lexicographically smaller annotator ID.
-Unmatched extras are not reference beats. The midpoint of a pair is not
-used. On acceptance after review, the reference times are the reviewer's
-taps that matched the partner stream which reached 0.95. This choice of
-which stream is kept is part of final GATE-1 and is not granted yet.
+## Reference beats
+
+This contract is a proposal. It is not human-approved. GATE-1 remains
+PENDING_FINAL_HUMAN_APPROVAL. No reference series in this repository has
+been built, because no taps exist.
+
+When the numeric test passes and the metrical checks agree, each accepted
+matched pair proposes one reference time: the midpoint of the two
+timestamps. Pair `k` keeps beat index `k` in matcher order, which is
+chronological. The click, Madmom, Beat This, and any other model do not
+choose that time and do not move it afterward.
+
+Unmatched taps are not deleted and are not filled by interpolation. A take
+with agreement of at least 0.95 and one unmatched tap, including 19 matches
+out of 20, is TAKE_REVIEW_REQUIRED. The 19 midpoints stay provisional. They
+are not an authoritative series until the unmatched tap is explicitly kept
+or rejected.
+
+The authoritative series exists only for TAKE_ACCEPTED. It is the midpoints
+of the surviving matched pairs, followed by any reviewer time added for a
+resolved unmatched tap, in time order. A reviewer time is that person's
+guitar-only tap. It is not a midpoint with a missing partner, and it is not
+the nearest click or model beat.
+
+## Timestamp precision
+
+Midpoints are computed in exact decimal seconds on the trimmed guitar
+timeline: `(time_A + time_B) / 2`. Intermediate values are not rounded to
+milliseconds.
+
+Conversion to a sample index happens once, after the midpoint exists, and
+only if a sample rate has been chosen. The rate is still
+NEEDS_HUMAN_APPROVAL. The index on the trimmed timeline is
+`round_half_away_from_zero(midpoint_seconds × sample_rate)`. A tie at
+`n + 0.5` samples rounds away from zero, so a positive tie moves to `n + 1`.
+
+Those trimmed indices must be strictly increasing. A repeated index or a
+reversal is not a reference series. It is TAKE_REVIEW_REQUIRED, and
+TAKE_REJECTED if a reviewer cannot make the indices strictly increasing
+without the click or a model.
+
+The annotators already heard the trimmed file, so latency compensation is
+already inside that file. Mapping back to the canonical timeline is
+`canonical_sample = trimmed_sample + start_sample`. `latency_samples` is
+not subtracted again. The trim remains `[start_sample, end_sample)`.
 
 ## Third reviewer
 
 The reviewer is used only for TAKE_REVIEW_REQUIRED, and only if GATE-6 has
-named them. They tap once, guitar only, no click, no tempo map, no MIDI, no
-Madmom, no Beat This, and no other tracker. Their stream is not chosen
-because it is closer to a model. Distance to a model is not computed for
-this decision.
+named them. They hear the guitar-only file. They do not hear the click.
+They do not see the tempo map, MIDI, Madmom, Beat This, or any other
+tracker. A candidate is not kept because it is closer to a model or to the
+click. That distance is not computed.
 
-Recompute agreement between the reviewer and annotator A, and between the
-reviewer and annotator B, with the same matcher. Also repeat the metrical
-diagnostics against the click. The take becomes TAKE_ACCEPTED only if at
-least one of those pairs meets the TAKE_ACCEPTED tests, with the reviewer
-as one side. The kept label stream is the reviewer stream. If neither pair
-qualifies, the take is TAKE_REJECTED.
+| Dispute | What the reviewer does | Result |
+| --- | --- | --- |
+| Missing or extra tap, including a duplicate timestamp left unmatched | For each unmatched tap, explicitly confirm one guitar-only time or explicitly reject that tap. Do not invent the time by interpolating its neighbors. | TAKE_ACCEPTED only if every unmatched tap is resolved and the sample indices are strictly increasing. Otherwise TAKE_REJECTED. |
+| Timing already inside 35 ms | No reviewer. The midpoint is the proposal. | TAKE_ACCEPTED when the other acceptance tests pass. |
+| Half-beat phase, or two metrical levels | Tap the whole guitar-only file once. | Midpoints are formed with the annotator they match at 0.95 or above on the same metrical level. If neither annotator qualifies, TAKE_REJECTED. |
+| Tempo step at beat 32 | Review only the unmatched taps around that beat, if any. A followed 80-to-100 step is not itself a dispute. | Same unmatched-tap rule. The tempo map is not copied over the taps. |
+| Bar-9 quiet-to-percussive change | Review unmatched taps around beat 32. A louder attack is not automatically the beat. | Same unmatched-tap rule. |
+| Reviewer still cannot name one tactus | Stop. | TAKE_REJECTED. |
 
-The reviewer does not average the original streams. Averaging is not
-permitted.
-
-If the dispute is which pulse is the tactus, including the numbered beat
-versus the offbeat accent or a phase jump at bar 9, and the reviewer cannot
-hear one tactus through the take, the result is TAKE_REJECTED. The click is
-not moved to match the accents.
+For `offbeat_heavy`, the pre-registered tactus is the numbered beat, not the
+accent. If the reviewer cannot hear that numbered pulse in the guitar, the
+take is TAKE_REJECTED. Confirmed human times are not slid onto the click.
 
 ## Tempo-map storage
 
