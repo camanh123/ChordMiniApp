@@ -1,0 +1,11 @@
+{
+  "acceptance_gate_passed": false,
+  "candidate_decision": "REJECT",
+  "control_integrity": true,
+  "evidence_sha256": "951d61a9d2e6a05a42dfa6c37abd33eb7d7efedacef378d58f315d51dde75b40",
+  "locked_run_allowed": false,
+  "triggered_ids": [
+    "01_Funk1-97-C_comp",
+    "01_Funk3-98-A_comp"
+  ]
+}
