@@ -1,0 +1,583 @@
+{
+  "firebase_identity": "NOT_USED_IN_THIS_PROCESS",
+  "listener": "none",
+  "fixtures": {
+    "wav": {
+      "path": "/tmp/chordmini-04g/master.wav",
+      "bytes": 529244,
+      "sha256": "9f28c07ea70690c82a1b7b4b883ab0624489020950e782210dbddaeab1b73914",
+      "channels_generated": 1,
+      "provenance": "Synthetic C/F/G triads and 120 BPM clicks from run_minimum_inference.write_fixture, then LAME via ffmpeg libmp3lame. No external recording.",
+      "codec": "pcm_s16le",
+      "sample_rate": 22050,
+      "channels": 1,
+      "duration_seconds": 12.0,
+      "decoded_samples": 264600,
+      "decoded_rate": 22050,
+      "decoded_seconds": 12.0,
+      "peak_abs": 0.799957,
+      "generator_sha256": "9f28c07ea70690c82a1b7b4b883ab0624489020950e782210dbddaeab1b73914",
+      "click_interval_seconds": 0.5
+    },
+    "mp3": {
+      "path": "/tmp/chordmini-04g/lame.mp3",
+      "bytes": 193514,
+      "sha256": "8965393f4a6b5b477ea312f46f3354d662b43d228b7f77bfdd9001a802123c29",
+      "channels_generated": 1,
+      "provenance": "Synthetic C/F/G triads and 120 BPM clicks from run_minimum_inference.write_fixture, then LAME via ffmpeg libmp3lame. No external recording.",
+      "codec": "mp3",
+      "sample_rate": 22050,
+      "channels": 1,
+      "duration_seconds": 12.068571,
+      "decoded_samples": 264600,
+      "decoded_rate": 22050,
+      "decoded_seconds": 12.0,
+      "peak_abs": 0.759923
+    },
+    "large_id3": {
+      "path": "/tmp/chordmini-04g/lame-id3.mp3",
+      "bytes": 198564,
+      "sha256": "2536dfb5182015ea3d3e9377f9e72a2224332c5452a94efa4751ad10b736182c",
+      "channels_generated": 1,
+      "provenance": "Synthetic C/F/G triads and 120 BPM clicks from run_minimum_inference.write_fixture, then LAME via ffmpeg libmp3lame. No external recording.",
+      "codec": "mp3",
+      "sample_rate": 22050,
+      "channels": 1,
+      "duration_seconds": 12.068571,
+      "decoded_samples": 264600,
+      "decoded_rate": 22050,
+      "decoded_seconds": 12.0,
+      "peak_abs": 0.759923
+    },
+    "ground_truth": {
+      "regions": [
+        {
+          "start": 0.0,
+          "end": 4.0,
+          "chord": "C:maj"
+        },
+        {
+          "start": 4.0,
+          "end": 8.0,
+          "chord": "F:maj"
+        },
+        {
+          "start": 8.0,
+          "end": 12.0,
+          "chord": "G:maj"
+        }
+      ],
+      "bpm": 120.0,
+      "confidence_note": "Chord-CNN-LSTM confidence 1.0 is the lab parser placeholder, not a measured score."
+    }
+  },
+  "flask_sniff": {
+    "wav": "wav",
+    "mp3": "mp3",
+    "large_id3": "mp3"
+  },
+  "model_init_seconds": 0.0015,
+  "cold_wav_pass_seconds": 3.3632,
+  "warm_wav": {
+    "beat_wall_seconds": 1.0568,
+    "chord_wall_seconds": 0.2577,
+    "beats": {
+      "success": true,
+      "beats": [
+        0.0,
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.49,
+        4.99,
+        5.49,
+        5.99,
+        6.49,
+        6.99,
+        7.49,
+        7.99,
+        8.49,
+        8.99,
+        9.49,
+        9.99,
+        10.49,
+        10.99,
+        11.49,
+        11.99
+      ],
+      "downbeats": [
+        0.0,
+        2.0,
+        4.0,
+        5.99,
+        7.99,
+        9.99,
+        11.99
+      ],
+      "bpm": 120.0,
+      "time_signature": "4/4",
+      "model_used": "madmom",
+      "model_name": "Madmom",
+      "duration": 12.0,
+      "processing_time": 1.0546073913574219
+    },
+    "chords": {
+      "success": true,
+      "model_used": "chord-cnn-lstm",
+      "model_name": "Chord-CNN-LSTM",
+      "chords": [
+        {
+          "start": 0.0,
+          "end": 0.023219954648526078,
+          "chord": "N",
+          "confidence": 1.0
+        },
+        {
+          "start": 0.023219954648526078,
+          "end": 3.9938321995464854,
+          "chord": "C:maj",
+          "confidence": 1.0
+        },
+        {
+          "start": 3.9938321995464854,
+          "end": 7.987664399092971,
+          "chord": "F:maj",
+          "confidence": 1.0
+        },
+        {
+          "start": 7.987664399092971,
+          "end": 12.004716553287983,
+          "chord": "G:maj",
+          "confidence": 1.0
+        }
+      ],
+      "total_chords": 4,
+      "duration": 12.004716553287983,
+      "chord_dict": "submission",
+      "processing_time": 0.2572154998779297
+    },
+    "ground_truth": {
+      "chord_deltas": [
+        {
+          "expected_chord": "C:maj",
+          "observed_chord": "C:maj",
+          "start_delta_seconds": 0.02322,
+          "end_delta_seconds": -0.006168
+        },
+        {
+          "expected_chord": "F:maj",
+          "observed_chord": "F:maj",
+          "start_delta_seconds": -0.006168,
+          "end_delta_seconds": -0.012336
+        },
+        {
+          "expected_chord": "G:maj",
+          "observed_chord": "G:maj",
+          "start_delta_seconds": -0.012336,
+          "end_delta_seconds": 0.004717
+        }
+      ],
+      "label_match": [
+        true,
+        true,
+        true
+      ],
+      "bpm": 120.0,
+      "bpm_delta": 0.0,
+      "fabricated_pattern_returned": false
+    },
+    "peak_memory_mb": 524.76
+  },
+  "results": {
+    "wav": {
+      "beat_wall_seconds": 2.5383,
+      "chord_wall_seconds": 0.8249,
+      "beats": {
+        "success": true,
+        "beats": [
+          0.0,
+          0.5,
+          1.0,
+          1.5,
+          2.0,
+          2.5,
+          3.0,
+          3.5,
+          4.0,
+          4.49,
+          4.99,
+          5.49,
+          5.99,
+          6.49,
+          6.99,
+          7.49,
+          7.99,
+          8.49,
+          8.99,
+          9.49,
+          9.99,
+          10.49,
+          10.99,
+          11.49,
+          11.99
+        ],
+        "downbeats": [
+          0.0,
+          2.0,
+          4.0,
+          5.99,
+          7.99,
+          9.99,
+          11.99
+        ],
+        "bpm": 120.0,
+        "time_signature": "4/4",
+        "model_used": "madmom",
+        "model_name": "Madmom",
+        "duration": 12.0,
+        "processing_time": 1.0996618270874023
+      },
+      "chords": {
+        "success": true,
+        "model_used": "chord-cnn-lstm",
+        "model_name": "Chord-CNN-LSTM",
+        "chords": [
+          {
+            "start": 0.0,
+            "end": 0.023219954648526078,
+            "chord": "N",
+            "confidence": 1.0
+          },
+          {
+            "start": 0.023219954648526078,
+            "end": 3.9938321995464854,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 3.9938321995464854,
+            "end": 7.987664399092971,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 7.987664399092971,
+            "end": 12.004716553287983,
+            "chord": "G:maj",
+            "confidence": 1.0
+          }
+        ],
+        "total_chords": 4,
+        "duration": 12.004716553287983,
+        "chord_dict": "submission",
+        "processing_time": 0.7992215156555176
+      },
+      "ground_truth": {
+        "chord_deltas": [
+          {
+            "expected_chord": "C:maj",
+            "observed_chord": "C:maj",
+            "start_delta_seconds": 0.02322,
+            "end_delta_seconds": -0.006168
+          },
+          {
+            "expected_chord": "F:maj",
+            "observed_chord": "F:maj",
+            "start_delta_seconds": -0.006168,
+            "end_delta_seconds": -0.012336
+          },
+          {
+            "expected_chord": "G:maj",
+            "observed_chord": "G:maj",
+            "start_delta_seconds": -0.012336,
+            "end_delta_seconds": 0.004717
+          }
+        ],
+        "label_match": [
+          true,
+          true,
+          true
+        ],
+        "bpm": 120.0,
+        "bpm_delta": 0.0,
+        "fabricated_pattern_returned": false
+      },
+      "peak_memory_mb": 502.57
+    },
+    "mp3": {
+      "beat_wall_seconds": 1.081,
+      "chord_wall_seconds": 0.3207,
+      "beats": {
+        "success": true,
+        "beats": [
+          0.0,
+          0.5,
+          1.0,
+          1.5,
+          2.0,
+          2.5,
+          3.0,
+          3.5,
+          4.0,
+          4.49,
+          4.99,
+          5.49,
+          5.99,
+          6.49,
+          6.99,
+          7.49,
+          7.99,
+          8.49,
+          8.99,
+          9.49,
+          9.99,
+          10.49,
+          10.99,
+          11.49,
+          11.99
+        ],
+        "downbeats": [
+          0.0,
+          2.0,
+          4.0,
+          5.99,
+          7.99,
+          9.99,
+          11.99
+        ],
+        "bpm": 120.0,
+        "time_signature": "4/4",
+        "model_used": "madmom",
+        "model_name": "Madmom",
+        "duration": 12.0,
+        "processing_time": 1.0784156322479248
+      },
+      "chords": {
+        "success": true,
+        "model_used": "chord-cnn-lstm",
+        "model_name": "Chord-CNN-LSTM",
+        "chords": [
+          {
+            "start": 0.0,
+            "end": 0.023219954648526078,
+            "chord": "N",
+            "confidence": 1.0
+          },
+          {
+            "start": 0.023219954648526078,
+            "end": 3.9938321995464854,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 3.9938321995464854,
+            "end": 7.987664399092971,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 7.987664399092971,
+            "end": 12.004716553287983,
+            "chord": "G:maj",
+            "confidence": 1.0
+          }
+        ],
+        "total_chords": 4,
+        "duration": 12.004716553287983,
+        "chord_dict": "submission",
+        "processing_time": 0.31961894035339355
+      },
+      "ground_truth": {
+        "chord_deltas": [
+          {
+            "expected_chord": "C:maj",
+            "observed_chord": "C:maj",
+            "start_delta_seconds": 0.02322,
+            "end_delta_seconds": -0.006168
+          },
+          {
+            "expected_chord": "F:maj",
+            "observed_chord": "F:maj",
+            "start_delta_seconds": -0.006168,
+            "end_delta_seconds": -0.012336
+          },
+          {
+            "expected_chord": "G:maj",
+            "observed_chord": "G:maj",
+            "start_delta_seconds": -0.012336,
+            "end_delta_seconds": 0.004717
+          }
+        ],
+        "label_match": [
+          true,
+          true,
+          true
+        ],
+        "bpm": 120.0,
+        "bpm_delta": 0.0,
+        "fabricated_pattern_returned": false
+      },
+      "peak_memory_mb": 524.84
+    },
+    "large_id3": {
+      "beat_wall_seconds": 1.0604,
+      "chord_wall_seconds": 0.2676,
+      "beats": {
+        "success": true,
+        "beats": [
+          0.0,
+          0.5,
+          1.0,
+          1.5,
+          2.0,
+          2.5,
+          3.0,
+          3.5,
+          4.0,
+          4.49,
+          4.99,
+          5.49,
+          5.99,
+          6.49,
+          6.99,
+          7.49,
+          7.99,
+          8.49,
+          8.99,
+          9.49,
+          9.99,
+          10.49,
+          10.99,
+          11.49,
+          11.99
+        ],
+        "downbeats": [
+          0.0,
+          2.0,
+          4.0,
+          5.99,
+          7.99,
+          9.99,
+          11.99
+        ],
+        "bpm": 120.0,
+        "time_signature": "4/4",
+        "model_used": "madmom",
+        "model_name": "Madmom",
+        "duration": 12.0,
+        "processing_time": 1.0576672554016113
+      },
+      "chords": {
+        "success": true,
+        "model_used": "chord-cnn-lstm",
+        "model_name": "Chord-CNN-LSTM",
+        "chords": [
+          {
+            "start": 0.0,
+            "end": 0.023219954648526078,
+            "chord": "N",
+            "confidence": 1.0
+          },
+          {
+            "start": 0.023219954648526078,
+            "end": 3.9938321995464854,
+            "chord": "C:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 3.9938321995464854,
+            "end": 7.987664399092971,
+            "chord": "F:maj",
+            "confidence": 1.0
+          },
+          {
+            "start": 7.987664399092971,
+            "end": 12.004716553287983,
+            "chord": "G:maj",
+            "confidence": 1.0
+          }
+        ],
+        "total_chords": 4,
+        "duration": 12.004716553287983,
+        "chord_dict": "submission",
+        "processing_time": 0.26635169982910156
+      },
+      "ground_truth": {
+        "chord_deltas": [
+          {
+            "expected_chord": "C:maj",
+            "observed_chord": "C:maj",
+            "start_delta_seconds": 0.02322,
+            "end_delta_seconds": -0.006168
+          },
+          {
+            "expected_chord": "F:maj",
+            "observed_chord": "F:maj",
+            "start_delta_seconds": -0.006168,
+            "end_delta_seconds": -0.012336
+          },
+          {
+            "expected_chord": "G:maj",
+            "observed_chord": "G:maj",
+            "start_delta_seconds": -0.012336,
+            "end_delta_seconds": 0.004717
+          }
+        ],
+        "label_match": [
+          true,
+          true,
+          true
+        ],
+        "bpm": 120.0,
+        "bpm_delta": 0.0,
+        "fabricated_pattern_returned": false
+      },
+      "peak_memory_mb": 524.91
+    }
+  },
+  "wav_versus_mp3_chords": [
+    {
+      "wav": "C:maj",
+      "other": "C:maj",
+      "start_delta_seconds": 0.0
+    },
+    {
+      "wav": "F:maj",
+      "other": "F:maj",
+      "start_delta_seconds": 0.0
+    },
+    {
+      "wav": "G:maj",
+      "other": "G:maj",
+      "start_delta_seconds": 0.0
+    }
+  ],
+  "wav_versus_large_id3_chords": [
+    {
+      "wav": "C:maj",
+      "other": "C:maj",
+      "start_delta_seconds": 0.0
+    },
+    {
+      "wav": "F:maj",
+      "other": "F:maj",
+      "start_delta_seconds": 0.0
+    },
+    {
+      "wav": "G:maj",
+      "other": "G:maj",
+      "start_delta_seconds": 0.0
+    }
+  ],
+  "wav_versus_mp3_bpm": {
+    "wav": 120.0,
+    "mp3": 120.0,
+    "large_id3": 120.0
+  },
+  "peak_memory_mb": 524.91
+}

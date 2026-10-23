@@ -23,7 +23,9 @@ jest.mock('@/utils/firebaseAdmin', () => ({
 }));
 
 import undici from 'undici';
-import { resetGatewayAdmissionForTests } from '@/server/gatewayAdmission';
+import { gatewayAdmissionSnapshot, resetGatewayAdmissionForTests } from '@/server/gatewayAdmission';
+import { inspectHostedAudio } from '@/server/gatewayAudioGuard';
+import { readMp3Duration } from '@/server/mp3FrameDuration';
 import { POST as postBeats } from '@/app/api/detect-beats/route';
 import { POST as postChords } from '@/app/api/recognize-chords/route';
 
@@ -438,6 +440,193 @@ async function waitForHealth(origin: string, child: ChildProcess): Promise<void>
     } finally {
       global.fetch = realFetch;
       restore();
+    }
+  }, 480000);
+
+  it('analyzes PCM WAV, LAME MP3, and large-ID3 MP3 through a MOCKED-identity gateway', async () => {
+    const evidencePath = path.join(ROOT, 'python_backend/research/backend_04g_decode_evidence.json');
+    const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8')) as {
+      fixtures: Record<string, { sha256: string; path: string }>;
+      results: Record<string, {
+        beats: { beats: number[]; downbeats: number[]; bpm: number; model_used: string; success: boolean };
+        chords: { chords: Array<{ chord: string; start: number; end: number }>; model_used: string; success: boolean };
+      }>;
+    };
+    const generated = spawnSync(PYTHON, [
+      '-c',
+      [
+        'import json, sys',
+        'sys.path.insert(0, "python_backend")',
+        'from research.backend_04g_decode_inference import write_fixtures',
+        'fixtures = write_fixtures()',
+        'print(json.dumps({name: {"path": item["path"], "sha256": item["sha256"]} for name, item in fixtures.items() if name != "ground_truth"}))',
+      ].join('\n'),
+    ], { cwd: ROOT, encoding: 'utf8' });
+    if (generated.status !== 0) {
+      throw new Error(String(generated.stderr || generated.stdout || 'fixture generation failed').split(secret).join('[redacted]'));
+    }
+    const fixtures = JSON.parse(generated.stdout.trim()) as Record<string, { path: string; sha256: string }>;
+    for (const name of ['wav', 'mp3', 'large_id3']) {
+      expect(fixtures[name].sha256).toBe(evidence.fixtures[name].sha256);
+    }
+
+    const flaskOrigin = process.env.PYTHON_API_URL as string;
+    const userToken = 'eyJhbGciOiJub25lIn0.eyJ1aWQiOiJhbGxvd2VkIn0.signature';
+    const allowedUid = 'allowed-staging-uid';
+    mockVerifyIdToken.mockReset();
+    mockVerifyIdToken.mockResolvedValue({ uid: allowedUid });
+    const savedStaging = {
+      staging: process.env.CHORDMINI_HOSTED_STAGING_AUTH,
+      allow: process.env.CHORDMINI_STAGING_ALLOWED_UIDS,
+      admin: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+      admission: process.env.CHORDMINI_GATEWAY_ADMISSION,
+      instances: process.env.CHORDMINI_GATEWAY_INSTANCES,
+      desktop: process.env.CHORDMINI_DESKTOP_MODE,
+    };
+    delete process.env.CHORDMINI_DESKTOP_MODE;
+    process.env.CHORDMINI_HOSTED_STAGING_AUTH = 'required';
+    process.env.CHORDMINI_STAGING_ALLOWED_UIDS = allowedUid;
+    process.env.FIREBASE_SERVICE_ACCOUNT_KEY = JSON.stringify({
+      project_id: 'staging-test',
+      private_key: 'test-only-not-a-credential',
+      client_email: 'staging-test@example.invalid',
+    });
+    process.env.CHORDMINI_GATEWAY_ADMISSION = 'process';
+    process.env.CHORDMINI_GATEWAY_INSTANCES = '1';
+    const timings: Record<string, { beatsMs: number; chordsMs: number }> = {};
+    global.fetch = async (input, init) => {
+      const url = String(input);
+      if (url.startsWith(flaskOrigin)) {
+        const headers = new Headers(init?.headers);
+        expect(headers.get('x-chordmini-inference-token')).toBe(secret);
+        expect(headers.get('authorization')).toBeNull();
+      }
+      return realFetch(input, init);
+    };
+
+    try {
+      const denied = await realFetch(`${flaskOrigin}/api/detect-beats`, {
+        method: 'POST',
+        body: (() => {
+          const form = new FormData();
+          form.append('detector', 'madmom');
+          form.append('file', new File([fs.readFileSync(fixtures.large_id3.path)], 'tagged.mp3', { type: 'audio/mpeg' }));
+          return form;
+        })(),
+      });
+      expect(denied.status).toBe(401);
+
+      for (const name of ['wav', 'mp3', 'large_id3'] as const) {
+        const bytes = new Uint8Array(fs.readFileSync(fixtures[name].path));
+        const type = name === 'wav' ? 'audio/wav' : 'audio/mpeg';
+        const filename = name === 'wav' ? 'master.wav' : 'lame.mp3';
+        resetGatewayAdmissionForTests();
+        const hostedFile = new File([bytes], filename, { type });
+        const guard = await inspectHostedAudio(hostedFile, process.env);
+        expect(guard).toEqual({ ok: true });
+        if (name !== 'wav') {
+          const duration = readMp3Duration(bytes, 300);
+          expect(duration.ok).toBe(true);
+          if (duration.ok) {
+            expect(duration.seconds).toBeGreaterThan(11);
+            expect(duration.seconds).toBeLessThanOrEqual(300);
+          }
+        }
+
+        const directBeats = await realFetch(`${flaskOrigin}/api/detect-beats`, {
+          method: 'POST',
+          headers: { 'X-ChordMini-Inference-Token': secret },
+          body: (() => {
+            const form = new FormData();
+            form.append('detector', 'madmom');
+            form.append('file', new File([bytes], filename, { type }));
+            return form;
+          })(),
+        });
+        const directBeatBody = await directBeats.json() as { success: boolean; model_used: string; bpm: number };
+        expect(directBeats.status).toBe(200);
+        expect(directBeatBody.success).toBe(true);
+        expect(directBeatBody.model_used).toBe('madmom');
+        expect(JSON.stringify(directBeatBody)).not.toContain(secret);
+
+        const startedBeats = Date.now();
+        const beatsResponse = await postBeats({
+          ...requestWith({ detector: 'madmom' }, new File([bytes], filename, { type })),
+          headers: new Headers({ authorization: `Bearer ${userToken}` }),
+        } as never);
+        const beatsMs = Date.now() - startedBeats;
+        const beats = await beatsResponse.json() as {
+          success: boolean;
+          beats: number[];
+          downbeats: number[];
+          bpm: number;
+          model_used: string;
+        };
+        expect(beatsResponse.status).toBe(200);
+        expect(beats.success).toBe(true);
+        expect(beats.model_used).toBe('madmom');
+        expect(beats.bpm).toBeCloseTo(evidence.results[name].beats.bpm, 2);
+        expect(closeEnough(beats.beats, evidence.results[name].beats.beats, 1e-3)).toBe(true);
+        expect(closeEnough(beats.downbeats, evidence.results[name].beats.downbeats, 1e-3)).toBe(true);
+        expect(JSON.stringify(beats)).not.toContain(secret);
+        expect(gatewayAdmissionSnapshot(allowedUid)).toEqual({ globalActive: 0, uidActive: 0 });
+
+        const startedChords = Date.now();
+        const chordsResponse = await postChords({
+          ...requestWith({
+            detector: 'chord-cnn-lstm',
+            model: 'chord-cnn-lstm',
+            chord_dict: 'submission',
+          }, new File([bytes], filename, { type })),
+          headers: new Headers({ authorization: `Bearer ${userToken}` }),
+        } as never);
+        const chordsMs = Date.now() - startedChords;
+        const chords = await chordsResponse.json() as {
+          success: boolean;
+          model_used: string;
+          chord_dict: string;
+          chords: Array<{ chord: string; start: number; end: number; confidence?: number }>;
+        };
+        expect(chordsResponse.status).toBe(200);
+        expect(chords.success).toBe(true);
+        expect(chords.model_used).toBe('chord-cnn-lstm');
+        expect(chords.chord_dict).toBe('submission');
+        expect(chords.chords.map((row) => row.chord)).toEqual(
+          evidence.results[name].chords.chords.map((row) => row.chord),
+        );
+        chords.chords.forEach((row, index) => {
+          const expected = evidence.results[name].chords.chords[index];
+          expect(Math.abs(row.start - expected.start)).toBeLessThanOrEqual(1e-3);
+          expect(Math.abs(row.end - expected.end)).toBeLessThanOrEqual(1e-3);
+          expect(row.confidence).toBe(1);
+        });
+        expect(JSON.stringify(chords)).not.toContain(secret);
+        expect(gatewayAdmissionSnapshot(allowedUid)).toEqual({ globalActive: 0, uidActive: 0 });
+        timings[name] = { beatsMs, chordsMs };
+      }
+      expect(mockVerifyIdToken).toHaveBeenCalledWith(userToken, true);
+      expect(logs).not.toContain(secret);
+      const statusPath = `/proc/${child?.pid}/status`;
+      const status = child?.pid && fs.existsSync(statusPath) ? fs.readFileSync(statusPath, 'utf8') : '';
+      const peak = status.match(/VmHWM:\s+(\d+)/);
+      fs.writeFileSync('/tmp/chordmini-04g-gateway-timings.json', JSON.stringify({
+        timings,
+        flaskVmHwmKb: peak ? Number(peak[1]) : null,
+        firebaseIdentity: 'MOCKED',
+      }));
+    } finally {
+      global.fetch = realFetch;
+      resetGatewayAdmissionForTests();
+      const restoreKey = (key: string, value: string | undefined) => {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      };
+      restoreKey('CHORDMINI_HOSTED_STAGING_AUTH', savedStaging.staging);
+      restoreKey('CHORDMINI_STAGING_ALLOWED_UIDS', savedStaging.allow);
+      restoreKey('FIREBASE_SERVICE_ACCOUNT_KEY', savedStaging.admin);
+      restoreKey('CHORDMINI_GATEWAY_ADMISSION', savedStaging.admission);
+      restoreKey('CHORDMINI_GATEWAY_INSTANCES', savedStaging.instances);
+      restoreKey('CHORDMINI_DESKTOP_MODE', savedStaging.desktop);
     }
   }, 480000);
 });
