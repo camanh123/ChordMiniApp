@@ -6,7 +6,9 @@ import { verifyAppCheckRequest } from '@/utils/serverAppCheck';
 import {
   analysisServiceGateResponse,
   desktopAnalysisConnectionResponse,
+  desktopPythonPolicyResponse,
 } from '@/server/analysisServiceAvailability';
+import { requirePythonBackendResponse } from '@/server/desktopLoopback';
 import {
   redactInferenceSecret,
   scrubInferencePayload,
@@ -127,7 +129,7 @@ export async function POST(request: NextRequest) {
     const runInference = async (signal: AbortSignal, admission?: AdmissionContext) => {
     const targetUrl = `${backendUrl}/api/recognize-chords`;
     const dispatch = (body: FormData) => {
-      const exec = () => fetch(targetUrl, {
+      const exec = () => requirePythonBackendResponse('/api/recognize-chords', {
         method: 'POST',
         body,
         headers: forward.headers,
@@ -224,6 +226,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const safeError = redactInferenceSecret(error instanceof Error ? error.message : String(error));
     console.error('Error recognizing chords:', safeError);
+
+    const policyFailure = desktopPythonPolicyResponse(error);
+    if (policyFailure) {
+      return policyFailure;
+    }
 
     const connectionFailure = desktopAnalysisConnectionResponse(error);
     if (connectionFailure) {

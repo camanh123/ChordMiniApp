@@ -59,41 +59,87 @@ describe('desktop analysis service availability', () => {
       error: 'Required service configuration missing',
     });
     expect(JSON.stringify(body)).not.toMatch(/localhost|127\.0\.0\.1|https?:\/\//i);
-    expect(fetchImpl).toHaveBeenCalledWith(
-      'http://localhost:5001/health',
-      expect.objectContaining({ method: 'GET' }),
-    );
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('allows a desktop request through when the loopback service actually answers', async () => {
+  it('allows an explicit 127.0.0.1 service through when it answers without redirecting', async () => {
     process.env.CHORDMINI_DESKTOP_MODE = '1';
-    delete process.env.PYTHON_API_URL;
-    const fetchImpl = jest.fn().mockResolvedValue({ ok: true });
+    process.env.PYTHON_API_URL = 'http://127.0.0.1:5001';
+    const fetchImpl = jest.fn().mockResolvedValue({ ok: true, status: 200 });
 
     await expect(analysisServiceGateResponse(process.env, fetchImpl, 50)).resolves.toBeNull();
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'http://127.0.0.1:5001/health',
+      expect.objectContaining({ method: 'GET', redirect: 'manual' }),
+    );
   });
 
   it('does not echo an explicit loopback address when that service is down', async () => {
     process.env.CHORDMINI_DESKTOP_MODE = '1';
-    process.env.PYTHON_API_URL = 'http://127.0.0.1:5001/private';
+    process.env.PYTHON_API_URL = 'http://127.0.0.1:9';
     const fetchImpl = jest.fn().mockRejectedValue(new Error('offline'));
 
     const body = await bodyOf(await analysisServiceGateResponse(process.env, fetchImpl, 50));
 
     expect(body.code).toBe('ANALYSIS_SERVICE_UNAVAILABLE');
     expect(JSON.stringify(body)).not.toContain('127.0.0.1');
-    expect(JSON.stringify(body)).not.toContain('5001');
-    expect(JSON.stringify(body)).not.toContain('private');
+    expect(JSON.stringify(body)).not.toContain(':9');
   });
 
-  it('does not probe a configured remote service before the real analysis request', async () => {
+  it('rejects a remote desktop URL before any probe', async () => {
     process.env.CHORDMINI_DESKTOP_MODE = '1';
     process.env.PYTHON_API_URL = 'https://user:secret@ml.example.com/internal';
     const fetchImpl = jest.fn();
 
-    await expect(analysisServiceGateResponse(process.env, fetchImpl, 50)).resolves.toBeNull();
+    const body = await bodyOf(await analysisServiceGateResponse(process.env, fetchImpl, 50));
+
+    expect(body.code).toBe('ANALYSIS_SERVICE_NOT_CONFIGURED');
+    expect(JSON.stringify(body)).not.toMatch(/secret|ml\.example|internal/);
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'http://localhost:5001',
+    'http://localhost',
+    'https://127.0.0.1:5001',
+    'http://user:secret@127.0.0.1:5001',
+    'http://127.0.0.1:5001/private',
+    'http://127.0.0.1:5001?token=secret',
+    'http://127.0.0.1:5001#fragment',
+    'http://[::1]:5001',
+    'http://127.1:5001',
+    'http://2130706433:5001',
+    'http://127.0.0.1.example.com',
+    'file:///tmp/flask',
+  ])('rejects %s before a desktop probe', async (candidate) => {
+    process.env.CHORDMINI_DESKTOP_MODE = '1';
+    process.env.PYTHON_API_URL = candidate;
+    const fetchImpl = jest.fn();
+
+    const body = await bodyOf(await analysisServiceGateResponse(process.env, fetchImpl, 50));
+
+    expect(body.code).toBe('ANALYSIS_SERVICE_NOT_CONFIGURED');
+    expect(JSON.stringify(body)).not.toContain(candidate);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('does not follow a desktop health redirect', async () => {
+    process.env.CHORDMINI_DESKTOP_MODE = '1';
+    process.env.PYTHON_API_URL = 'http://127.0.0.1:5001';
+    const fetchImpl = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 302,
+      type: 'default',
+      headers: { get: () => 'https://evil.example/collect' },
+    });
+
+    const body = await bodyOf(await analysisServiceGateResponse(process.env, fetchImpl, 50));
+
+    expect(body.code).toBe('ANALYSIS_SERVICE_UNAVAILABLE');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(String(fetchImpl.mock.calls[0][0])).toBe('http://127.0.0.1:5001/health');
+    expect(JSON.stringify(body)).not.toContain('evil.example');
   });
 
   it('rejects an invalid desktop service URL without returning the value', async () => {

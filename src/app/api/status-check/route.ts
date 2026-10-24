@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSafeTimeoutSignal } from '@/utils/environmentUtils';
-import { getPythonApiUrl } from '@/config/serverBackend';
+import { decideDesktopLoopback, fetchPythonBackend } from '@/server/desktopLoopback';
 
 /**
  * Status Check API Route
@@ -19,35 +19,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the backend URL
-    const backendUrl = getPythonApiUrl();
-    
-    let response;
-    let expectedError = false;
-    
-    if (endpoint === '/api/detect-beats' || endpoint === '/api/recognize-chords') {
-      // For file upload endpoints, test with POST request (should return 400 for missing file)
-      response = await fetch(`${backendUrl}${endpoint}`, {
+    const path = typeof endpoint === 'string' ? endpoint : String(endpoint);
+    const outcome = await fetchPythonBackend(path, endpoint === '/api/detect-beats' || endpoint === '/api/recognize-chords'
+      ? {
         method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-        },
-        signal: createSafeTimeoutSignal(25000) // 25 second timeout
-      });
-      
-      // These endpoints should return 400 when no file is provided - this indicates they're working
-      expectedError = response.status === 400;
-      
-    } else {
-      // For other endpoints, use GET request
-      response = await fetch(`${backendUrl}${endpoint}`, {
+        headers: { Accept: 'application/json' },
+        signal: createSafeTimeoutSignal(25000),
+      }
+      : {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: createSafeTimeoutSignal(25000) // 25 second timeout
+        headers: { 'Content-Type': 'application/json' },
+        signal: createSafeTimeoutSignal(25000),
       });
+    if (outcome.state !== 'response') {
+      return NextResponse.json(
+        { success: false, error: 'Analysis service unavailable' },
+        { status: 503 },
+      );
     }
+    const response = outcome.response;
+    const expectedError = (endpoint === '/api/detect-beats' || endpoint === '/api/recognize-chords')
+      && response.status === 400;
 
     const responseText = await response.text();
     let responseData;
@@ -69,7 +61,10 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Status check error:', error);
+    console.error(
+      'Status check error:',
+      decideDesktopLoopback().scope === 'passthrough' ? error : 'desktop loopback request failed',
+    );
     
     // Check if it's a timeout error
     const isTimeout = error instanceof Error && 
@@ -78,8 +73,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: isTimeout ? 'Request timeout (backend may be cold starting)' : 
-               error instanceof Error ? error.message : 'Unknown error',
+        error: isTimeout ? 'Request timeout (backend may be cold starting)' :
+               decideDesktopLoopback().scope === 'passthrough'
+                 ? (error instanceof Error ? error.message : 'Unknown error')
+                 : 'Analysis service unreachable',
         timeout: isTimeout
       },
       { status: isTimeout ? 408 : 500 }

@@ -6,7 +6,9 @@ import { verifyAppCheckRequest } from '@/utils/serverAppCheck';
 import {
   analysisServiceGateResponse,
   desktopAnalysisConnectionResponse,
+  desktopPythonPolicyResponse,
 } from '@/server/analysisServiceAvailability';
+import { requirePythonBackendResponse } from '@/server/desktopLoopback';
 import {
   formDataForDetectorRetry,
   redactInferenceSecret,
@@ -115,7 +117,7 @@ export async function POST(request: NextRequest) {
     const runInference = async (signal: AbortSignal, admission?: AdmissionContext) => {
     const targetUrl = `${backendUrl}/api/detect-beats`;
     const dispatch = (body: FormData) => {
-      const exec = () => fetch(targetUrl, {
+      const exec = () => requirePythonBackendResponse('/api/detect-beats', {
         method: 'POST',
         body,
         headers: forward.headers,
@@ -234,6 +236,11 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     const safeError = redactInferenceSecret(error instanceof Error ? error.message : String(error));
     console.error('❌ Beat detection API error:', safeError);
+
+    const policyFailure = desktopPythonPolicyResponse(error);
+    if (policyFailure) {
+      return policyFailure;
+    }
 
     const connectionFailure = desktopAnalysisConnectionResponse(error);
     if (connectionFailure) {

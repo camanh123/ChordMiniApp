@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSafeTimeoutSignal } from '@/utils/environmentUtils';
-import { getPythonApiUrl } from '@/config/serverBackend';
+import { decideDesktopLoopback, fetchPythonBackend } from '@/server/desktopLoopback';
 
 function formatModelInfoFallbackReason(error: unknown): string {
   if (error instanceof Error) {
@@ -16,19 +16,17 @@ function formatModelInfoFallbackReason(error: unknown): string {
  */
 export async function GET() {
   try {
-    // Try to call the Python backend API first with timeout
-    const backendUrl = getPythonApiUrl();
     try {
-      const response = await fetch(`${backendUrl}/api/model-info`, {
+      const outcome = await fetchPythonBackend('/api/model-info', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        // Add timeout to prevent hanging (increased for cold starts)
-        signal: createSafeTimeoutSignal(15000) // 15 second timeout for cold starts
+        signal: createSafeTimeoutSignal(15000),
       });
 
-      if (response.ok) {
+      if (outcome.state === 'response' && outcome.response.ok) {
+        const response = outcome.response;
         const data = await response.json();
         // Return the response with cache headers for better performance
         return new NextResponse(JSON.stringify(data), {
@@ -40,7 +38,11 @@ export async function GET() {
         });
       }
     } catch (error) {
-      console.info(`Backend model-info not available, using fallback (${formatModelInfoFallbackReason(error)})`);
+      if (decideDesktopLoopback().scope === 'passthrough') {
+        console.info(`Backend model-info not available, using fallback (${formatModelInfoFallbackReason(error)})`);
+      } else {
+        console.info('Backend model-info not available, using fallback');
+      }
     }
 
     // Fallback model information when the backend is not available

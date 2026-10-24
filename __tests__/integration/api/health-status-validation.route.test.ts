@@ -88,6 +88,32 @@ describe('health/status/API-key route behavior', () => {
     });
   });
 
+  it('refuses a remote desktop python URL before the health or status proxy', async () => {
+    const previousDesktop = process.env.CHORDMINI_DESKTOP_MODE;
+    const previousPython = process.env.PYTHON_API_URL;
+    process.env.CHORDMINI_DESKTOP_MODE = '1';
+    process.env.PYTHON_API_URL = 'https://user:secret@ml.example/private';
+
+    try {
+      const health = await healthGet();
+      const healthText = JSON.stringify(await health.json());
+      expect(health.status).toBe(503);
+      expect(healthText).not.toContain('ml.example');
+      expect(healthText).not.toContain('secret');
+
+      const status = await statusPost(makeJsonRequest({ endpoint: 'https://evil.example/collect' }) as any);
+      const statusText = JSON.stringify(await status.json());
+      expect(status.status).toBe(503);
+      expect(statusText).not.toContain('evil.example');
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      if (previousDesktop === undefined) delete process.env.CHORDMINI_DESKTOP_MODE;
+      else process.env.CHORDMINI_DESKTOP_MODE = previousDesktop;
+      if (previousPython === undefined) delete process.env.PYTHON_API_URL;
+      else process.env.PYTHON_API_URL = previousPython;
+    }
+  });
+
   it('treats expected missing-file backend responses as responsive endpoint health', async () => {
     fetchMock.mockResolvedValue(makeFetchResponse({
       ok: false,

@@ -28,11 +28,11 @@ describe('practice inference notice', () => {
     process.env.CHORDMINI_DESKTOP_MODE = '1';
     process.env.PYTHON_API_URL = 'https://user:secret@inference.example/private';
 
-    expect(practiceInferenceNotice()).toBe('requirement');
+    expect(practiceInferenceNotice()).toBe('not_configured');
     const response = GET();
     const body = await response.json();
 
-    expect(body).toEqual({ notice: 'requirement' });
+    expect(body).toEqual({ notice: 'not_configured' });
     expect(JSON.stringify(body)).not.toMatch(/secret|inference\.example|localhost|127\.0\.0\.1/);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -46,9 +46,16 @@ describe('practice inference notice', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('does not call a missing loopback service unavailable before the user asks', () => {
+  it('treats an unset desktop URL as not configured and does not imply localhost', () => {
     process.env.CHORDMINI_DESKTOP_MODE = '1';
     delete process.env.PYTHON_API_URL;
+
+    expect(practiceInferenceNotice()).toBe('not_configured');
+  });
+
+  it('keeps an explicit 127.0.0.1 desktop URL on the neutral requirement', () => {
+    process.env.CHORDMINI_DESKTOP_MODE = '1';
+    process.env.PYTHON_API_URL = 'http://127.0.0.1:5001';
 
     expect(practiceInferenceNotice()).toBe('requirement');
   });

@@ -27,7 +27,7 @@ Browser and Electron renderer code keep calling the existing same-origin routes 
 | Platform | Who serves the UI | Who runs Flask |
 | --- | --- | --- |
 | Web | Hosted Next.js | The private `PYTHON_API_URL` configured on that server |
-| Electron, Phase 2A | Loopback Next.js standalone process | The same remote Flask URL, injected into the Node process only when it is already configured |
+| Electron, Phase 2A | Loopback Next.js standalone process | Only an explicit `http://127.0.0.1` URL. Desktop mode refuses every other `PYTHON_API_URL` before it opens a connection. See `docs/windows-private-backend.md`. |
 | iPad PWA, Phase 4 | The existing hosted Next.js origin | That origin's `/api/*` routes, which proxy to the remote Flask URL |
 
 No shell receives Firebase Admin credentials, Gemini, Genius, Music.ai, or the Python URL in renderer code.
@@ -66,7 +66,7 @@ The workflow uploads the installer, SHA-256, and build metadata before packaged 
 
 The installed Windows app can play a selected local file without a chord result. Play, pause, seek, and playback speed use the page's existing audio element and appear as soon as a file is chosen. Guitar diagrams, the chord grid, piano playback, lyrics, and transposition still require an analysis result.
 
-In desktop mode, beat and chord routes check the analysis service before the long model request. A missing or loopback `PYTHON_API_URL` is probed briefly. If nothing is listening, the route returns `ANALYSIS_SERVICE_NOT_CONFIGURED` or `ANALYSIS_SERVICE_UNAVAILABLE` and does not invent chords or beats. The response does not include the service address. A loopback service that answers `/health` is still forwarded, so a developer running Flask is unchanged. Web deployments that are not in desktop mode keep the previous proxy behavior.
+In desktop mode, beat and chord routes accept only an explicit `http://127.0.0.1` origin. An unset value, `localhost`, a remote host, a non-HTTP scheme, URL userinfo, a path, a query, or a hash is `ANALYSIS_SERVICE_NOT_CONFIGURED` and is not probed. An explicit loopback origin that does not answer, or that redirects, is `ANALYSIS_SERVICE_UNAVAILABLE`. Neither response includes the service address or invented chords or beats. A `127.0.0.1` service that answers `/health` without redirecting is still forwarded. Web deployments that are not in desktop mode keep the previous authenticated proxy behavior.
 
 ## Phase I18N-01 — Offline interface languages
 

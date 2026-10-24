@@ -1,6 +1,7 @@
 import { GoogleAuth } from 'google-auth-library';
 
 import { BACKEND_URLS } from '@/config/api';
+import { auxiliaryTarget, songFormerProductionFallback } from '@/server/desktopLoopback';
 import { SegmentationRequest } from '@/types/chatbotTypes';
 
 const CLOUD_TASKS_SCOPE = 'https://www.googleapis.com/auth/cloud-platform';
@@ -98,11 +99,14 @@ export interface EnqueueSongFormerSegmentationTaskResult {
 export async function enqueueSongFormerSegmentationTask(
   params: EnqueueSongFormerSegmentationTaskParams,
 ): Promise<EnqueueSongFormerSegmentationTaskResult> {
-  const client = await getAuthClient();
-  const projectId = getProjectId();
   const location = process.env.SONGFORMER_TASKS_LOCATION || DEFAULT_TASKS_LOCATION;
   const queue = process.env.SONGFORMER_TASKS_QUEUE || DEFAULT_TASKS_QUEUE;
   const songformerUrl = `${BACKEND_URLS.SONGFORMER_BACKEND.replace(/\/$/, '')}/api/songformer/segment`;
+  if (auxiliaryTarget(songformerUrl, songFormerProductionFallback()).action === 'skip') {
+    throw new Error('SongFormer backend is not available to the desktop app');
+  }
+  const client = await getAuthClient();
+  const projectId = getProjectId();
   const parent = getQueuePath(projectId, location, queue);
   const payload = {
     audioUrl: params.audioUrl,

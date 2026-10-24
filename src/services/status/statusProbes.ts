@@ -1,5 +1,10 @@
 import { GEMINI_MODEL_NAME, createGeminiClient } from '@/config/gemini';
-import { getPythonApiUrl, getSheetSageApiUrl } from '@/config/serverBackend';
+import { getPythonApiUrl } from '@/config/serverBackend';
+import {
+  decideDesktopLoopback,
+  isRedirectResponse,
+  sheetSageTarget,
+} from '@/server/desktopLoopback';
 import { createSafeTimeoutSignal } from '@/utils/environmentUtils';
 import { getStatusConfig } from '@/services/status/statusConfig';
 import { STATUS_SERVICE_LABELS } from '@/services/status/statusConstants';
@@ -83,6 +88,7 @@ async function probeJsonEndpoint(
   serviceId: StatusServiceId,
   endpoint: StandardEndpointProbe,
   timeoutMs: number,
+  redirect?: RequestRedirect,
 ): Promise<StatusProbeResult> {
   const serviceLabel = STATUS_SERVICE_LABELS[serviceId];
   const startedAt = Date.now();
@@ -92,7 +98,24 @@ async function probeJsonEndpoint(
     const response = await fetch(endpoint.url, {
       method: 'GET',
       signal: createSafeTimeoutSignal(timeoutMs),
+      ...(redirect ? { redirect } : {}),
     });
+    if (redirect === 'manual' && isRedirectResponse(response)) {
+      return {
+        serviceId,
+        serviceLabel,
+        probeKind: endpoint.probeKind,
+        endpointId: endpoint.endpointId,
+        status: 'outage',
+        ok: false,
+        latencyMs: Date.now() - startedAt,
+        checkedAt,
+        sanitizedSummary: safeSummary(serviceLabel, 'outage', endpoint.probeKind),
+        failureReason: 'http',
+        httpStatus: response.status,
+        timeoutMs,
+      };
+    }
     const latencyMs = Date.now() - startedAt;
     const status = classify(response.ok, latencyMs, Math.max(30_000, timeoutMs * 0.75));
 
@@ -132,6 +155,7 @@ async function probeJsonEndpointWithRetries(
   serviceId: StatusServiceId,
   endpoint: StandardEndpointProbe,
   timeoutMs: number,
+  redirect?: RequestRedirect,
 ): Promise<StatusProbeResult> {
   const startedAt = Date.now();
   let bestResult: StatusProbeResult | null = null;
@@ -156,6 +180,7 @@ async function probeJsonEndpointWithRetries(
       serviceId,
       endpoint,
       Math.min(attemptTimeoutMs, remainingMs),
+      redirect,
     );
     result.attempts = attempt;
 
@@ -198,6 +223,7 @@ async function probeServiceBehindKnownHealth(
   healthResult: StatusProbeResult,
   endpoints: StandardEndpointProbe[],
   timeoutMs: number,
+  redirect?: RequestRedirect,
 ): Promise<StatusProbeResult> {
   const checkedAt = new Date().toISOString();
   const serviceHealthResult = cloneProbeResultForService(healthResult, serviceId);
@@ -206,7 +232,7 @@ async function probeServiceBehindKnownHealth(
 
   if (serviceHealthResult.status === 'operational' && metadataEndpoints.length > 0) {
     const metadataResults = await Promise.all(
-      metadataEndpoints.map((ep) => probeJsonEndpointWithRetries(serviceId, ep, timeoutMs)),
+      metadataEndpoints.map((ep) => probeJsonEndpointWithRetries(serviceId, ep, timeoutMs, redirect)),
     );
     results.push(...metadataResults);
   }
@@ -273,6 +299,7 @@ async function probeServiceWithAggregation(
   serviceId: StatusServiceId,
   endpoints: StandardEndpointProbe[],
   timeoutMs: number,
+  redirect?: RequestRedirect,
 ): Promise<StatusProbeResult> {
   const startedAt = Date.now();
   const checkedAt = new Date().toISOString();
@@ -286,7 +313,7 @@ async function probeServiceWithAggregation(
   // Phase 1: Probe health endpoint(s) first. This wakes up cold containers.
   if (healthEndpoints.length > 0) {
     const healthResults = await Promise.all(
-      healthEndpoints.map((ep) => probeJsonEndpointWithRetries(serviceId, ep, timeoutMs)),
+      healthEndpoints.map((ep) => probeJsonEndpointWithRetries(serviceId, ep, timeoutMs, redirect)),
     );
     results.push(...healthResults);
 
@@ -298,7 +325,7 @@ async function probeServiceWithAggregation(
       const elapsedMs = Date.now() - startedAt;
       const remainingMs = Math.max(STANDARD_MIN_ATTEMPT_TIMEOUT_MS, timeoutMs - elapsedMs);
       const metadataResults = await Promise.all(
-        metadataEndpoints.map((ep) => probeJsonEndpointWithRetries(serviceId, ep, remainingMs)),
+        metadataEndpoints.map((ep) => probeJsonEndpointWithRetries(serviceId, ep, remainingMs, redirect)),
       );
       results.push(...metadataResults);
     }
@@ -342,23 +369,46 @@ async function probeServiceWithAggregation(
   };
 }
 
-async function probePythonModelServices(pythonBaseUrl: string, timeoutMs: number): Promise<[StatusProbeResult, StatusProbeResult]> {
+function skippedProbe(
+  serviceId: StatusServiceId,
+  probeKind: StatusProbeKind,
+  endpointId: string,
+): StatusProbeResult {
+  return {
+    serviceId,
+    serviceLabel: STATUS_SERVICE_LABELS[serviceId],
+    probeKind,
+    endpointId,
+    status: 'outage',
+    ok: false,
+    latencyMs: null,
+    checkedAt: new Date().toISOString(),
+    sanitizedSummary: safeSummary(STATUS_SERVICE_LABELS[serviceId], 'outage', probeKind),
+    failureReason: 'network',
+  };
+}
+
+async function probePythonModelServices(
+  pythonBaseUrl: string,
+  timeoutMs: number,
+  redirect?: RequestRedirect,
+): Promise<[StatusProbeResult, StatusProbeResult]> {
   const startedAt = Date.now();
   const sharedHealthResult = await probeJsonEndpointWithRetries('beat', {
     probeKind: 'health',
     endpointId: 'python-health',
     url: `${pythonBaseUrl}/health`,
-  }, timeoutMs);
+  }, timeoutMs, redirect);
   const elapsedMs = Date.now() - startedAt;
   const remainingMs = Math.max(STANDARD_MIN_ATTEMPT_TIMEOUT_MS, timeoutMs - elapsedMs);
 
   return Promise.all([
     probeServiceBehindKnownHealth('beat', sharedHealthResult, [
       { probeKind: 'metadata', endpointId: 'python-beat-model-info', url: `${pythonBaseUrl}/api/model-info` },
-    ], remainingMs),
+    ], remainingMs, redirect),
     probeServiceBehindKnownHealth('chord', sharedHealthResult, [
       { probeKind: 'metadata', endpointId: 'python-chord-model-info', url: `${pythonBaseUrl}/api/chord-model-info` },
-    ], remainingMs),
+    ], remainingMs, redirect),
   ]);
 }
 
@@ -448,14 +498,34 @@ export async function probeGeminiGeneration(): Promise<StatusProbeResult> {
 
 export async function runStandardStatusProbes(): Promise<StatusProbeResult[]> {
   const config = getStatusConfig();
-  const pythonBaseUrl = getPythonApiUrl();
-  const sheetSageBaseUrl = getSheetSageApiUrl();
+  const decision = decideDesktopLoopback();
+  const pythonBaseUrl = decision.scope === 'accepted'
+    ? decision.origin
+    : decision.scope === 'passthrough'
+      ? getPythonApiUrl()
+      : null;
+  const pythonRedirect: RequestRedirect | undefined = decision.scope === 'accepted' ? 'manual' : undefined;
+  const sheetSage = sheetSageTarget();
+  const sheetSageProbePromise = sheetSage.action === 'skip'
+    ? Promise.resolve(skippedProbe('sheetsage', 'health', 'sheetsage-health-warmup'))
+    : probeServiceWithAggregation('sheetsage', [
+      {
+        probeKind: 'health',
+        endpointId: 'sheetsage-health-warmup',
+        url: sheetSage.action === 'loopback'
+          ? `${sheetSage.origin}/health?warmup=true`
+          : `${sheetSage.url}/health?warmup=true`,
+      },
+    ], config.probeTimeoutMs, sheetSage.action === 'loopback' ? 'manual' : undefined);
 
   const [pythonResults, sheetSageProbe, geminiProbe] = await Promise.all([
-    probePythonModelServices(pythonBaseUrl, config.probeTimeoutMs),
-    probeServiceWithAggregation('sheetsage', [
-      { probeKind: 'health', endpointId: 'sheetsage-health-warmup', url: `${sheetSageBaseUrl}/health?warmup=true` },
-    ], config.probeTimeoutMs),
+    pythonBaseUrl
+      ? probePythonModelServices(pythonBaseUrl, config.probeTimeoutMs, pythonRedirect)
+      : Promise.resolve([
+        skippedProbe('beat', 'health', 'python-health'),
+        skippedProbe('chord', 'health', 'python-health'),
+      ] as [StatusProbeResult, StatusProbeResult]),
+    sheetSageProbePromise,
     probeGeminiGeneration(),
   ]);
 

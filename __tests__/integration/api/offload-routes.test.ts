@@ -101,6 +101,31 @@ describe('offload BFF routes', () => {
     await expect(response.json()).resolves.toEqual({ success: true, beats: [0, 1] });
   });
 
+  it('does not contact a remote python URL from the desktop offload route', async () => {
+    const previousDesktop = process.env.CHORDMINI_DESKTOP_MODE;
+    const previousPython = process.env.PYTHON_API_URL;
+    process.env.CHORDMINI_DESKTOP_MODE = '1';
+    process.env.PYTHON_API_URL = 'https://user:secret@ml.example/private';
+    const formData = new FormData();
+    formData.append('offload_url', firebaseUrl);
+
+    try {
+      const response = await detectBeatsOffload(makeRequest(formData));
+      const text = JSON.stringify(await response.json());
+
+      expect(response.status).toBe(503);
+      expect(text).toContain('ANALYSIS_SERVICE_NOT_CONFIGURED');
+      expect(text).not.toContain('ml.example');
+      expect(text).not.toContain('secret');
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      if (previousDesktop === undefined) delete process.env.CHORDMINI_DESKTOP_MODE;
+      else process.env.CHORDMINI_DESKTOP_MODE = previousDesktop;
+      if (previousPython === undefined) delete process.env.PYTHON_API_URL;
+      else process.env.PYTHON_API_URL = previousPython;
+    }
+  });
+
   it('recognize-chords-offload forwards only firebase_url + metadata, not file bytes', async () => {
     const formData = new FormData();
     formData.append('offload_url', firebaseUrl);

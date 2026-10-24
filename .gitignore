@@ -266,6 +266,7 @@ tasks.md
 !CONTRIBUTING.md
 !.github/pull_request_template.md
 !docs/cross-platform-runtime.md
+!docs/windows-private-backend.md
 !python_backend/research/backend_03_localhost_auth.md
 !python_backend/research/backend_04a_trust_boundary.md
 !python_backend/research/backend_04r_human_guitar_pilot/PILOT_OVERVIEW.md
