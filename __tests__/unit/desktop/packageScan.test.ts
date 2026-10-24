@@ -22,6 +22,10 @@ function tempRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'chordmini-scan-'));
 }
 
+function removeTree(target: string) {
+  fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+}
+
 function runScan(root: string) {
   const reportPath = path.join(os.tmpdir(), `chordmini-scan-report-${process.pid}-${Date.now()}.json`);
   const result = spawnSync(process.execPath, [scanner, root, reportPath], {
@@ -89,7 +93,7 @@ async function createAsar(files: Record<string, string | Buffer>, dest: string) 
   writeTree(source, files);
   const asar = require('@electron/asar') as { createPackage: (source: string, dest: string) => Promise<void> };
   await asar.createPackage(source, dest);
-  fs.rmSync(source, { recursive: true, force: true });
+  removeTree(source);
 }
 
 const harmless = {
@@ -106,7 +110,7 @@ describe('desktop package scan', () => {
   const roots: string[] = [];
 
   afterEach(() => {
-    for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+    for (const root of roots.splice(0)) removeTree(root);
   });
 
   it('passes a clean fixture and does not treat lookalike names as model assets', async () => {
