@@ -1,0 +1,114 @@
+{
+  "approval_decision_id": "CHORDMINI-GATE-1-DESIGN-APPROVAL",
+  "approval_record": {
+    "path": "GATE_1_APPROVAL_RECORD.md",
+    "sha256": "b9e015aecfcd1e33480b505a071af4a1d444ace4295128c1a8db46c286afd66e"
+  },
+  "approval_record_location": "python_backend/research/backend_04r_human_guitar_pilot/GATE_1_APPROVAL_RECORD.md",
+  "approved_specification_commit": "9b9bae00dfb978203a631c702d02a66bd47d02e7",
+  "baseline_commit": "9b9bae00dfb978203a631c702d02a66bd47d02e7",
+  "execution_flags": {
+    "CONSENT_SIGNED": false,
+    "DATASET_COLLECTED": false,
+    "MODEL_COMPARISON_AUTHORIZED": false,
+    "PERFORMERS_RECRUITED": false,
+    "PILOT_EXECUTION_AUTHORIZED": false,
+    "RECORDING_AUTHORIZED": false,
+    "RIGHTS_CLEARED": false
+  },
+  "forbidden_actions": [
+    "recruit performers",
+    "collect or sign consent",
+    "record audio",
+    "generate or download audio",
+    "acquire a dataset",
+    "run inference",
+    "download checkpoints",
+    "train models",
+    "change the production detector",
+    "change Windows or Electron packaging",
+    "change i18n",
+    "change the gateway or Flask service",
+    "deploy",
+    "silently edit a protected document"
+  ],
+  "freeze_identifier": "CHORDMINI-GATE-1-DESIGN-FREEZE",
+  "gate_1_status": "APPROVED_DESIGN_ONLY",
+  "manifest_is_excluded_from_hash_list": true,
+  "pending_gates": {
+    "GATE-2": "PENDING",
+    "GATE-3": "PENDING",
+    "GATE-4": "PENDING",
+    "GATE-5": "PENDING",
+    "GATE-6": "PENDING",
+    "GATE-7": "PENDING",
+    "GATE-8": "PENDING"
+  },
+  "pilot_structure": {
+    "conditions_per_session": 6,
+    "development": 12,
+    "development_player": "PLAYER_A",
+    "players": [
+      "PLAYER_A",
+      "PLAYER_B"
+    ],
+    "sealed_evaluation": 12,
+    "sealed_player": "PLAYER_B",
+    "sessions_per_player": 2,
+    "takes": 24
+  },
+  "protected_documents": [
+    {
+      "path": "PILOT_OVERVIEW.md",
+      "sha256": "41058eab4965546b0af5cb02d4c24a9192bb7a97a3dbec4c567d3318b6ff6e67"
+    },
+    {
+      "path": "PERFORMER_CONSENT_TEMPLATE.md",
+      "sha256": "793dc7f97a5a22d870a0f4f88dd1c692f4ae877c0ee2fb1342da9c920d74c622"
+    },
+    {
+      "path": "COMPOSITION_RIGHTS_TEMPLATE.md",
+      "sha256": "2853e38f8720bf0dc786f290bf5803e28134469d2d23b7a7faca3cf840a9c10b"
+    },
+    {
+      "path": "RECORDING_CHECKLIST.md",
+      "sha256": "fd6064cbea1b742d709358e8d37016e08b1bfb08090b81669ebf3271ec5eea54"
+    },
+    {
+      "path": "ANNOTATION_PROTOCOL.md",
+      "sha256": "577042144a5739729cb880d2fdb7e5a59e0c15897d12e37f83eecda4a694a496"
+    },
+    {
+      "path": "SYNC_AND_LATENCY_QA.md",
+      "sha256": "03317205a58eef5c54c2368670d19381cf488efb72bf37e8a5c35fcf6a47d426"
+    },
+    {
+      "path": "DATA_MANIFEST_TEMPLATE.csv",
+      "sha256": "a5b7d27551a18f6a404ba16708b57fd1cc06032a93a046ddb6701c3f77888cf4"
+    }
+  ],
+  "thresholds": {
+    "bar_9_beat_index": 32,
+    "bars": 16,
+    "beats": 64,
+    "maximum_duration_seconds": 60,
+    "minimum_agreement": "0.95",
+    "pair_tolerance_seconds": "0.035",
+    "residual_latency_seconds": "0.005",
+    "tempos_bpm": {
+      "fingerpicking": 80,
+      "offbeat_heavy": 90,
+      "quiet_and_percussive": 100,
+      "straight_strum": 100,
+      "syncopated_strum": 96,
+      "tempo_change_from_beat_32": 100,
+      "tempo_change_initial": 80
+    }
+  },
+  "verification_set": [
+    {
+      "path": "validate_protocol.py",
+      "sha256": "e5dbb92eac5c6651c6735f374dd12890e5f7d4b067e5b2646b3e3b158dd74a38"
+    }
+  ]
+}
