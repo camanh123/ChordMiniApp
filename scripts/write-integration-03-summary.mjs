@@ -55,6 +55,7 @@ export function buildIntegration03Summary(artifactDir, sourceSha) {
     unpackedArchiveCoverage: archiveList(unpacked),
     nsisListedBy7Zip: inspection?.listed === true,
     nsisExtractedBy7Zip: inspection?.extracted === true,
+    nsisInnerArchive: typeof inspection?.innerArchive === 'string' ? inspection.innerArchive : null,
     nsisAppAsarFound: inspection?.appAsarFound === true,
     nsisPayloadScanFindingCount: countFindings(nsisScan),
     nsisPayloadArchiveCoverage: archiveList(nsisScan),

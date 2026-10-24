@@ -46,6 +46,11 @@ describe('integration 03 Windows test workflow', () => {
     ]));
     expect(names.indexOf('Scan the extracted NSIS payload')).toBeLessThan(names.indexOf('Install and launch the packaged app'));
     expect(names.indexOf('Install and launch the packaged app')).toBeLessThan(names.indexOf('Upload the test installer'));
+    const extract = steps.find((step) => step.name === 'List and extract the NSIS payload with 7-Zip');
+    expect(extract?.run).toContain('app-64.7z');
+    expect(extract?.run).toContain('"-onsis-outer"');
+    expect(extract?.run).toContain('"-onsis-payload"');
+    expect(extract?.run).toContain('7-Zip extraction of app-64.7z did not contain both app.asar and ChordMini.exe.');
     expect(text).toContain('name: ChordMini-Windows-x64-Integration03');
     expect(text).toContain('retention-days: 14');
     expect(text).not.toContain('softprops/action-gh-release');
@@ -85,6 +90,7 @@ describe('integration 03 Windows test workflow', () => {
     fs.writeFileSync(path.join(artifactDir, 'nsis-inspection.json'), JSON.stringify({
       listed: true,
       extracted: true,
+      innerArchive: 'app-64.7z',
       appAsarFound: true,
     }));
     fs.writeFileSync(path.join(artifactDir, 'staged-scan.json'), JSON.stringify({
@@ -121,6 +127,7 @@ describe('integration 03 Windows test workflow', () => {
       acceptanceStatus: 'PASS',
       nsisListedBy7Zip: true,
       nsisExtractedBy7Zip: true,
+      nsisInnerArchive: 'app-64.7z',
       nsisAppAsarFound: true,
       scannerNsisFlag: false,
       checks: {

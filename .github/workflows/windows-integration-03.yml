@@ -99,22 +99,27 @@ jobs:
           ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
           if (-not $sevenZip) { throw "7-Zip is not available, so the NSIS payload was not listed." }
           $installer = Get-ChildItem desktop-dist -Filter "ChordMini-Setup-*-x64.exe" | Select-Object -First 1
-          New-Item -ItemType Directory -Force -Path nsis-payload, windows-installer-artifacts | Out-Null
+          New-Item -ItemType Directory -Force -Path nsis-outer, nsis-payload, windows-installer-artifacts | Out-Null
           & $sevenZip l $installer.FullName | Set-Content -Encoding utf8 windows-installer-artifacts/nsis-listing.txt
           if ($LASTEXITCODE -gt 1) { throw "7-Zip could not list the NSIS installer (exit $LASTEXITCODE)." }
-          & $sevenZip x $installer.FullName "-onsis-payload" -y
+          & $sevenZip x $installer.FullName "-onsis-outer" -y
           if ($LASTEXITCODE -gt 1) { throw "7-Zip could not extract the NSIS installer (exit $LASTEXITCODE)." }
+          $inner = Get-ChildItem nsis-outer -Recurse -File -Filter "app-64.7z" | Select-Object -First 1
+          if (-not $inner) { throw "NSIS listing did not contain app-64.7z." }
+          & $sevenZip x $inner.FullName "-onsis-payload" -y
+          if ($LASTEXITCODE -gt 1) { throw "7-Zip could not extract app-64.7z (exit $LASTEXITCODE)." }
           Get-ChildItem nsis-payload -Recurse -File -Filter "ChordMini-Setup-*-x64.exe" | Remove-Item -Force
           $asar = Get-ChildItem nsis-payload -Recurse -File -Filter "app.asar" | Select-Object -First 1
           $app = Get-ChildItem nsis-payload -Recurse -File -Filter "ChordMini.exe" | Select-Object -First 1
           if (-not $asar -or -not $app) {
-            throw "7-Zip extraction did not contain both app.asar and ChordMini.exe."
+            throw "7-Zip extraction of app-64.7z did not contain both app.asar and ChordMini.exe."
           }
           @{
             tool = "7-Zip"
             toolPath = $sevenZip
             listed = $true
             extracted = $true
+            innerArchive = "app-64.7z"
             appAsarFound = $true
             chordMiniExeFound = $true
           } | ConvertTo-Json | Set-Content windows-installer-artifacts/nsis-inspection.json
