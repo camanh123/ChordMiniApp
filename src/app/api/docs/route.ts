@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSafeTimeoutSignal } from '@/utils/environmentUtils';
-import { getPythonApiUrl } from '@/config/serverBackend';
+import { decideDesktopLoopback, fetchPythonBackend } from '@/server/desktopLoopback';
 
 /**
  * API route to get API documentation
@@ -8,20 +8,17 @@ import { getPythonApiUrl } from '@/config/serverBackend';
  */
 export async function GET() {
   try {
-    // Try to call the Python backend API first
-    const backendUrl = getPythonApiUrl();
-    
     try {
-      const response = await fetch(`${backendUrl}/api/docs`, {
+      const outcome = await fetchPythonBackend('/api/docs', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        // Add timeout to prevent hanging
-        signal: createSafeTimeoutSignal(8000) // 8 second timeout
+        signal: createSafeTimeoutSignal(8000),
       });
 
-      if (response.ok) {
+      if (outcome.state === 'response' && outcome.response.ok) {
+        const response = outcome.response;
         const data = await response.json();
         // Add cache headers for better performance
         return new NextResponse(JSON.stringify(data), {
@@ -33,7 +30,11 @@ export async function GET() {
         });
       }
     } catch (error) {
-      console.warn('Backend API docs not available, using fallback:', error);
+      if (decideDesktopLoopback().scope === 'passthrough') {
+        console.warn('Backend API docs not available, using fallback:', error);
+      } else {
+        console.warn('Backend API docs not available, using fallback');
+      }
     }
 
     // Fallback API documentation when the backend is not available

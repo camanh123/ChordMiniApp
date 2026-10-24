@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSafeTimeoutSignal } from '@/utils/environmentUtils';
 import { validateOffloadUrl } from '@/utils/blobValidation';
-import { getPythonApiUrl } from '@/config/serverBackend';
 import { deleteOffloadUrl } from '@/services/storage/offloadCleanupService';
 import { verifyAppCheckRequest } from '@/utils/serverAppCheck';
+import {
+  desktopPythonPolicyResponse,
+} from '@/server/analysisServiceAvailability';
+import { requirePythonBackendResponse } from '@/server/desktopLoopback';
 
 export const maxDuration = 300;
 
@@ -27,7 +30,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: appCheck.error }, { status: appCheck.status || 403 });
     }
 
-    const backendUrl = getPythonApiUrl();
     const formData = await request.formData();
     const shouldDeleteOffload = shouldDeleteOffloadAfterProcessing(formData);
     const rawOffloadUrl = getRequestedOffloadUrl(formData);
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
     if (detector) backendFormData.append('detector', detector);
     backendFormData.append('chord_dict', chordDict);
 
-    const response = await fetch(`${backendUrl}/api/recognize-chords-firebase`, {
+    const response = await requirePythonBackendResponse('/api/recognize-chords-firebase', {
       method: 'POST',
       body: backendFormData,
       signal: createSafeTimeoutSignal(800000),
@@ -77,6 +79,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
+    const policyFailure = desktopPythonPolicyResponse(error);
+    if (policyFailure) {
+      return policyFailure;
+    }
     console.error('❌ Offload chord recognition API error:', error);
     if (error instanceof Error && error.name === 'AbortError') {
       return NextResponse.json(

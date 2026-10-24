@@ -46,8 +46,10 @@ FROZEN_PATHS = [
 # BACKEND-04A through 04G may change the forwarder, the staging gate, the
 # desktop bridge, the single-process admission guard, the MP3 frame walk,
 # and the Flask ID3v2 sniff skip. DESKTOP-UX-02 may change the local
-# practice entry and its dictionary copy. The Electron shell, installer,
-# and inference modules stay frozen outside this list.
+# practice entry and its dictionary copy. INTEGRATION-04B may change the
+# desktop loopback gate and the routes that forward PYTHON_API_URL.
+# The Electron shell, installer, and inference modules stay frozen
+# outside this list.
 ALLOWED_INTEGRATION_PATHS = {
     "src/app/analyze/page.tsx",
     "src/app/api/practice-inference-notice/route.ts",
@@ -69,6 +71,20 @@ ALLOWED_INTEGRATION_PATHS = {
     "src/desktop/diagnostics.ts",
     "src/desktop/ownedServer.ts",
     "src/desktop/inferenceBoundary.ts",
+    "src/server/desktopLoopback.ts",
+    "src/server/analysisServiceAvailability.ts",
+    "src/app/api/recognize-chords-btc-sl/route.ts",
+    "src/app/api/recognize-chords-btc-pl/route.ts",
+    "src/app/api/detect-beats-offload/route.ts",
+    "src/app/api/recognize-chords-offload/route.ts",
+    "src/app/api/health/route.ts",
+    "src/app/api/docs/route.ts",
+    "src/app/api/model-info/route.ts",
+    "src/app/api/status-check/route.ts",
+    "src/app/api/youtube/info/route.ts",
+    "src/app/api/transcribe-sheetsage/route.ts",
+    "src/services/status/statusProbes.ts",
+    "src/services/google/cloudTasksService.ts",
 }
 
 

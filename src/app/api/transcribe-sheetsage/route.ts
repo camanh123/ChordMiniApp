@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSheetSageApiUrl } from '@/config/serverBackend';
 import { createSafeTimeoutSignal } from '@/utils/environmentUtils';
+import { fetchPythonBackend, sheetSageTarget } from '@/server/desktopLoopback';
 import type { SheetSageResult } from '@/types/sheetSage';
 import { setDocumentWithAdminAccess } from '@/services/firebase/firestoreAdminService';
 import { validateOffloadUrl } from '@/utils/offloadValidation';
@@ -20,6 +20,21 @@ const SHEETSAGE_BACKEND_TIMEOUT_MS = (
 )
   ? Math.floor(parsedSheetSageBackendTimeoutMs)
   : DEFAULT_SHEETSAGE_BACKEND_TIMEOUT_MS;
+
+async function fetchSheetSage(path: string, init: RequestInit): Promise<Response> {
+  const target = sheetSageTarget();
+  if (target.action === 'skip') {
+    throw new Error('fetch failed');
+  }
+  if (target.action === 'loopback') {
+    const outcome = await fetchPythonBackend(path, init);
+    if (outcome.state !== 'response') {
+      throw new Error('fetch failed');
+    }
+    return outcome.response;
+  }
+  return fetch(`${target.url}${path}`, init);
+}
 
 function buildBackendUnavailableMessage(message: string): string {
   if (message.toLowerCase().includes('required upstream assets') || message.toLowerCase().includes('asset host')) {
@@ -173,8 +188,6 @@ function normalizeMelodyResultForCache(videoId: string, result: SheetSageResult)
 }
 
 export async function POST(request: NextRequest) {
-  const backendUrl = getSheetSageApiUrl();
-
   try {
     // Verify App Check token
     const appCheck = await verifyAppCheckRequest(request);
@@ -223,9 +236,7 @@ export async function POST(request: NextRequest) {
         };
       })();
 
-    const response = await fetch(`${backendUrl}/transcribe`, {
-      ...backendRequest,
-    });
+    const response = await fetchSheetSage('/transcribe', backendRequest);
 
     const payload = await response.json().catch(() => null);
     await cleanupRemoteAudioSource(audioSource);
@@ -274,10 +285,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const healthRequested = request.nextUrl.searchParams.get('health');
   if (healthRequested === '1' || healthRequested === 'true') {
-    const backendUrl = getSheetSageApiUrl();
-
     try {
-      const response = await fetch(`${backendUrl}/health?warmup=true`, {
+      const response = await fetchSheetSage('/health?warmup=true', {
         method: 'GET',
         signal: createSafeTimeoutSignal(DEFAULT_SHEETSAGE_HEALTH_TIMEOUT_MS),
       });

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSafeTimeoutSignal } from '@/utils/environmentUtils';
-import { getPythonApiUrl } from '@/config/serverBackend';
+import { decideDesktopLoopback, fetchPythonBackend } from '@/server/desktopLoopback';
 
 /**
  * Health Check API Route
@@ -10,18 +10,24 @@ import { getPythonApiUrl } from '@/config/serverBackend';
  */
 export async function GET() {
   try {
-    // Get the backend URL
-    const backendUrl = getPythonApiUrl();
-    
-    // Make request to backend health endpoint
-    const response = await fetch(`${backendUrl}/`, {
+    const outcome = await fetchPythonBackend('/', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
-      // Use appropriate timeout for health checks
-      signal: createSafeTimeoutSignal(25000) // 25 second timeout for cold starts
+      signal: createSafeTimeoutSignal(25000),
     });
+    if (outcome.state !== 'response') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Analysis service unavailable',
+          status: 'unhealthy',
+        },
+        { status: 503 },
+      );
+    }
+    const response = outcome.response;
 
     if (!response.ok) {
       return NextResponse.json(
@@ -43,12 +49,14 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error('Health check error:', error);
+    console.error('Health check error:', decideDesktopLoopback().scope === 'passthrough' ? error : 'desktop loopback request failed');
     
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: decideDesktopLoopback().scope === 'passthrough'
+          ? (error instanceof Error ? error.message : 'Unknown error')
+          : 'Analysis service unreachable',
         status: 'unhealthy'
       },
       { status: 500 }

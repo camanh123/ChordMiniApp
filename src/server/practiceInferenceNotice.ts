@@ -1,11 +1,11 @@
 /**
- * Desktop practice notice derived only from environment classification.
+ * Desktop practice notice derived only from the loopback decision.
  * This module does not open a socket, read a secret, or return a URL.
- * A loopback default and a remote URL both stay "requirement": availability
- * is not claimed unless the configuration itself is invalid.
+ * An explicit http://127.0.0.1 origin stays "requirement". Every other
+ * desktop URL, including an unset value, is "not_configured".
  */
 
-import { classifyPythonBackend } from '@/runtime/backendConnectivity';
+import { decideDesktopLoopback } from '@/server/desktopLoopback';
 
 export const PRACTICE_INFERENCE_NOTICES = ['requirement', 'not_configured'] as const;
 
@@ -14,14 +14,9 @@ export type PracticeInferenceNotice = (typeof PRACTICE_INFERENCE_NOTICES)[number
 export function practiceInferenceNotice(
   env: NodeJS.ProcessEnv = process.env,
 ): PracticeInferenceNotice {
-  if (env.CHORDMINI_DESKTOP_MODE !== '1') {
-    return 'requirement';
-  }
-
-  const classification = classifyPythonBackend(env);
-  if (classification.deploymentClass === 'invalid') {
+  const decision = decideDesktopLoopback(env);
+  if (decision.scope === 'rejected') {
     return 'not_configured';
   }
-
   return 'requirement';
 }

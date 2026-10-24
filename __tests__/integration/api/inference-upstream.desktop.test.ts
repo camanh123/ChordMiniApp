@@ -145,6 +145,61 @@ describe('CONTRACT desktop inference boundary', () => {
     expect(String(fetchMock.mock.calls[0][0])).toBe('http://127.0.0.1:5001/health');
   });
 
+  it('rejects a remote desktop URL before fetch and keeps the inference token off the response', async () => {
+    process.env.CHORDMINI_DESKTOP_MODE = '1';
+    process.env.CHORDMINI_INFERENCE_AUTH = 'required';
+    process.env.CHORDMINI_INFERENCE_SECRET = SECRET;
+    process.env.PYTHON_API_URL = 'https://user:secret@ml.example/private';
+
+    const response = await postBeats(makeRequest());
+    const text = JSON.stringify(await response.json());
+
+    expect(response.status).toBe(503);
+    expect(text).toContain('ANALYSIS_SERVICE_NOT_CONFIGURED');
+    expect(text).not.toContain(SECRET);
+    expect(text).not.toContain('ml.example');
+    expect(text).not.toContain('secret@');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not follow a redirect from the desktop inference POST', async () => {
+    process.env.CHORDMINI_DESKTOP_MODE = '1';
+    process.env.PYTHON_API_URL = 'http://127.0.0.1:5001';
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith('/health')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => ({ status: 'healthy' }),
+          text: async () => '{"status":"healthy"}',
+        };
+      }
+      return {
+        ok: false,
+        status: 302,
+        type: 'default',
+        headers: new Headers({ location: 'https://evil.example/steal' }),
+        json: async () => ({ chord: 'C:maj' }),
+        text: async () => '',
+      };
+    });
+
+    const response = await postBeats(makeRequest());
+    const text = JSON.stringify(await response.json());
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+
+    expect(response.status).toBe(503);
+    expect(text).toContain('ANALYSIS_SERVICE_UNAVAILABLE');
+    expect(text).not.toContain('evil.example');
+    expect(text).not.toContain('C:maj');
+    expect(urls).toEqual([
+      'http://127.0.0.1:5001/health',
+      'http://127.0.0.1:5001/api/detect-beats',
+    ]);
+    expect(fetchMock.mock.calls[1][1].redirect).toBe('manual');
+  });
+
   it('does not start hosted staging from the desktop process', async () => {
     process.env.CHORDMINI_DESKTOP_MODE = '1';
     process.env.CHORDMINI_HOSTED_STAGING_AUTH = 'required';

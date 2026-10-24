@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { decideDesktopLoopback, fetchPythonBackend } from '@/server/desktopLoopback';
 import { getPythonApiUrl } from '@/config/serverBackend';
 
 // YouTube video ID validation regex
@@ -44,13 +45,14 @@ export async function GET(request: NextRequest) {
     let data = null;
     let lastError = null;
 
-    // Method 1: Try Python backend first (if available)
-    const backendUrl = getPythonApiUrl();
+    const loopback = decideDesktopLoopback();
+    if (loopback.scope !== 'rejected') {
+    const backendUrl = loopback.scope === 'passthrough' ? getPythonApiUrl() : loopback.origin;
 
     try {
       console.log(`Trying Python backend: ${backendUrl}/api/extract-audio`);
 
-      const response = await fetch(`${backendUrl}/api/extract-audio`, {
+      const outcome = await fetchPythonBackend('/api/extract-audio', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,6 +66,10 @@ export async function GET(request: NextRequest) {
         }),
         signal: AbortSignal.timeout(10000) // 10 second timeout
       });
+      if (outcome.state !== 'response') {
+        throw new Error('Python backend did not return a direct response');
+      }
+      const response = outcome.response;
 
       if (response.ok) {
         data = await response.json();
@@ -80,9 +86,15 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       lastError = error;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.log(`⚠️ Python backend failed: ${errorMessage}`);
+      if (loopback.scope === 'passthrough') {
+        console.log(`⚠️ Python backend failed: ${errorMessage}`);
+      } else {
+        console.log('⚠️ Python backend failed');
+      }
+    }
+    }
 
-      // Method 2: Fallback to basic YouTube metadata extraction
+    if (!data) {
       try {
         console.log(`Trying fallback metadata extraction for: ${videoId}`);
 
@@ -134,7 +146,11 @@ export async function GET(request: NextRequest) {
         {
           success: false,
           error: 'Failed to fetch video info from all sources',
-          details: lastError ? (lastError instanceof Error ? lastError.message : String(lastError)) : 'All extraction methods failed',
+          details: lastError
+            ? (loopback.scope === 'passthrough'
+              ? (lastError instanceof Error ? lastError.message : String(lastError))
+              : 'Python backend request failed')
+            : 'All extraction methods failed',
           suggestion: 'The video may be restricted, private, or temporarily unavailable. Please try a different video.'
         },
         { status: 500 }

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPythonApiUrl } from '@/config/serverBackend';
 import { verifyAppCheckRequest } from '@/utils/serverAppCheck';
 import {
   analysisServiceGateResponse,
   desktopAnalysisConnectionResponse,
+  desktopPythonPolicyResponse,
 } from '@/server/analysisServiceAvailability';
+import { requirePythonBackendResponse } from '@/server/desktopLoopback';
 
 /**
  * API route to recognize chords in an audio file using the BTC Supervised Learning model
@@ -39,9 +40,7 @@ export async function POST(request: NextRequest) {
     // Ensure detector is set for unified backend endpoint
     if (!formData.get('detector')) formData.set('detector', 'btc-sl');
 
-    // Forward the request to the Python backend unified endpoint
-    const backendUrl = getPythonApiUrl();
-    const response = await fetch(`${backendUrl}/api/recognize-chords`, {
+    const response = await requirePythonBackendResponse('/api/recognize-chords', {
       method: 'POST',
       body: formData,
     });
@@ -58,6 +57,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error recognizing chords with BTC SL:', error);
+
+    const policyFailure = desktopPythonPolicyResponse(error);
+    if (policyFailure) {
+      return policyFailure;
+    }
 
     const connectionFailure = desktopAnalysisConnectionResponse(error);
     if (connectionFailure) {

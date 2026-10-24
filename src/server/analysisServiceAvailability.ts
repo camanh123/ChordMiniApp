@@ -2,13 +2,17 @@
  * Desktop availability gate for chord and beat analysis.
  *
  * The packaged app serves the UI from loopback and does not start Flask.
- * A missing or loopback PYTHON_API_URL is the development default, not a
- * deployed analysis service. This module returns a privacy-safe response
- * before the long model request, and it never includes the backend URL.
+ * Desktop mode accepts only an explicit http://127.0.0.1 origin. Every other
+ * PYTHON_API_URL, including an unset value and localhost, is refused before
+ * a probe. This module never includes the backend URL.
  */
 
 import { NextResponse } from 'next/server';
-import { classifyPythonBackend } from '@/runtime/backendConnectivity';
+import {
+  decideDesktopLoopback,
+  DesktopPythonFetchError,
+  isRedirectResponse,
+} from '@/server/desktopLoopback';
 
 export const ANALYSIS_SERVICE_UNAVAILABLE = 'ANALYSIS_SERVICE_UNAVAILABLE';
 export const ANALYSIS_SERVICE_NOT_CONFIGURED = 'ANALYSIS_SERVICE_NOT_CONFIGURED';
@@ -34,43 +38,38 @@ export function analysisUnavailableBody(code: keyof typeof SERVICE_MESSAGES) {
   };
 }
 
-function configuredOrigin(env: NodeJS.ProcessEnv): string | null {
-  const raw = env.PYTHON_API_URL?.trim() || 'http://localhost:5001';
-  try {
-    const url = new URL(raw);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      return null;
-    }
-    return url.origin;
-  } catch {
-    return null;
-  }
-}
+type ProbeResult = 'ok' | 'down' | 'redirect';
 
 async function probeOrigin(
   origin: string,
   fetchImpl: typeof fetch,
   timeoutMs: number,
-): Promise<boolean> {
+): Promise<ProbeResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const health = await fetchImpl(`${origin}/health`, {
       method: 'GET',
-      redirect: 'error',
+      redirect: 'manual',
       signal: controller.signal,
     });
+    if (isRedirectResponse(health)) {
+      return 'redirect';
+    }
     if (health.ok) {
-      return true;
+      return 'ok';
     }
     const root = await fetchImpl(`${origin}/`, {
       method: 'GET',
-      redirect: 'error',
+      redirect: 'manual',
       signal: controller.signal,
     });
-    return root.ok;
+    if (isRedirectResponse(root)) {
+      return 'redirect';
+    }
+    return root.ok ? 'ok' : 'down';
   } catch {
-    return false;
+    return 'down';
   } finally {
     clearTimeout(timer);
   }
@@ -79,46 +78,40 @@ async function probeOrigin(
 /**
  * Returns a response when the desktop app must not start analysis.
  * Web and local Next.js development keep the existing proxy behavior.
- * A loopback service that actually answers /health is allowed through so a
- * developer running Flask is not blocked.
+ * An explicit 127.0.0.1 service that answers /health without a redirect is
+ * allowed through so a developer running Flask is not blocked.
  */
 export async function analysisServiceGateResponse(
   env: NodeJS.ProcessEnv = process.env,
   fetchImpl: typeof fetch = fetch,
   timeoutMs = 2000,
 ): Promise<NextResponse | null> {
-  if (env.CHORDMINI_DESKTOP_MODE !== '1') {
+  const decision = decideDesktopLoopback(env);
+  if (decision.scope === 'passthrough') {
     return null;
   }
-
-  const classification = classifyPythonBackend(env);
-  if (classification.deploymentClass === 'remote') {
-    return null;
-  }
-  if (classification.deploymentClass === 'invalid') {
+  if (decision.scope === 'rejected') {
     return NextResponse.json(
       analysisUnavailableBody(ANALYSIS_SERVICE_NOT_CONFIGURED),
       { status: 503 },
     );
   }
 
-  const origin = configuredOrigin(env);
-  if (!origin) {
-    return NextResponse.json(
-      analysisUnavailableBody(ANALYSIS_SERVICE_NOT_CONFIGURED),
-      { status: 503 },
-    );
-  }
-
-  const reachable = await probeOrigin(origin, fetchImpl, timeoutMs);
-  if (reachable) {
+  const probe = await probeOrigin(decision.origin, fetchImpl, timeoutMs);
+  if (probe === 'ok') {
     return null;
   }
+  return NextResponse.json(
+    analysisUnavailableBody(ANALYSIS_SERVICE_UNAVAILABLE),
+    { status: 503 },
+  );
+}
 
-  const code = classification.explicitlyConfigured
-    ? ANALYSIS_SERVICE_UNAVAILABLE
-    : ANALYSIS_SERVICE_NOT_CONFIGURED;
-  return NextResponse.json(analysisUnavailableBody(code), { status: 503 });
+export function desktopPythonPolicyResponse(error: unknown): NextResponse | null {
+  if (!(error instanceof DesktopPythonFetchError)) {
+    return null;
+  }
+  return NextResponse.json(analysisUnavailableBody(error.code), { status: 503 });
 }
 
 export function isAnalysisConnectionFailure(error: unknown): boolean {
