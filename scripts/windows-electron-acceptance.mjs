@@ -321,7 +321,7 @@ async function main() {
     });
 
     await window.goto(`${parsedUrl.origin}/analyze`);
-    await window.waitForSelector('text=Choose Audio File', { timeout: 30000 });
+    await window.waitForSelector('text=Mở âm thanh', { timeout: 30000 });
     const audioFile = path.join(artifactDir, 'acceptance-tone.wav');
     writeWav(audioFile);
     await window.locator('input[type="file"]').setInputFiles(audioFile);

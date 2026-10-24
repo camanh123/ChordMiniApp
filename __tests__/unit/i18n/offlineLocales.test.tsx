@@ -80,6 +80,11 @@ describe('offline locales', () => {
     expect(translate('en-US', 'games.quality.major')).toBe('major');
     expect(translate('en-US', 'games.reviewAction')).toBe('Review');
     expect(translate('en-US', 'analyze.setupTitle')).toBe('Analysis setup');
+    expect(translate('en-US', 'analyze.openAudio')).toBe('Open audio');
+    expect(translate('vi-VN', 'analyze.openAudio')).toBe('Mở âm thanh');
+    expect(translate('zh-CN', 'analyze.practiceRequirement')).not.toBe(catalog['analyze.practiceRequirement']['en-US']);
+    expect(translate('ja-JP', 'analyze.replaceAudio')).toBe('音声を差し替える');
+    expect(translate('ko-KR', 'analyze.practiceTitle')).toBe('로컬 연습');
   });
 
   it('interpolates without contacting a translation service', () => {

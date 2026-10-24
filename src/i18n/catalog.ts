@@ -210,6 +210,23 @@ export const catalog = {
   'settings.segmentation': { 'en-US': 'Song Segmentation', 'vi-VN': 'Chia đoạn bài hát', 'zh-CN': '歌曲分段', 'ja-JP': '曲のセクション分け', 'ko-KR': '곡 구간 나누기' },
 
   'analyze.chooseFile': { 'en-US': 'Choose Audio File', 'vi-VN': 'Chọn tệp âm thanh', 'zh-CN': '选择音频文件', 'ja-JP': '音声ファイルを選択', 'ko-KR': '오디오 파일 선택' },
+  'analyze.openAudio': { 'en-US': 'Open audio', 'vi-VN': 'Mở âm thanh', 'zh-CN': '打开音频', 'ja-JP': '音声を開く', 'ko-KR': '오디오 열기' },
+  'analyze.replaceAudio': { 'en-US': 'Replace audio', 'vi-VN': 'Đổi tệp âm thanh', 'zh-CN': '更换音频', 'ja-JP': '音声を差し替える', 'ko-KR': '오디오 바꾸기' },
+  'analyze.practiceTitle': { 'en-US': 'Local practice', 'vi-VN': 'Luyện tập trên máy', 'zh-CN': '本地练习', 'ja-JP': '手元で練習', 'ko-KR': '로컬 연습' },
+  'analyze.practicePlayback': {
+    'en-US': 'Open a local audio file and play it offline. Play, pause, seek, and playback speed do not need AI.',
+    'vi-VN': 'Mở tệp âm thanh trên máy và phát khi không có mạng. Phát, tạm dừng, tua và tốc độ phát không cần AI.',
+    'zh-CN': '打开本地音频并离线播放。播放、暂停、拖动进度和播放速度都不需要 AI。',
+    'ja-JP': '手元の音声ファイルを開いて、オフラインで再生できます。再生、一時停止、シーク、再生速度に AI は不要です。',
+    'ko-KR': '기기의 오디오 파일을 열어 오프라인으로 재생할 수 있습니다. 재생, 일시정지, 탐색, 재생 속도에는 AI가 필요하지 않습니다.',
+  },
+  'analyze.practiceRequirement': {
+    'en-US': 'Chord and beat recognition need an available inference service. If that service is missing, no chords or beats are created.',
+    'vi-VN': 'Nhận hợp âm và nhịp cần một dịch vụ suy luận sẵn sàng. Nếu thiếu dịch vụ, ứng dụng không tạo hợp âm hay nhịp.',
+    'zh-CN': '和弦与节拍识别需要可用的推理服务。如果没有该服务，不会生成和弦或节拍。',
+    'ja-JP': 'コードとビートの認識には、利用できる推論サービスが必要です。サービスがなければ、コードもビートも作りません。',
+    'ko-KR': '코드와 비트 인식에는 사용 가능한 추론 서비스가 필요합니다. 서비스가 없으면 코드나 비트를 만들지 않습니다.',
+  },
   'analyze.analyze': { 'en-US': 'Analyze Audio', 'vi-VN': 'Phân tích âm thanh', 'zh-CN': '分析音频', 'ja-JP': '音声を解析', 'ko-KR': '오디오 분석' },
   'analyze.processing': { 'en-US': 'Processing...', 'vi-VN': 'Đang xử lý...', 'zh-CN': '正在处理...', 'ja-JP': '処理中...', 'ko-KR': '처리 중...' },
   'analyze.extracting': { 'en-US': 'Extracting audio...', 'vi-VN': 'Đang tách âm thanh...', 'zh-CN': '正在提取音频...', 'ja-JP': '音声を抽出中...', 'ko-KR': '오디오를 추출하는 중...' },

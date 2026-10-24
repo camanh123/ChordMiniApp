@@ -501,7 +501,7 @@ async function probeLoopback(ports) {
         chordGridText: home.body.includes('Phân tích nhịp, hợp âm và lời'),
         logoStatus: logo.status,
         analyzeStatus: analyze.status,
-        analyzeFileInput: analyze.body.includes('Chọn tệp âm thanh'),
+        analyzeFileInput: analyze.body.includes('Mở âm thanh'),
       };
     } catch {
       // Another owned listener is not the Next server.
@@ -914,7 +914,7 @@ async function main() {
 
       progress('audio-start');
       await withTimeout('analyze-navigation', 30000, () => window.goto(`${pageUrl.origin}/analyze`, { timeout: 30000 }));
-      await window.waitForSelector('text=Chọn tệp âm thanh', { timeout: 30000 });
+      await window.waitForSelector('text=Mở âm thanh', { timeout: 30000 });
       const audioFile = path.join(artifactDir, 'acceptance-tone.wav');
       writeWav(audioFile);
       await withTimeout('audio-file-selection', 20000, () => window.locator('input[type="file"]').setInputFiles(audioFile));

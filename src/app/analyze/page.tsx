@@ -75,7 +75,7 @@ import { useProcessing } from '@/contexts/ProcessingContext';
 import BeatTimeline from '@/components/analysis/BeatTimeline';
 import { simplifyChordArray } from '@/utils/chordSimplification';
 import { useUIStore, useIsLoopEnabled, useLoopStartBeat, useLoopEndBeat, useIsPitchShiftEnabled, useIsPitchShiftReady } from '@/stores/uiStore';
-import { AUDIO_FILE_ACCEPT } from '@/runtime/audioFileInput';
+import LocalPracticeEntry from '@/components/analysis/LocalPracticeEntry';
 
 import { useMetronomeSync } from '@/hooks/chord-playback/useMetronomeSync';
 import { useMelodicTranscriptionPlayback } from '@/hooks/chord-playback/useMelodicTranscriptionPlayback';
@@ -570,12 +570,8 @@ export default function LocalAudioAnalyzePage() {
     }
   }, [chordDetector]);
 
-  // Handle file upload
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const file = files[0];
+  // Handle file upload. Playback uses the file immediately; analysis stays opt-in.
+  const applySelectedAudioFile = (file: File) => {
     setAudioFile(file);
 
     // Reset states
@@ -1178,6 +1174,41 @@ const simplifiedChordGridData = useMemo(() => {
             <div className="p-6 h-full transition-colors duration-300">
               {/* Hidden audio element */}
               <audio ref={audioRef} className="hidden" controls={false} />
+              <LocalPracticeEntry
+                file={audioFile}
+                onFileSelected={applySelectedAudioFile}
+                hasAnalysis={Boolean(analysisResults)}
+                serviceState={
+                  analysisErrorCode === 'ANALYSIS_SERVICE_UNAVAILABLE'
+                    ? 'unavailable'
+                    : analysisErrorCode === 'ANALYSIS_SERVICE_NOT_CONFIGURED'
+                      ? 'not_configured'
+                      : undefined
+                }
+              >
+                {audioFile && (
+                  <div>
+                    <AudioPlaybackDock
+                      isPlaying={isPlaying}
+                      onTogglePlayPause={playPause}
+                      playbackRate={playbackRate}
+                      onChangePlaybackRate={changePlaybackRate}
+                      currentTime={currentTime}
+                      duration={duration}
+                      onSeek={(t: number) => {
+                        if (audioRef.current) {
+                          try { audioRef.current.currentTime = t; } catch {}
+                        }
+                      }}
+                      disabled={!audioFile}
+                      bpm={analysisResults?.beatDetectionResult?.bpm}
+                    />
+                    {playbackError && (
+                      <p className="mt-2 text-sm text-red-600 dark:text-red-400">{playbackError}</p>
+                    )}
+                  </div>
+                )}
+              </LocalPracticeEntry>
               <div className="flex flex-wrap items-center gap-4 md:gap-6 mb-4">
                 {/* LEFT: Tabs inline (wraps on small screens) */}
                 {analysisResults && (
@@ -1193,18 +1224,6 @@ const simplifiedChordGridData = useMemo(() => {
 
                 {/* RIGHT: File upload and Analyze controls */}
                 <div className="flex flex-row gap-2 items-center ml-auto pl-2 md:pl-6">
-                  <div className="relative inline-block">
-                    <label className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-medium py-2 px-4 rounded-md cursor-pointer transition-colors">
-                      {audioFile ? audioFile.name : t('analyze.chooseFile')}
-                      <input
-                        type="file"
-                        accept={AUDIO_FILE_ACCEPT}
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-
                   <Button
                     onClick={processAudioFile}
                     disabled={!audioFile || audioProcessingState.isExtracting || audioProcessingState.isAnalyzing || !!analysisDurationLimitReason}
@@ -1527,28 +1546,6 @@ const simplifiedChordGridData = useMemo(() => {
                     </div>
                     )}
 
-                    {audioFile && (
-                      <div>
-                        <AudioPlaybackDock
-                          isPlaying={isPlaying}
-                          onTogglePlayPause={playPause}
-                          playbackRate={playbackRate}
-                          onChangePlaybackRate={changePlaybackRate}
-                          currentTime={currentTime}
-                          duration={duration}
-                          onSeek={(t: number) => {
-                            if (audioRef.current) {
-                              try { audioRef.current.currentTime = t; } catch {}
-                            }
-                          }}
-                          disabled={!audioFile}
-                          bpm={analysisResults?.beatDetectionResult?.bpm}
-                        />
-                        {playbackError && (
-                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{playbackError}</p>
-                        )}
-                      </div>
-                    )}
                   </div>
 
                   {/* Chord Playback Manager: manages state for UtilityBar mixer */}
