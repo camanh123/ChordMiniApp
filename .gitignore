@@ -314,6 +314,7 @@ scripts/*
 !scripts/scan-desktop-package.mjs
 !scripts/windows-packaged-acceptance.mjs
 !scripts/verify-packaged-standalone.mjs
+!scripts/write-integration-03-summary.mjs
 
 __tests__/
 __tests__/*
