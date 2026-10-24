@@ -51,6 +51,15 @@ describe('integration 03 Windows test workflow', () => {
     expect(text).not.toContain('softprops/action-gh-release');
     const preserved = fs.readFileSync(installerWorkflowPath, 'utf8');
     expect(preserved).not.toContain('cursor/phase-integration-03-windows-test-installer-393f');
+    const builder = yaml.parse(fs.readFileSync(path.join(repoRoot, 'electron-builder.yml'), 'utf8')) as {
+      files: string[];
+      extraResources: Array<{ filter: string[] }>;
+    };
+    expect(builder.files).toEqual(expect.arrayContaining([
+      '!**/ffmpeg-static',
+      '!**/ffmpeg-static/**',
+    ]));
+    expect(builder.extraResources[0].filter).toContain('!standalone/**/python_backend/**');
   });
 
   it('writes a summary without install paths or absolute roots', () => {

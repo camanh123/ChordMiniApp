@@ -44,10 +44,10 @@ const MODEL_CONTAINER_EXTENSIONS = new Set(['.h5', '.hdf5', '.sdict']);
 const DATA_EXTENSIONS = new Set(['.pkl', '.npy', '.npz', '.mat']);
 const SECRET_CONTENT = /BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY|"type"\s*:\s*"service_account"|FIREBASE_SERVICE_ACCOUNT_KEY\s*=/;
 const MAX_CONTENT_BYTES = 1_000_000;
-const MAX_ARCHIVE_ENTRIES = 20_000;
-const MAX_WALK_ENTRIES = 100_000;
+const MAX_ARCHIVE_ENTRIES = 250_000;
+const MAX_WALK_ENTRIES = 250_000;
 const MAX_ARCHIVE_DEPTH = 4;
-const MAX_HEADER_BYTES = 8_000_000;
+const MAX_HEADER_BYTES = 32_000_000;
 
 const MADMOM_NAMES = /^beats_blstm_\d+\.pkl$/i;
 const CHORD_PICKLES = /^cross_(?:subpart_)?weight\d+\.pkl$/i;

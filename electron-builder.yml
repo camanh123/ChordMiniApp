@@ -12,6 +12,11 @@ files:
   - electron/main.cjs
   - electron/dist/**/*
   - "!**/*.map"
+  # ffmpeg-static is a listed GPL-3.0-or-later dependency with no application
+  # import. electron-builder otherwise copies its ffmpeg.exe into
+  # app.asar.unpacked. The Python and model exclusions below stay in place.
+  - "!**/ffmpeg-static"
+  - "!**/ffmpeg-static/**"
 extraMetadata:
   main: electron/main.cjs
   description: Chord recognition and beat tracking
