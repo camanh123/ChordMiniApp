@@ -1,19 +1,17 @@
-# Private Windows x64 test build for INTEGRATION-03.
-# Trigger: push to cursor/phase-integration-03-windows-test-installer-393f only.
-# Source commit: github.sha on that push.
-# workflow_dispatch is intentionally absent. The installer workflow is not on
-# the default branch, and dispatch is not retried.
-# pull_request and pull_request_target are intentionally absent.
+# Private Windows x64 test build for INTEGRATION-04C.
+# Trigger: push to the 04C branch only. The INTEGRATION-03 branch keeps the
+# copy of this file that names itself. workflow_dispatch is intentionally
+# absent. pull_request and pull_request_target are intentionally absent.
 # The job token is contents: read. No repository secrets are read.
 # No GitHub Release is published and electron-builder is invoked with
-# --publish never.
+# --publish never. The checkout must contain INTEGRATION-04B 8b3abf9.
 
-name: Windows integration 03 test installer
+name: Windows integration 04C test installer
 
 on:
   push:
     branches:
-      - cursor/phase-integration-03-windows-test-installer-393f
+      - cursor/phase-integration-04c-windows-ai-connection-393f
 
 permissions:
   contents: read
@@ -27,6 +25,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+
+      - name: Verify INTEGRATION-04B source
+        shell: pwsh
+        run: |
+          git merge-base --is-ancestor 8b3abf94ff4a69ae84b7d06707af2e3fcef8d003 HEAD
+          if ($LASTEXITCODE -ne 0) { throw "This checkout is not a descendant of INTEGRATION-04B 8b3abf94." }
+          if (-not (Select-String -Path src/server/desktopLoopback.ts -Pattern '127\.0\.0\.1' -Quiet)) {
+            throw "The INTEGRATION-04B loopback guard is not in this checkout."
+          }
+          Write-Host "BUILD_SOURCE_SHA=$(git rev-parse HEAD)"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -36,6 +46,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit --pretty false -p tsconfig.json
 
       - name: Build Next.js standalone server
         run: npm run build
@@ -50,7 +63,7 @@ jobs:
         run: node scripts/verify-packaged-standalone.mjs desktop-resources/standalone windows-installer-artifacts/staged-runtime.json
 
       - name: Desktop Jest tests
-        run: npx jest __tests__/unit/desktop --runInBand --forceExit
+        run: npx jest __tests__/unit/desktop __tests__/unit/server/desktopLoopback.test.ts __tests__/unit/runtime/analysisServiceAvailability.test.ts __tests__/unit/server/practiceInferenceNotice.test.ts __tests__/unit/server/inferenceUpstream.test.ts __tests__/integration/api/inference-upstream.desktop.test.ts __tests__/integration/api/inference-gateway.contract.test.ts --runInBand --forceExit
 
       - name: Build the unsigned NSIS installer
         env:
@@ -139,7 +152,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ChordMini-Windows-x64-Integration03
+          name: ChordMini-Windows-x64-Integration04C
           path: |
             desktop-dist/ChordMini-Setup-*-x64.exe
             windows-installer-artifacts/SHA256SUMS.txt
@@ -151,7 +164,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ChordMini-Windows-x64-Integration03-diagnostics
+          name: ChordMini-Windows-x64-Integration04C-diagnostics
           path: |
             windows-installer-artifacts/staged-scan.json
             windows-installer-artifacts/unpacked-scan.json

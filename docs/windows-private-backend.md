@@ -1,8 +1,20 @@
 # Private Windows backend for local guitar analysis
 
-This procedure is for a private, non-commercial test on a Windows machine the operator controls. It starts the existing Flask process beside the already built ChordMini `0.6.5` installer. It does not change that installer, install Python for all users, or download model weights.
+This procedure is for a private, non-commercial test on a Windows machine the operator controls. It starts the existing Flask process beside the INTEGRATION-04C test installer. It does not change that installer, install Python for all users, or download model weights.
 
-This document was written from the repository and from an isolated Linux environment. It has not been executed on a Windows device. A successful reading of this page is not a Windows AI run.
+This document was written from the repository and from an isolated Linux environment. It has not been executed on a Windows device. Installing Python packages on Windows is unverified. A successful reading of this page is not a Windows AI run.
+
+## Backend source checkout
+
+The installer does not contain Python or the Flask application. Clone the application repository and check out the exact commit named `sourceSha` in `acceptance-summary.json` from the `ChordMini-Windows-x64-Integration04C` artifact:
+
+```bat
+git clone https://github.com/camanh123/ChordMiniApp.git
+cd ChordMiniApp
+git checkout <sourceSha>
+```
+
+That commit is a descendant of `8b3abf94ff4a69ae84b7d06707af2e3fcef8d003`, the INTEGRATION-04B loopback guard. Do not use `main`. `main` does not contain this desktop shell. Do not copy `python_backend` out of the installer, because the installer is built to omit it.
 
 ## What stays on the machine
 
@@ -84,13 +96,16 @@ A ready process returns JSON containing `"status": "healthy"`. `http://localhost
 
 ## Desktop environment
 
-Launch the existing `ChordMini-Setup-0.6.5-x64.exe` only after that health check succeeds. Set this for the desktop process and leave it as the only analysis URL:
+Use the installer from artifact `ChordMini-Windows-x64-Integration04C`. Its file name is still `ChordMini-Setup-0.6.5-x64.exe` because the package version is 0.6.5. Compare it with `SHA256SUMS.txt` in that same artifact before installing. The earlier INTEGRATION-03 installer has the same file name and does not contain this loopback guard.
+
+The installer is per-user and lets you change the directory. The default directory is `%LOCALAPPDATA%\Programs\ChordMini`. After `/health` succeeds, start the executable from a command prompt that has only this analysis variable set:
 
 ```bat
 set PYTHON_API_URL=http://127.0.0.1:5001
+"%LOCALAPPDATA%\Programs\ChordMini\ChordMini.exe"
 ```
 
-Do not set `CHORDMINI_INFERENCE_AUTH`. Do not set `CHORDMINI_INFERENCE_SECRET`, `CHORDMINI_HOSTED_GATEWAY_URL`, or `CHORDMINI_HOSTED_STAGING_AUTH`.
+If you chose another directory, start `ChordMini.exe` from that directory instead. Do not set `CHORDMINI_INFERENCE_AUTH`. Do not set `CHORDMINI_INFERENCE_SECRET`, `CHORDMINI_HOSTED_GATEWAY_URL`, or `CHORDMINI_HOSTED_STAGING_AUTH`. Do not expose Flask beyond `127.0.0.1`.
 
 The desktop process accepts only `http://127.0.0.1` with an optional port from 1 to 65535. It refuses, before any connection:
 
@@ -108,12 +123,32 @@ A redirect, including a redirect to another host, is not followed. The analysis 
 
 Press Ctrl+C in the Flask window. Closing ChordMini does not stop Flask. Deactivate the virtual environment with `deactivate`. Removing `.venv-chordmini` removes the test install without changing the system Python.
 
-## Failures that stop the setup
+## When a native package fails to install
+
+If `pip install` exits non-zero, the backend is not installed. Leave that virtual environment unused. Do not repeat the install against the Windows system Python. Do not change the Madmom commit, swap in another wheel, or download a checkpoint to get past the error.
+
+Read the pip log. Then, only if that log says Git or the Microsoft C++ compiler is missing, install Git for Windows and the Visual Studio “Desktop development with C++” workload, delete `.venv-chordmini`, and run the same virtual-environment commands again. If the second attempt fails, stop. Do not start Flask from a partial environment.
+
+Other stops:
 
 - `py -3.10` is missing, or `python` inside the virtual environment is not 3.10.
-- Git is missing, so the pinned Madmom URL cannot be cloned.
-- Microsoft C++ Build Tools are missing and Madmom's extension build fails.
-- `pkg_resources` or setuptools is too new or too old for that Madmom commit. The command above pins setuptools 79.0.1, which matches the commit note in `requirements.txt`.
+- `pkg_resources` or setuptools does not match the pin above. The command pins setuptools 79.0.1, which matches the note in `requirements.txt`.
 - `PORT` is still set in the shell, Flask selects production, and uploads fail closed with authentication required.
 - The five `.sdict` files are absent. Stop. Do not download weights from another machine as part of this test.
 - `curl http://127.0.0.1:5001/health` fails or returns a redirect. Do not point the desktop app at a different host to work around it.
+
+## Private trial with a short recording
+
+After `/health` returns `{"status":"healthy"}` and the new installer is running with `PYTHON_API_URL=http://127.0.0.1:5001`, choose a short WAV or MP3 that you are allowed to analyze. Use your own guitar recording. Do not use a GuitarSet locked or reserve file. This guide does not provide a sample and does not name an expected chord or beat sequence.
+
+Select that file in ChordMini and request analysis. A reached local Flask process returns its own chord and beat JSON through the existing page. If the URL is refused or Flask is not listening, the page shows the translated not-configured or unavailable message and leaves the grid empty. Do not type chords in by hand and treat them as a model result.
+
+## Diagnostics that omit secrets
+
+Record only these facts:
+
+- The HTTP status and JSON body of `http://127.0.0.1:5001/health`.
+- The analysis message shown in the page, including `ANALYSIS_SERVICE_NOT_CONFIGURED` or `ANALYSIS_SERVICE_UNAVAILABLE` when one is present.
+- Whether the Flask window is still on `127.0.0.1:5001` or has exited.
+
+Startup failures are appended to `desktop.log` under the Electron user-data directory for ChordMini, normally `%APPDATA%\ChordMini\desktop.log`. The shell redacts `PYTHON_API_URL`, the inference secret, ready tokens, and the other values named in `src/desktop/diagnostics.ts`. Do not paste those values back in when you share the log. Do not add `CHORDMINI_INFERENCE_SECRET` to the environment in order to obtain a richer error.
