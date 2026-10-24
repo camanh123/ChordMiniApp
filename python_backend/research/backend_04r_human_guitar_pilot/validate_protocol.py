@@ -1,7 +1,9 @@
-"""Check the BACKEND-04R.1 pilot documents against their own equations.
+"""Check the BACKEND-04R.1 pilot documents and the GATE-1 freeze.
 
 This script does not import the application, record audio, or score a model.
-Run it from any working directory:
+The expected freeze hashes live in GATE_1_FREEZE_MANIFEST.json, not in this
+file. This file does not hash that manifest, and the manifest does not hash
+itself. Run it from any working directory:
 
     python3 python_backend/research/backend_04r_human_guitar_pilot/validate_protocol.py
 """
@@ -9,6 +11,8 @@ Run it from any working directory:
 from __future__ import annotations
 
 import csv
+import hashlib
+import json
 from decimal import Decimal, ROUND_HALF_UP
 from fractions import Fraction
 from pathlib import Path
@@ -400,6 +404,67 @@ def check_documents():
         require("GRANTED" not in text, name)
 
 
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def check_freeze():
+    """Compare checkout bytes with the external freeze manifest."""
+    manifest_path = ROOT / "GATE_1_FREEZE_MANIFEST.json"
+    manifest = json.loads(manifest_path.read_text())
+    require(manifest["freeze_identifier"] == "CHORDMINI-GATE-1-DESIGN-FREEZE", "freeze id")
+    require(manifest["approval_decision_id"] == "CHORDMINI-GATE-1-DESIGN-APPROVAL", "decision id")
+    require(
+        manifest["approved_specification_commit"] == "9b9bae00dfb978203a631c702d02a66bd47d02e7",
+        "approved commit",
+    )
+    require(manifest["manifest_is_excluded_from_hash_list"] is True, "manifest exclusion flag")
+    require(manifest["gate_1_status"] == "APPROVED_DESIGN_ONLY", "gate 1 status")
+    for gate_number in range(2, 9):
+        gate = f"GATE-{gate_number}"
+        require(manifest["pending_gates"][gate] == "PENDING", gate)
+    flags = manifest["execution_flags"]
+    for name in (
+        "PILOT_EXECUTION_AUTHORIZED",
+        "RECORDING_AUTHORIZED",
+        "CONSENT_SIGNED",
+        "RIGHTS_CLEARED",
+        "PERFORMERS_RECRUITED",
+        "DATASET_COLLECTED",
+        "MODEL_COMPARISON_AUTHORIZED",
+    ):
+        require(flags[name] is False, name)
+    structure = manifest["pilot_structure"]
+    require(structure["takes"] == 24, "freeze take count")
+    require(structure["development"] == 12 and structure["sealed_evaluation"] == 12, "freeze split")
+    require(structure["sessions_per_player"] == 2 and structure["conditions_per_session"] == 6, "freeze shape")
+    thresholds = manifest["thresholds"]
+    require(thresholds["pair_tolerance_seconds"] == "0.035", "freeze tolerance")
+    require(thresholds["minimum_agreement"] == "0.95", "freeze agreement")
+    require(thresholds["residual_latency_seconds"] == "0.005", "freeze latency")
+    require(thresholds["maximum_duration_seconds"] == 60, "freeze duration")
+    require(thresholds["bars"] == 16 and thresholds["beats"] == 64, "freeze bars")
+    require(thresholds["bar_9_beat_index"] == 32, "freeze bar 9")
+    require(Decimal(thresholds["pair_tolerance_seconds"]) == WINDOW, "tolerance matches matcher")
+    require(Fraction(thresholds["minimum_agreement"]) == AGREEMENT_MIN, "agreement matches matcher")
+    listed = manifest["protected_documents"] + manifest["verification_set"] + [manifest["approval_record"]]
+    require(len(manifest["protected_documents"]) == 7, "protected document count")
+    require([item["path"] for item in manifest["verification_set"]] == ["validate_protocol.py"], "verification set")
+    seen = set()
+    for item in listed:
+        require(item["path"] != "GATE_1_FREEZE_MANIFEST.json", "manifest hashed itself")
+        require(item["path"] not in seen, "duplicate freeze path")
+        seen.add(item["path"])
+        require(sha256_file(ROOT / item["path"]) == item["sha256"], f"hash mismatch: {item['path']}")
+    record = (ROOT / manifest["approval_record"]["path"]).read_text()
+    require("CHORDMINI-GATE-1-DESIGN-APPROVAL" in record, "decision id in record")
+    require("APPROVED_DESIGN_ONLY" in record, "design-only status")
+    require("2026-10-24" in record, "decision date")
+    require("No performer is named" in record, "no invented performer")
+    require("not participant consent" in record, "consent not claimed")
+    require("CONSENT_SIGNED" in record, "consent flag named")
+
+
 def main():
     with (ROOT / "DATA_MANIFEST_TEMPLATE.csv").open(newline="") as handle:
         rows = list(csv.DictReader(handle))
@@ -408,6 +473,7 @@ def main():
     check_consensus()
     check_trim_and_latency()
     check_documents()
+    check_freeze()
     print("validate_protocol.py: PASS")
 
 
