@@ -1084,14 +1084,16 @@ async function main() {
         ), undefined, { timeout: 8000 });
         record('localGame', clicked, { cellCount });
       } catch (error) {
+        const message = redact(error instanceof Error ? error.message : error).split('\n')[0].slice(0, 500);
+        progress('settings-error', { message: message.slice(0, 240) });
         if (!report.checks.settingsPersistence) {
-          record('settingsPersistence', false, { error: redact(error instanceof Error ? error.message : error).slice(0, 500) });
+          record('settingsPersistence', false, { error: message });
         }
         if (!report.checks.localePersistence) {
-          record('localePersistence', false, { error: redact(error instanceof Error ? error.message : error).slice(0, 500) });
+          record('localePersistence', false, { error: message });
         }
         if (!report.checks.localGame) {
-          record('localGame', false, { error: redact(error instanceof Error ? error.message : error).slice(0, 500) });
+          record('localGame', false, { error: message });
         }
       }
       progress('settings-finished', {

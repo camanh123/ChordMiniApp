@@ -75,7 +75,7 @@ describe('integration 03 Windows test workflow', () => {
       installDir: secretPath,
       checks: {
         install: { pass: true, installDir: secretPath },
-        localPlayback: { pass: false, error: 'seek failed' },
+        localPlayback: { pass: false, error: `seek failed at ${secretPath}\\tone.wav` },
       },
     }));
     fs.writeFileSync(path.join(artifactDir, 'build-metadata.json'), JSON.stringify({
@@ -137,6 +137,8 @@ describe('integration 03 Windows test workflow', () => {
       },
     });
     expect(summary.unpackedArchiveCoverage).toEqual(['resources/app.asar']);
+    expect(summary.failedCheckErrors.localPlayback).toContain('[path]');
+    expect(summary.failedCheckErrors.localPlayback).not.toContain('PrivateOwner');
     fs.rmSync(artifactDir, { recursive: true, force: true });
   });
 });

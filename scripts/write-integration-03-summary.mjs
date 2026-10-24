@@ -36,9 +36,14 @@ export function buildIntegration03Summary(artifactDir, sourceSha) {
   const unpacked = readJson(path.join(artifactDir, 'unpacked-scan.json'));
   const nsisScan = readJson(path.join(artifactDir, 'nsis-payload-scan.json'));
   const checks = {};
+  const failedCheckErrors = {};
   for (const name of CHECK_NAMES) {
     const value = acceptance?.checks?.[name];
     checks[name] = value && value.pass === true ? 'PASS' : (value ? 'FAIL' : 'NOT_RUN');
+    const error = publicCheckError(value);
+    if (checks[name] === 'FAIL' && error) {
+      failedCheckErrors[name] = error;
+    }
   }
   return {
     sourceSha: sourceSha || metadata?.commit || null,
@@ -50,6 +55,7 @@ export function buildIntegration03Summary(artifactDir, sourceSha) {
     pythonBundled: metadata?.pythonBundled === true,
     acceptanceStatus: acceptance?.status || 'MISSING',
     checks,
+    ...(Object.keys(failedCheckErrors).length > 0 ? { failedCheckErrors } : {}),
     stagingScanFindingCount: countFindings(staged),
     unpackedScanFindingCount: countFindings(unpacked),
     unpackedArchiveCoverage: archiveList(unpacked),
@@ -61,6 +67,18 @@ export function buildIntegration03Summary(artifactDir, sourceSha) {
     nsisPayloadArchiveCoverage: archiveList(nsisScan),
     scannerNsisFlag: nsisScan?.nsisPayloadInspected === true,
   };
+}
+
+function publicCheckError(value) {
+  if (!value || value.pass === true || typeof value.error !== 'string') {
+    return '';
+  }
+  return value.error
+    .split('\n')[0]
+    .replace(/[A-Za-z]:\\(?:[^\\\s"]+\\)*[^\\\s"]+/g, '[path]')
+    .replace(/\/(?:Users|home|tmp|opt)\/\S+/g, '[path]')
+    .replace(/(PYTHON_API_URL|SONGFORMER_API_URL|SHEETSAGE_API_URL|CHORDMINI_READY_TOKEN|CHORDMINI_DESKTOP_COOKIE|FIREBASE_SERVICE_ACCOUNT_KEY|GEMINI_API_KEY|GENIUS_API_KEY|MUSIC_AI_API_KEY|CRON_SECRET)=([^\s]+)/gi, '$1=[redacted]')
+    .slice(0, 240);
 }
 
 function countFindings(report) {
