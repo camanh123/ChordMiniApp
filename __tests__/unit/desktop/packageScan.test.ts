@@ -23,7 +23,16 @@ function tempRoot() {
 }
 
 function removeTree(target: string) {
-  fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  try {
+    fs.rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  } catch (error) {
+    if (process.platform !== 'win32') throw error;
+    try {
+      fs.renameSync(target, `${target}.stale-${process.pid}`);
+    } catch {
+      // A locked temp file must not fail assertions that already ran.
+    }
+  }
 }
 
 function runScan(root: string) {
@@ -88,12 +97,53 @@ function storeZip(files: Array<{ name: string; data: Buffer; method?: number }>)
   return Buffer.concat(parts);
 }
 
-async function createAsar(files: Record<string, string | Buffer>, dest: string) {
-  const source = tempRoot();
-  writeTree(source, files);
-  const asar = require('@electron/asar') as { createPackage: (source: string, dest: string) => Promise<void> };
-  await asar.createPackage(source, dest);
-  removeTree(source);
+function align4(size: number) {
+  return size + ((4 - (size % 4)) % 4);
+}
+
+function pickleString(value: string) {
+  const bytes = Buffer.from(value, 'utf8');
+  const payloadSize = align4(4 + bytes.length);
+  const buffer = Buffer.alloc(4 + payloadSize);
+  buffer.writeUInt32LE(payloadSize, 0);
+  buffer.writeInt32LE(bytes.length, 4);
+  bytes.copy(buffer, 8);
+  return buffer;
+}
+
+function pickleUInt32(value: number) {
+  const buffer = Buffer.alloc(8);
+  buffer.writeUInt32LE(4, 0);
+  buffer.writeUInt32LE(value, 4);
+  return buffer;
+}
+
+function createAsar(files: Record<string, string | Buffer>, dest: string) {
+  const root: { files: Record<string, unknown> } = { files: {} };
+  const blobs: Buffer[] = [];
+  let offset = 0;
+  for (const [name, contents] of Object.entries(files)) {
+    const data = Buffer.isBuffer(contents) ? contents : Buffer.from(contents);
+    const parts = name.split('/');
+    let cursor = root;
+    for (let index = 0; index < parts.length - 1; index += 1) {
+      const directory = parts[index];
+      const existing = cursor.files[directory] as { files: Record<string, unknown> } | undefined;
+      if (!existing) {
+        const created = { files: {} };
+        cursor.files[directory] = created;
+        cursor = created;
+      } else {
+        cursor = existing;
+      }
+    }
+    cursor.files[parts[parts.length - 1]] = { offset: String(offset), size: data.length };
+    blobs.push(data);
+    offset += data.length;
+  }
+  const header = pickleString(JSON.stringify(root));
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(dest, Buffer.concat([pickleUInt32(header.length), header, ...blobs]));
 }
 
 const harmless = {
