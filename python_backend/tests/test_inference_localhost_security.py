@@ -45,9 +45,15 @@ FROZEN_PATHS = [
 ]
 # BACKEND-04A through 04G may change the forwarder, the staging gate, the
 # desktop bridge, the single-process admission guard, the MP3 frame walk,
-# and the Flask ID3v2 sniff skip. i18n, the Electron shell, and Windows
-# packaging stay frozen.
+# and the Flask ID3v2 sniff skip. DESKTOP-UX-02 may change the local
+# practice entry and its dictionary copy. The Electron shell, installer,
+# and inference modules stay frozen outside this list.
 ALLOWED_INTEGRATION_PATHS = {
+    "src/app/analyze/page.tsx",
+    "src/app/api/practice-inference-notice/route.ts",
+    "src/components/analysis/LocalPracticeEntry.tsx",
+    "src/i18n/catalog.ts",
+    "src/server/practiceInferenceNotice.ts",
     "src/app/api/detect-beats/route.ts",
     "src/app/api/recognize-chords/route.ts",
     "src/app/api/config/route.ts",
