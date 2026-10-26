@@ -1,44 +1,35 @@
 'use client';
 
-import React, { useEffect, useRef, createElement } from 'react';
+import React, { useCallback, useEffect, useRef, createElement } from 'react';
 import { addToast, closeToast } from '@heroui/react';
 import { mergeToastClassNames } from '@/utils/toastStyles';
 
 import { useProcessing } from '@/contexts/ProcessingContext';
-import { getAudioDurationFromUrl } from '@/utils/audioDurationUtils';
 import { useI18n } from '@/i18n/I18nProvider';
 
-// Processing time ratios (processing time as fraction of audio duration)
-const PROCESSING_RATIOS: Record<string, number> = {
-  'madmom': 0.3,
-  'beat-transformer': 0.45,
-  'auto': 0.3,
-  'chord-recognition': 0.12,
-};
-
-const FALLBACK_DURATION = 180; // 3 minutes default
-
 /**
- * Creates a custom CSS-animated progress bar that does NOT pause on hover.
- * Uses a unique animation name per instance to avoid conflicts.
+ * The bar is indeterminate. Elapsed time is not model progress, so the track
+ * must not fill to 100% while beat or chord recognition is still running.
  */
-function createNonPausingProgressBar(durationMs: number, id: string) {
-  const animName = `toast-progress-${id}`;
+function createIndeterminateProgressBar(id: string) {
+  const animName = `toast-progress-indeterminate-${id}`;
   return createElement('div', {
     key: id,
     className: 'absolute bottom-0 left-0 right-0 h-1 overflow-hidden rounded-b-lg',
+    'aria-hidden': true,
   },
     createElement('style', {
       key: 'style',
       dangerouslySetInnerHTML: {
-        __html: `@keyframes ${animName} { from { width: 0%; } to { width: 100%; } }`,
+        __html: `@keyframes ${animName} { from { transform: translateX(-120%); } to { transform: translateX(320%); } }`,
       },
     }),
     createElement('div', {
       key: 'bar',
       style: {
         height: '100%',
-        animation: `${animName} ${durationMs}ms linear forwards`,
+        width: '35%',
+        animation: `${animName} 1.4s ease-in-out infinite`,
       },
       className: 'bg-primary-400 dark:bg-primary-500 opacity-60',
     }),
@@ -51,132 +42,124 @@ interface ProcessingStatusBannerProps {
   fromFirestoreCache?: boolean;
   videoId?: string;
   beatDetector?: 'madmom' | 'beat-transformer' | 'auto';
+  /**
+   * Local-upload generation. Omitted on the YouTube page, which does not
+   * switch files underneath an in-flight upload request.
+   */
+  analysisSessionId?: number;
 }
 
 const ProcessingStatusBanner: React.FC<ProcessingStatusBannerProps> = React.memo(({
   audioUrl,
   fromCache = false,
   fromFirestoreCache = false,
-  videoId,
-  beatDetector = 'madmom',
+  analysisSessionId,
 }) => {
   const { stage, statusMessage, getFormattedElapsedTime } = useProcessing();
   const { t } = useI18n();
   const chordToastKeyRef = useRef<string | null>(null);
   const beatToastKeyRef = useRef<string | null>(null);
-  const chordTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const beatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevStageRef = useRef<string>('idle');
-  const audioDurationRef = useRef<number | null>(null);
-  const durationFetchedRef = useRef(false);
+  const seenAudioUrlRef = useRef(audioUrl);
+  const progressAudioRef = useRef<string | null>(null);
+  const progressSessionRef = useRef<number | undefined>(undefined);
+  const progressDismissedRef = useRef(false);
 
-  // Detect audio duration when processing starts
-  useEffect(() => {
-    if (
-      (stage === 'beat-detection' || stage === 'chord-recognition') &&
-      !durationFetchedRef.current &&
-      audioUrl
-    ) {
-      durationFetchedRef.current = true;
-      getAudioDurationFromUrl(audioUrl, videoId)
-        .then((d) => { audioDurationRef.current = d; })
-        .catch(() => { audioDurationRef.current = FALLBACK_DURATION; });
+  const closeProgressToasts = useCallback(() => {
+    if (chordToastKeyRef.current) {
+      closeToast(chordToastKeyRef.current);
+      chordToastKeyRef.current = null;
     }
+    if (beatToastKeyRef.current) {
+      closeToast(beatToastKeyRef.current);
+      beatToastKeyRef.current = null;
+    }
+  }, []);
 
-    // Reset when back to idle
-    if (stage === 'idle') {
-      durationFetchedRef.current = false;
-      audioDurationRef.current = null;
-    }
-  }, [stage, audioUrl, videoId]);
+  const bindProgressOwner = useCallback(() => {
+    progressDismissedRef.current = false;
+    progressAudioRef.current = audioUrl ?? null;
+    progressSessionRef.current = analysisSessionId;
+  }, [analysisSessionId, audioUrl]);
 
   useEffect(() => {
     const prevStage = prevStageRef.current;
     prevStageRef.current = stage;
 
-    // Stage flow: chord-recognition (brief) → beat-detection (long wait)
-    // When chord-recognition starts, show chord toast
-    if (stage === 'chord-recognition' && !chordToastKeyRef.current) {
-      const effectiveDuration = audioDurationRef.current || FALLBACK_DURATION;
-      const chordRatio = PROCESSING_RATIOS['chord-recognition'] || 0.12;
-      const chordTimeoutMs = Math.ceil(effectiveDuration * chordRatio) * 1000;
-
-      const key = addToast({
-        title: t('analyze.recognizingTitle'),
-        description: t('analyze.recognizing'),
-        color: 'default',
-        timeout: 0, // Disable HeroUI's default 6s auto-dismiss; we manage lifetime ourselves
-        hideCloseButton: true,
-        endContent: createNonPausingProgressBar(chordTimeoutMs, 'chord'),
-        classNames: mergeToastClassNames({
-          base: 'relative overflow-hidden',
-          icon: 'text-primary-500',
-          title: 'text-primary-600 dark:text-blue-400',
-        }),
-      });
-      chordToastKeyRef.current = key;
-      // Manually close after duration (not paused by hover)
-      chordTimerRef.current = setTimeout(() => {
-        if (chordToastKeyRef.current) {
-          closeToast(chordToastKeyRef.current);
-          chordToastKeyRef.current = null;
-        }
-        chordTimerRef.current = null;
-      }, chordTimeoutMs);
+    if (seenAudioUrlRef.current !== audioUrl) {
+      const previousUrl = seenAudioUrlRef.current;
+      seenAudioUrlRef.current = audioUrl;
+      if (previousUrl && previousUrl !== audioUrl) {
+        progressDismissedRef.current = true;
+        progressAudioRef.current = null;
+        progressSessionRef.current = undefined;
+        closeProgressToasts();
+      }
     }
 
-    // When beat-detection starts, show beat toast (chord toast stays visible with its own timeout)
-    if (stage === 'beat-detection' && !beatToastKeyRef.current) {
-      const effectiveDuration = audioDurationRef.current || FALLBACK_DURATION;
-      const beatRatio = PROCESSING_RATIOS[beatDetector] || 0.3;
-      const beatTimeoutMs = Math.ceil(effectiveDuration * beatRatio) * 1000;
-
-      const key = addToast({
-        title: t('analyze.detectingTitle'),
-        description: t('analyze.detecting'),
-        color: 'default',
-        timeout: 0, // Disable HeroUI's default 6s auto-dismiss; we manage lifetime ourselves
-        hideCloseButton: true,
-        endContent: createNonPausingProgressBar(beatTimeoutMs, 'beat'),
-        classNames: mergeToastClassNames({
-          base: 'relative overflow-hidden',
-          icon: 'text-primary-500',
-          title: 'text-primary-600 dark:text-blue-400',
-        }),
-      });
-      beatToastKeyRef.current = key;
-      // Manually close after duration (not paused by hover)
-      beatTimerRef.current = setTimeout(() => {
-        if (beatToastKeyRef.current) {
-          closeToast(beatToastKeyRef.current);
-          beatToastKeyRef.current = null;
-        }
-        beatTimerRef.current = null;
-      }, beatTimeoutMs);
-    }
-
-    // Handle completion
-    if (stage === 'complete' && (prevStage === 'beat-detection' || prevStage === 'chord-recognition')) {
-      // Close both processing toasts and clear manual timers
-      if (chordTimerRef.current) { clearTimeout(chordTimerRef.current); chordTimerRef.current = null; }
-      if (beatTimerRef.current) { clearTimeout(beatTimerRef.current); beatTimerRef.current = null; }
+    // The upload page labels chord recognition first, then beat detection, while
+    // one analysis request is still running. Each label is its own toast. A toast
+    // is opened only when that stage is entered, and it stays until the analysis
+    // reaches a terminal stage. Estimated durations are not used as dismiss timers.
+    if (stage === 'chord-recognition' && prevStage !== 'chord-recognition') {
       if (chordToastKeyRef.current) {
         closeToast(chordToastKeyRef.current);
         chordToastKeyRef.current = null;
       }
+      bindProgressOwner();
+      chordToastKeyRef.current = addToast({
+        title: t('analyze.recognizingTitle'),
+        description: t('analyze.recognizing'),
+        color: 'default',
+        timeout: 0,
+        hideCloseButton: true,
+        endContent: createIndeterminateProgressBar('chord'),
+        classNames: mergeToastClassNames({
+          base: 'relative overflow-hidden',
+          icon: 'text-primary-500',
+          title: 'text-primary-600 dark:text-blue-400',
+        }),
+      });
+    }
+
+    if (stage === 'beat-detection' && prevStage !== 'beat-detection') {
       if (beatToastKeyRef.current) {
         closeToast(beatToastKeyRef.current);
         beatToastKeyRef.current = null;
       }
+      bindProgressOwner();
+      beatToastKeyRef.current = addToast({
+        title: t('analyze.detectingTitle'),
+        description: t('analyze.detecting'),
+        color: 'default',
+        timeout: 0,
+        hideCloseButton: true,
+        endContent: createIndeterminateProgressBar('beat'),
+        classNames: mergeToastClassNames({
+          base: 'relative overflow-hidden',
+          icon: 'text-primary-500',
+          title: 'text-primary-600 dark:text-blue-400',
+        }),
+      });
+    }
 
-      // Build description with cache badges
+    if (stage === 'complete' && (prevStage === 'beat-detection' || prevStage === 'chord-recognition')) {
+      const dismissed = progressDismissedRef.current;
+      const audioMismatch = Boolean(progressAudioRef.current) && progressAudioRef.current !== audioUrl;
+      const sessionMismatch = analysisSessionId !== undefined
+        && progressSessionRef.current !== analysisSessionId;
+      closeProgressToasts();
+      progressDismissedRef.current = false;
+      progressAudioRef.current = null;
+      progressSessionRef.current = undefined;
+      if (dismissed || audioMismatch || sessionMismatch) {
+        return;
+      }
       const cacheInfo = [
         fromCache ? t('analyze.audioCache') : '',
         fromFirestoreCache ? t('analyze.resultsCache') : '',
       ].filter(Boolean).join(' · ');
-
       const description = `${t('analyze.completeDetail', { time: getFormattedElapsedTime() })}${cacheInfo ? ` · ${cacheInfo}` : ''}`;
-
       addToast({
         title: t('analyze.completeTitle'),
         description,
@@ -190,52 +173,32 @@ const ProcessingStatusBanner: React.FC<ProcessingStatusBannerProps> = React.memo
       });
     }
 
-    // Handle error — close processing toasts. AnalysisErrorToast owns the
-    // user-facing extraction/analysis error toast so this component only
-    // cleans up in-flight progress notifications.
-    if (stage === 'error') {
-      if (chordTimerRef.current) { clearTimeout(chordTimerRef.current); chordTimerRef.current = null; }
-      if (beatTimerRef.current) { clearTimeout(beatTimerRef.current); beatTimerRef.current = null; }
-      if (chordToastKeyRef.current) {
-        closeToast(chordToastKeyRef.current);
-        chordToastKeyRef.current = null;
-      }
-      if (beatToastKeyRef.current) {
-        closeToast(beatToastKeyRef.current);
-        beatToastKeyRef.current = null;
-      }
+    // AnalysisErrorToast owns the user-facing error on the YouTube page.
+    // The local upload page renders the error inline. Either way, progress toasts end here.
+    if (stage === 'error' || stage === 'idle') {
+      closeProgressToasts();
+      progressDismissedRef.current = false;
+      progressAudioRef.current = null;
+      progressSessionRef.current = undefined;
     }
+  }, [
+    stage,
+    statusMessage,
+    getFormattedElapsedTime,
+    fromCache,
+    fromFirestoreCache,
+    t,
+    closeProgressToasts,
+    audioUrl,
+    analysisSessionId,
+    bindProgressOwner,
+  ]);
 
-    // Handle idle - cleanup any lingering toasts and timers
-    if (stage === 'idle') {
-      if (chordTimerRef.current) { clearTimeout(chordTimerRef.current); chordTimerRef.current = null; }
-      if (beatTimerRef.current) { clearTimeout(beatTimerRef.current); beatTimerRef.current = null; }
-      if (chordToastKeyRef.current) {
-        closeToast(chordToastKeyRef.current);
-        chordToastKeyRef.current = null;
-      }
-      if (beatToastKeyRef.current) {
-        closeToast(beatToastKeyRef.current);
-        beatToastKeyRef.current = null;
-      }
-    }
-  }, [stage, statusMessage, getFormattedElapsedTime, fromCache, fromFirestoreCache, beatDetector, t]);
-
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (chordTimerRef.current) { clearTimeout(chordTimerRef.current); chordTimerRef.current = null; }
-      if (beatTimerRef.current) { clearTimeout(beatTimerRef.current); beatTimerRef.current = null; }
-      if (chordToastKeyRef.current) {
-        closeToast(chordToastKeyRef.current);
-        chordToastKeyRef.current = null;
-      }
-      if (beatToastKeyRef.current) {
-        closeToast(beatToastKeyRef.current);
-        beatToastKeyRef.current = null;
-      }
+      closeProgressToasts();
     };
-  }, []);
+  }, [closeProgressToasts]);
 
   return null;
 });

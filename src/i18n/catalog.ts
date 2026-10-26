@@ -253,6 +253,13 @@ export const catalog = {
   'analyze.tooLongTitle': { 'en-US': 'Audio is too long for analysis', 'vi-VN': 'Âm thanh quá dài để phân tích', 'zh-CN': '音频过长，无法分析', 'ja-JP': '音声が長すぎて解析できません', 'ko-KR': '오디오가 너무 길어 분석할 수 없습니다' },
   'analyze.tooLongBody': { 'en-US': 'Audio duration should be less than {minutes} minutes.', 'vi-VN': 'Thời lượng cần ngắn hơn {minutes} phút.', 'zh-CN': '音频时长应少于 {minutes} 分钟。', 'ja-JP': '音声は {minutes} 分未満にしてください。', 'ko-KR': '오디오 길이는 {minutes}분 미만이어야 합니다.' },
   'analyze.noAnalysis': { 'en-US': 'No analysis loaded yet', 'vi-VN': 'Chưa có kết quả phân tích', 'zh-CN': '尚未载入分析结果', 'ja-JP': '解析結果はまだありません', 'ko-KR': '아직 분석 결과가 없습니다' },
+  'analyze.retryBackend': {
+    'en-US': 'Retry local analysis startup',
+    'vi-VN': 'Thử khởi động lại dịch vụ phân tích cục bộ',
+    'zh-CN': '重试本地分析服务启动',
+    'ja-JP': 'ローカル解析サービスの起動を再試行',
+    'ko-KR': '로컬 분석 서비스 시작을 다시 시도',
+  },
 
   'errors.notConfigured': { 'en-US': 'Required service configuration missing', 'vi-VN': 'Thiếu cấu hình dịch vụ bắt buộc', 'zh-CN': '缺少必需的服务配置', 'ja-JP': '必要なサービスの設定がありません', 'ko-KR': '필수 서비스 설정이 없습니다' },
   'errors.notConfiguredSuggestion': {

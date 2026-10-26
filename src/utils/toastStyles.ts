@@ -6,8 +6,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const defaultToastClassNames = {
-  title: 'text-foreground dark:text-white font-semibold text-sm sm:text-base',
-  description: 'text-default-600 dark:text-gray-300 text-xs sm:text-sm mt-1.5 leading-relaxed',
+  title: 'text-foreground dark:text-white font-semibold text-sm sm:text-base whitespace-normal break-words',
+  description: 'text-default-600 dark:text-gray-300 text-xs sm:text-sm mt-1.5 leading-relaxed whitespace-normal break-words',
   closeButton: 'text-default-500 hover:text-foreground bg-transparent hover:bg-default-100/50 dark:text-default-500 dark:hover:text-white dark:bg-transparent dark:hover:bg-default-200/50',
   progressTrack: 'bg-default-200/70 dark:bg-white/10',
 };
