@@ -1,7 +1,9 @@
-import { app, BrowserWindow, dialog, shell } from 'electron';
+import { app, BrowserWindow, dialog, powerMonitor, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { sanitizeDiagnostic, secretsFromEnv } from './diagnostics';
+import { consumeRetryRequest } from './localBackend';
+import { prepareOwnedBackend, type OwnedBackendHandle } from './ownedBackend';
 import { startOwnedServer, stopOwnedServer, type OwnedServer } from './ownedServer';
 import { acceptanceDiagnosticFile, acceptancePidFile, isDesktopAcceptance, resolveDesktopLaunch } from './packagedApp';
 import { prepareStandalone } from './prepareStandalone';
@@ -14,6 +16,8 @@ import {
 
 const repoRoot = path.join(__dirname, '..', '..');
 let owned: OwnedServer | null = null;
+let backend: OwnedBackendHandle | null = null;
+let retryTimer: ReturnType<typeof setInterval> | null = null;
 let quitting = false;
 
 function diagnosticSecrets(): string[] {
@@ -88,7 +92,26 @@ async function openOwnedWindow(): Promise<void> {
   if (launch.prepareFromRepo) {
     prepareStandalone(repoRoot);
   }
-  owned = await startOwnedServer({ serverEntry: launch.serverEntry });
+  backend = await prepareOwnedBackend({
+    env: process.env,
+    userDataDir: app.getPath('userData'),
+    log: writeDiagnostic,
+  });
+  owned = await startOwnedServer({
+    serverEntry: launch.serverEntry,
+    extraEnv: backend.nextEnv,
+  });
+  if (retryTimer) {
+    clearInterval(retryTimer);
+  }
+  const retryFile = backend.retryFile;
+  retryTimer = setInterval(() => {
+    if (!backend || !consumeRetryRequest(retryFile, backend.retryToken)) {
+      return;
+    }
+    void backend.retry();
+  }, 1000);
+  retryTimer.unref?.();
   const pidFile = acceptancePidFile(process.env);
   if (pidFile && owned.child.pid) {
     fs.mkdirSync(path.dirname(pidFile), { recursive: true });
@@ -103,8 +126,15 @@ async function openOwnedWindow(): Promise<void> {
 }
 
 async function shutdownOwnedServer(): Promise<void> {
+  if (retryTimer) {
+    clearInterval(retryTimer);
+    retryTimer = null;
+  }
+  const currentBackend = backend;
   const current = owned;
+  backend = null;
   owned = null;
+  await currentBackend?.stop().catch(() => undefined);
   await stopOwnedServer(current);
 }
 
@@ -124,7 +154,7 @@ if (instance === 'quit') {
   });
 
   app.on('before-quit', (event) => {
-    if (quitting || !owned) {
+    if (quitting || (!owned && !backend)) {
       return;
     }
     event.preventDefault();
@@ -138,7 +168,12 @@ if (instance === 'quit') {
     app.quit();
   });
 
-  void app.whenReady().then(openOwnedWindow).catch(async (error: unknown) => {
+  void app.whenReady().then(() => {
+    powerMonitor.on('resume', () => {
+      void backend?.onResume();
+    });
+    return openOwnedWindow();
+  }).catch(async (error: unknown) => {
     showStartupFailure(error);
     await shutdownOwnedServer();
     app.quit();

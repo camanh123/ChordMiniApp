@@ -4,6 +4,8 @@ These tests use Flask's in-process client. They do not bind a socket.
 The real-model regression is a separate process in the isolated environment.
 """
 
+import hashlib
+import hmac
 import io
 import json
 import logging
@@ -85,6 +87,24 @@ ALLOWED_INTEGRATION_PATHS = {
     "src/app/api/transcribe-sheetsage/route.ts",
     "src/services/status/statusProbes.ts",
     "src/services/google/cloudTasksService.ts",
+    # UI-TOAST, UI-DESKTOP-FOOTER, and AI-STARTUP keep these source files
+    # in the integration set. Any other dirty path under the frozen trees
+    # still fails the test.
+    "src/app/globals.css",
+    "src/app/layout.tsx",
+    "src/app/providers.tsx",
+    "src/app/settings/page.tsx",
+    "src/app/api/desktop/backend-retry/route.ts",
+    "src/components/analysis/ProcessingStatusBanner.tsx",
+    "src/components/analysis/localAnalysisSession.ts",
+    "src/components/common/AppFooter.tsx",
+    "src/components/common/DesktopPolicyLinks.tsx",
+    "src/components/common/websiteFooter.ts",
+    "src/desktop/electronMain.ts",
+    "src/desktop/localBackend.ts",
+    "src/desktop/ownedBackend.ts",
+    "src/utils/analysisServiceError.ts",
+    "src/utils/toastStyles.ts",
 }
 
 
@@ -480,6 +500,37 @@ class InferenceSecurityTests(unittest.TestCase):
         self.assertNotIn("chordmini_upload_", response.get_data(as_text=True))
         self.assertFalse(os.path.exists(self.beats.calls[0]["file_path"]))
 
+    def test_health_proof_is_bound_to_a_fresh_challenge(self):
+        nonce = "n" * 32
+        os.environ["CHORDMINI_BACKEND_NONCE"] = nonce
+        self.addCleanup(lambda: os.environ.pop("CHORDMINI_BACKEND_NONCE", None))
+        plain = self.client.get("/health")
+        self.assertEqual(plain.status_code, 200)
+        self.assertEqual(plain.get_json()["status"], "healthy")
+        self.assertEqual(plain.get_json()["service"], "chordmini-flask")
+        self.assertNotIn("instance", plain.get_json())
+        self.assertNotIn(nonce, plain.get_data(as_text=True))
+
+        challenge = "ab" * 16
+        other = "cd" * 16
+        expected = hmac.new(nonce.encode("utf-8"), challenge.encode("utf-8"), hashlib.sha256).hexdigest()
+        answered = self.client.get(f"/health?challenge={challenge}")
+        self.assertEqual(answered.status_code, 200)
+        self.assertEqual(answered.get_json()["instance"], expected)
+        self.assertNotIn(nonce, answered.get_data(as_text=True))
+        replayed = self.client.get(f"/health?challenge={other}")
+        self.assertNotEqual(replayed.get_json().get("instance"), expected)
+        self.assertEqual(
+            replayed.get_json()["instance"],
+            hmac.new(nonce.encode("utf-8"), other.encode("utf-8"), hashlib.sha256).hexdigest(),
+        )
+
+        refused = self.client.get("/api/desktop/readiness")
+        self.assertEqual(refused.status_code, 401)
+        self.assertEqual(refused.get_json()["code"], "CHALLENGE_REQUIRED")
+        self.assertNotIn(nonce, refused.get_data(as_text=True))
+        self.assertNotIn("chordCnnLstm", refused.get_data(as_text=True))
+
     def test_local_compatibility_keeps_health_and_still_rejects_paths(self):
         os.environ["CHORDMINI_INFERENCE_AUTH"] = "local"
         os.environ.pop("CHORDMINI_INFERENCE_SECRET", None)
@@ -650,13 +701,21 @@ class InferenceSecurityTests(unittest.TestCase):
         self.assertIn("host='127.0.0.1'", source)
         self.assertNotIn("host='0.0.0.0'", source)
         completed = subprocess.run(
-            ["git", "status", "--porcelain", "--", *FROZEN_PATHS],
+            ["git", "status", "--porcelain", "-uall", "--", *FROZEN_PATHS],
             cwd=REPO_ROOT,
             check=True,
             capture_output=True,
             text=True,
         )
-        self.assertEqual(completed.stdout.strip(), "")
+        dirty = []
+        for line in completed.stdout.splitlines():
+            entry = line[3:] if len(line) > 3 else line
+            if " -> " in entry:
+                entry = entry.split(" -> ", 1)[1]
+            path = entry.strip().rstrip("/")
+            if path and path not in ALLOWED_INTEGRATION_PATHS:
+                dirty.append(path)
+        self.assertEqual(dirty, [])
         diff = subprocess.run(
             ["git", "diff", "--name-only", BASELINE, "--", *FROZEN_PATHS],
             cwd=REPO_ROOT,

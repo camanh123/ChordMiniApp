@@ -6,6 +6,7 @@ import { verifyAppCheckRequest } from '@/utils/serverAppCheck';
 import {
   analysisServiceGateResponse,
   desktopAnalysisConnectionResponse,
+  desktopModelGateResponse,
   desktopPythonPolicyResponse,
 } from '@/server/analysisServiceAvailability';
 import { requirePythonBackendResponse } from '@/server/desktopLoopback';
@@ -78,6 +79,12 @@ export async function POST(request: NextRequest) {
         { error: 'No audio file provided' },
         { status: 400 }
       );
+    }
+
+    const requestedBeatDetector = String(formData.get('detector') || 'madmom');
+    const beatModelBlocked = desktopModelGateResponse(process.env, 'beat', requestedBeatDetector);
+    if (beatModelBlocked) {
+      return beatModelBlocked;
     }
 
     // Log file info

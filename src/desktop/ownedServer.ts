@@ -255,42 +255,54 @@ export async function stopOwnedServer(
     return;
   }
 
-  const platform = options.platform ?? process.platform;
-  const plan = terminationPlan(pid, platform);
   try {
-    if (plan.kind === 'taskkill') {
-      const execFileImpl = options.execFileImpl ?? ((command, args) => execFileAsync(command, args));
-      try {
-        await execFileImpl(plan.command, plan.args);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        const alreadyGone = /not found|no running instance|no such process/i.test(message);
-        if (!alreadyGone) {
-          throw error;
-        }
-      }
-      return;
-    }
-
-    const killImpl = options.killImpl ?? ((target, signal) => {
-      process.kill(target, signal);
-    });
-    try {
-      killImpl(-pid, 'SIGTERM');
-    } catch {
-      try {
-        killImpl(pid, 'SIGTERM');
-      } catch {
-        return;
-      }
-    }
-    await delay(options.graceMs ?? 500);
-    try {
-      killImpl(-pid, 'SIGKILL');
-    } catch {
-      // The process group has already exited.
-    }
+    await signalOwnedPid(pid, options);
   } finally {
     owned.child.unref?.();
+  }
+}
+
+export async function signalOwnedPid(
+  pid: number,
+  options: {
+    platform?: NodeJS.Platform;
+    execFileImpl?: (command: string, args: string[]) => Promise<unknown>;
+    killImpl?: (pid: number, signal: NodeJS.Signals) => void;
+    graceMs?: number;
+  } = {},
+): Promise<void> {
+  const platform = options.platform ?? process.platform;
+  const plan = terminationPlan(pid, platform);
+  if (plan.kind === 'taskkill') {
+    const execFileImpl = options.execFileImpl ?? ((command, args) => execFileAsync(command, args));
+    try {
+      await execFileImpl(plan.command, plan.args);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const alreadyGone = /not found|no running instance|no such process/i.test(message);
+      if (!alreadyGone) {
+        throw error;
+      }
+    }
+    return;
+  }
+
+  const killImpl = options.killImpl ?? ((target, signal) => {
+    process.kill(target, signal);
+  });
+  try {
+    killImpl(-pid, 'SIGTERM');
+  } catch {
+    try {
+      killImpl(pid, 'SIGTERM');
+    } catch {
+      return;
+    }
+  }
+  await delay(options.graceMs ?? 500);
+  try {
+    killImpl(-pid, 'SIGKILL');
+  } catch {
+    // The process group has already exited.
   }
 }
