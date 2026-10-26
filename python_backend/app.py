@@ -180,7 +180,10 @@ USE_BTC_PL = BTC_AVAILABILITY['pl_available']
 if __name__ == '__main__':
     # Get port from environment variable or default to 5001 for localhost to avoid macOS AirTunes/AirPlay conflicts
     # Production deployments (Cloud Run) will override this with PORT environment variable
-    port = int(os.environ.get('PORT', 5001))
+    # CHORDMINI_FLASK_PORT selects the loopback bind without setting PORT.
+    # PORT still forces the production configuration, which requires inference auth.
+    configured_port = os.environ.get('CHORDMINI_FLASK_PORT') or os.environ.get('PORT') or '5001'
+    port = int(configured_port)
     log_info(f"Starting Flask app on 127.0.0.1:{port}")
     log_info("App is ready to serve requests")
     # This process is local-only. Container publish rules are a separate deployment gate.

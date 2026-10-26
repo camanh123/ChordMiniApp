@@ -22,14 +22,16 @@ export function Providers({ children, initialLocale }: ProvidersProps) {
     <QueryClientProvider client={queryClient}>
       <HeroUIProvider>
         <ToastProvider
-          placement="top-center"
+          placement="top-right"
+          disableAnimation
           toastOffset={16}
-          maxVisibleToasts={3}
+          maxVisibleToasts={4}
           toastProps={{
             color: 'default',
             variant: 'flat',
             classNames: defaultToastClassNames,
           }}
+          regionProps={{ className: 'chordmini-toast-region' }}
         />
         <ProcessingProvider>
           <ThemeProvider>

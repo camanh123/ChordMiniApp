@@ -660,9 +660,38 @@
    Hides duplicate toasts based on their intended target area.
    ====================================================== */
 
-/* Hide mini-game explanation toasts in the top-center (system-wide) region */
-[data-placement="top-center"] .minigame-toast {
+/* Hide mini-game explanation toasts in the system-wide region.
+   The region is top-right on a wide window and top-center on a narrow one. */
+.chordmini-toast-region .minigame-toast,
+[data-placement="top-center"] .minigame-toast,
+[data-placement="top-right"] .minigame-toast {
   display: none !important;
+}
+
+/* The fixed navigation is h-16 / 4rem at z-index 100.
+   HeroUI's animated stack pins the front toast at toastOffset (16px) and
+   collapses the rest to an 8px peek, so the title sits under that bar.
+   disableAnimation renders a normal column; this offset places it below
+   the measured header token, with 1rem of room for the hover hit area. */
+.chordmini-toast-region[data-placement^="top"] {
+  top: calc(4rem + 1rem) !important;
+  right: 0.75rem !important;
+  left: auto !important;
+  z-index: 80 !important;
+  transform: none !important;
+  width: min(22.25rem, calc(100vw - 1.5rem)) !important;
+  max-height: calc(100dvh - 4rem - 2rem);
+  overflow: auto;
+  pointer-events: none;
+  gap: 0.5rem;
+}
+
+.chordmini-toast-region [data-toast="true"] {
+  pointer-events: auto;
+  height: auto !important;
+  max-width: 100%;
+  transform: none !important;
+  white-space: normal;
 }
 
 /* Hide standard system-wide/other toasts in the bottom-right (mini-game) region */

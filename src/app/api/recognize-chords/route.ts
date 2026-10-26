@@ -6,6 +6,7 @@ import { verifyAppCheckRequest } from '@/utils/serverAppCheck';
 import {
   analysisServiceGateResponse,
   desktopAnalysisConnectionResponse,
+  desktopModelGateResponse,
   desktopPythonPolicyResponse,
 } from '@/server/analysisServiceAvailability';
 import { requirePythonBackendResponse } from '@/server/desktopLoopback';
@@ -77,6 +78,12 @@ export async function POST(request: NextRequest) {
         { error: 'No audio file provided' },
         { status: 400 }
       );
+    }
+
+    const requestedChordDetector = String(formData.get('detector') || formData.get('model') || 'chord-cnn-lstm');
+    const chordModelBlocked = desktopModelGateResponse(process.env, 'chord', requestedChordDetector);
+    if (chordModelBlocked) {
+      return chordModelBlocked;
     }
 
     // Add required parameters for Python backend if not present

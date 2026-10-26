@@ -8,6 +8,7 @@ import { mergeToastClassNames } from '@/utils/toastStyles';
 import Navigation from '@/components/common/Navigation';
 import { useI18n } from '@/i18n/I18nProvider';
 import { analyzeAudioWithRateLimit, AnalysisResult } from '@/services/chord-analysis/chordRecognitionService';
+import { createAnalysisSessionController, runGuardedAnalysis } from '@/components/analysis/localAnalysisSession';
 import { ProcessingStatusSkeleton } from '@/components/common/SkeletonLoaders';
 import {
   getChordGridData as getChordGridDataService
@@ -225,7 +226,8 @@ export default function LocalAudioAnalyzePage() {
     setStatusMessage,
     startProcessing,
     completeProcessing,
-    failProcessing
+    failProcessing,
+    reset: resetProcessing,
   } = useProcessing();
   // const { theme } = useTheme();
 
@@ -471,6 +473,15 @@ export default function LocalAudioAnalyzePage() {
 
   // Track transient stage timeout for analysis status so we can clean it up on unmount
   const stageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const analysisSessionRef = useRef(createAnalysisSessionController());
+  const [analysisSessionId, setAnalysisSessionId] = useState(0);
+
+  useEffect(() => {
+    const session = analysisSessionRef.current;
+    return () => {
+      session.invalidate();
+    };
+  }, []);
 
   // Note: simplifyChords, showRomanNumerals, showSegmentation are managed by Zustand
   // and accessed directly by child components via their own selectors
@@ -572,6 +583,13 @@ export default function LocalAudioAnalyzePage() {
 
   // Handle file upload. Playback uses the file immediately; analysis stays opt-in.
   const applySelectedAudioFile = (file: File) => {
+    const nextSession = analysisSessionRef.current.invalidate();
+    setAnalysisSessionId(nextSession);
+    if (stageTimeoutRef.current) {
+      clearTimeout(stageTimeoutRef.current);
+      stageTimeoutRef.current = null;
+    }
+    resetProcessing();
     setAudioFile(file);
 
     // Reset states
@@ -618,7 +636,42 @@ export default function LocalAudioAnalyzePage() {
       return;
     }
 
-    stageTimeoutRef.current = null;
+    const session = analysisSessionRef.current;
+    const token = session.start();
+    setAnalysisSessionId(token);
+    if (stageTimeoutRef.current) {
+      clearTimeout(stageTimeoutRef.current);
+      stageTimeoutRef.current = null;
+    }
+
+    const reportFailure = (error: unknown) => {
+      if (!session.isCurrent(token)) return;
+      console.error('Error in audio processing:', error);
+
+      if (stageTimeoutRef.current) {
+        clearTimeout(stageTimeoutRef.current);
+        stageTimeoutRef.current = null;
+      }
+
+      let errorMessage = t('analyze.unknown');
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      setAnalysisErrorCode(analysisServiceCodeFrom(error));
+      setDiagnosticsCopied(false);
+      setDiagnosticsFallback(null);
+
+      setAudioProcessingState(prev => ({
+        ...prev,
+        error: errorMessage,
+        isExtracting: false,
+        isAnalyzing: false
+      }));
+
+      failProcessing(errorMessage);
+    };
 
     try {
       setKeyDetectionAttempted(false);
@@ -656,8 +709,8 @@ export default function LocalAudioAnalyzePage() {
 
       // Update to beat detection stage after duration is available
       stageTimeoutRef.current = setTimeout(() => {
+        if (!session.isCurrent(token)) return;
         setStage('beat-detection');
-        // Don't set progress here - let ProcessingStatusBanner calculate it
         setStatusMessage('Analyzing beat patterns and timing...');
       }, 500); // Reduced delay since we now have duration
 
@@ -671,65 +724,39 @@ export default function LocalAudioAnalyzePage() {
 
       // Start chord and beat analysis with selected detectors using original File object
       // This avoids the 10x size bloat from AudioBuffer conversion (3.6MB → 41.7MB)
-      const results = await analyzeAudioWithRateLimit(audioFile, beatDetector, chordDetector);
+      // A newer file selection invalidates this token. The request itself is not cancelled.
+      await runGuardedAnalysis(
+        session,
+        token,
+        analyzeAudioWithRateLimit(audioFile, beatDetector, chordDetector),
+        (results) => {
+          if (stageTimeoutRef.current) {
+            clearTimeout(stageTimeoutRef.current);
+            stageTimeoutRef.current = null;
+          }
 
-      // FIXED: Clear the stage timeout to prevent it from overriding completion
-      if (stageTimeoutRef.current) {
-        clearTimeout(stageTimeoutRef.current);
-        stageTimeoutRef.current = null;
-      }
+          setAnalysisResults(results);
 
-      // Store results
-      setAnalysisResults(results);
+          if (results.audioDuration && results.audioDuration > 0) {
+            setDuration(results.audioDuration);
+          }
 
-      // Update duration from analysis results if available
-      if (results.audioDuration && results.audioDuration > 0) {
-        setDuration(results.audioDuration);
-      }
+          setAudioProcessingState(prev => ({
+            ...prev,
+            isExtracting: false,
+            isAnalyzing: false,
+            isAnalyzed: true
+          }));
 
-      setAudioProcessingState(prev => ({
-        ...prev,
-        isExtracting: false,
-        isAnalyzing: false,
-        isAnalyzed: true
-      }));
-
-      // Complete processing
-      setStage('complete');
-      setProgress(100);
-      setStatusMessage(t('analyze.complete'));
-      completeProcessing();
-
-      // Analysis completed successfully
+          setStage('complete');
+          setProgress(100);
+          setStatusMessage(t('analyze.complete'));
+          completeProcessing();
+        },
+        reportFailure,
+      );
     } catch (error) {
-      console.error('Error in audio processing:', error);
-
-      // Clear timeout on error
-      if (stageTimeoutRef.current) {
-        clearTimeout(stageTimeoutRef.current);
-        stageTimeoutRef.current = null;
-      }
-
-      // Format error message more user-friendly
-      let errorMessage = t('analyze.unknown');
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      setAnalysisErrorCode(analysisServiceCodeFrom(error));
-      setDiagnosticsCopied(false);
-      setDiagnosticsFallback(null);
-
-      setAudioProcessingState(prev => ({
-        ...prev,
-        error: errorMessage,
-        isExtracting: false,
-        isAnalyzing: false
-      }));
-
-      // Fail processing
-      failProcessing(errorMessage);
+      reportFailure(error);
     }
   };
 
@@ -1157,6 +1184,7 @@ const simplifiedChordGridData = useMemo(() => {
       <ProcessingStatusBanner
         audioUrl={audioProcessingState.audioUrl || undefined}
         beatDetector={beatDetector}
+        analysisSessionId={analysisSessionId}
       />
       <MelodyTranscriptionStatusToast
         isComputing={isComputingSheetSage}
@@ -1285,12 +1313,25 @@ const simplifiedChordGridData = useMemo(() => {
                         </svg>
                         <div className="min-w-0">
                           <p>
-                            {analysisErrorCode === 'ANALYSIS_SERVICE_NOT_CONFIGURED'
+                            {analysisErrorCode === 'ANALYSIS_BACKEND_NOT_READY'
+                              ? audioProcessingState.error
+                              : analysisErrorCode === 'ANALYSIS_SERVICE_NOT_CONFIGURED'
                               ? t('errors.notConfigured')
                               : analysisErrorCode === 'ANALYSIS_SERVICE_UNAVAILABLE'
                                 ? t('errors.unavailable')
                                 : audioProcessingState.error}
                           </p>
+                          {analysisErrorCode === 'ANALYSIS_BACKEND_NOT_READY' && (
+                            <button
+                              type="button"
+                              className="mt-2 text-xs font-medium text-gray-700 underline dark:text-gray-200"
+                              onClick={() => {
+                                void fetch('/api/desktop/backend-retry', { method: 'POST' }).catch(() => undefined);
+                              }}
+                            >
+                              {t('analyze.retryBackend')}
+                            </button>
+                          )}
                           {analysisErrorCode === 'ANALYSIS_SERVICE_NOT_CONFIGURED' && (
                             <p className="mt-1">{t('errors.notConfiguredSuggestion')}</p>
                           )}

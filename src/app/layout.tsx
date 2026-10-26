@@ -7,7 +7,8 @@ import { Providers } from './providers';
 import ClientErrorBoundary from '@/components/common/ClientErrorBoundary';
 import FirebaseInitializer from '@/components/layout/FirebaseInitializer';
 import ServiceWorkerRegistration from '@/components/layout/ServiceWorkerRegistration';
-import Footer from '@/components/common/Footer';
+import AppFooter from '@/components/common/AppFooter';
+import { shouldRenderWebsiteFooter } from '@/components/common/websiteFooter';
 import PerformanceMonitor from '@/components/layout/PerformanceMonitor';
 import CriticalPerformanceOptimizer from '@/components/layout/CriticalPerformanceOptimizer';
 import DesktopPerformanceOptimizer from '@/components/layout/DesktopPerformanceOptimizer';
@@ -147,6 +148,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const locale = await getRequestLocale();
+  const showWebsiteFooter = shouldRenderWebsiteFooter();
 
   return (
     <html lang={locale} data-locale={locale} className={`${robotoMono.variable} ${dmSans.variable} ${varelaRound.variable}`} suppressHydrationWarning>
@@ -235,7 +237,7 @@ export default async function RootLayout({
             <main className="flex-1">
               {children}
             </main>
-            <Footer />
+            {showWebsiteFooter ? <AppFooter /> : null}
           </ClientErrorBoundary>
         </Providers>
       </body>

@@ -5,6 +5,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useApiKeys } from '@/hooks/settings/useApiKeys';
 import ApiKeySettings from '@/components/settings/ApiKeySettings';
 import Navigation from '@/components/common/Navigation';
+import DesktopPolicyLinks from '@/components/common/DesktopPolicyLinks';
 import { Card, CardBody, Switch, Tabs, Tab, Spinner, Divider } from '@heroui/react';
 import { FiSettings, FiKey, FiLock, FiMoon, FiShield, FiDatabase, FiBarChart2, FiGlobe } from 'react-icons/fi';
 import { ApiCredentialService } from '@/types/apiKeyTypes';
@@ -214,6 +215,7 @@ export default function SettingsPage() {
                       title={t('settings.analytics')}
                       description={t('settings.analyticsHelp')}
                     />
+                    <DesktopPolicyLinks />
                   </CardBody>
                 </Card>
               </div>
