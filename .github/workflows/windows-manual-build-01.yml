@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   windows-unpacked:
@@ -59,6 +60,9 @@ jobs:
         shell: pwsh
         run: node scripts/record-unpacked-windows-build.mjs
 
+      # upload-artifact skips every file and directory whose name starts with
+      # "." unless hidden files are included. The production build is
+      # resources/standalone/.next, so the default upload drops it.
       - name: Upload unpacked Windows app
         uses: actions/upload-artifact@v4
         with:
@@ -66,6 +70,7 @@ jobs:
           path: desktop-dist/win-unpacked
           retention-days: 14
           if-no-files-found: error
+          include-hidden-files: true
 
       - name: Upload checksum and inclusion report
         uses: actions/upload-artifact@v4
@@ -74,3 +79,26 @@ jobs:
           path: windows-unpacked-artifacts
           retention-days: 14
           if-no-files-found: error
+          include-hidden-files: true
+
+  verify-uploaded-artifact:
+    name: Verify uploaded Next runtime
+    needs: windows-unpacked
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download the unpacked app
+        uses: actions/download-artifact@v4
+        with:
+          name: ChordMini-Windows-x64-unpacked
+          path: uploaded-win-unpacked
+
+      - name: Require production runtime files in the uploaded app
+        env:
+          CHORDMINI_UNPACKED_DIR: uploaded-win-unpacked
+          CHORDMINI_UNPACKED_REPORT_DIR: uploaded-win-unpacked-report
+        run: node scripts/record-unpacked-windows-build.mjs
