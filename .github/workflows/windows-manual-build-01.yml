@@ -1,0 +1,63 @@
+# Isolated Windows x64 unpacked test build.
+# Push to cursor/windows-manual-build-01-393f only. This file is not on main.
+# It does not build NSIS, install the app, publish a release, or enable updates.
+
+name: Windows manual unpacked build 01
+
+on:
+  push:
+    branches:
+      - cursor/windows-manual-build-01-393f
+
+permissions:
+  contents: read
+
+jobs:
+  windows-unpacked:
+    name: Windows x64 unpacked
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js standalone server
+        run: npm run build
+
+      - name: Compile and stage the desktop app
+        run: npm run desktop:pack:prepare
+
+      - name: Package the unpacked Windows app
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npx electron-builder --win dir --x64 --publish never
+
+      - name: Reject installers and record package evidence
+        shell: pwsh
+        run: node scripts/record-unpacked-windows-build.mjs
+
+      - name: Upload unpacked Windows app
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChordMini-Windows-x64-unpacked
+          path: desktop-dist/win-unpacked
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload checksum and inclusion report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChordMini-Windows-x64-unpacked-manifest
+          path: windows-unpacked-artifacts
+          retention-days: 14
+          if-no-files-found: error
