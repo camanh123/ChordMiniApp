@@ -42,6 +42,13 @@ export interface AnalyzeAudioFileOptions {
     channelTitle?: string | null;
     thumbnail?: string | null;
   };
+  diagnosticSessionId?: string | null;
+  /**
+   * False means this YouTube request no longer owns the view.
+   * Callers must not start a Firestore write. A write whose promise is
+   * already running cannot be cancelled or rolled back from here.
+   */
+  persistAllowed?: () => boolean;
 }
 
 export class AudioProcessingService {
@@ -176,13 +183,15 @@ export class AudioProcessingService {
         ? options?.prefetchedTranscription ?? null
         : await getTranscription(videoId, beatDetector, chordDetector);
 
+      const allowPersist = () => options?.persistAllowed ? options.persistAllowed() : true;
+
       if (cachedData) {
 
         const needsTitle = !cachedData.title && !!resolvedTitle;
         const needsChannelTitle = !cachedData.channelTitle && !!options?.searchMetadata?.channelTitle;
         const needsThumbnail = !cachedData.thumbnail && !!resolvedThumbnail;
 
-        if (needsTitle || needsChannelTitle || needsThumbnail) {
+        if ((needsTitle || needsChannelTitle || needsThumbnail) && allowPersist()) {
           const enriched = {
             title: needsTitle ? resolvedTitle : undefined,
             channelTitle: needsChannelTitle ? options?.searchMetadata?.channelTitle ?? undefined : undefined,
@@ -196,7 +205,7 @@ export class AudioProcessingService {
             enriched
           );
 
-          if (updateSucceeded && options?.onTranscriptionSaved) {
+          if (updateSucceeded && allowPersist() && options?.onTranscriptionSaved) {
             options.onTranscriptionSaved(
               normalizeTranscriptionData({
                 ...cachedData,
@@ -226,15 +235,30 @@ export class AudioProcessingService {
         };
       }
 
-      // Perform analysis with rate limiting
-      const analysisResults = await analyzeAudioWithRateLimit(audioUrl, beatDetector as 'auto' | 'madmom' | 'beat-transformer', chordDetector as ChordDetectorType, videoId);
+      // The cache read is allowed to finish. Inference and the Firestore
+      // save below stay closed once this request no longer owns the view.
+      if (!allowPersist()) {
+        throw new Error('Stale YouTube analysis');
+      }
+
+      // Perform analysis with rate limiting. The session id was captured before the cache read.
+      const diagnosticSessionId = options?.diagnosticSessionId;
+      const analysisResults = diagnosticSessionId
+        ? await analyzeAudioWithRateLimit(audioUrl, beatDetector as 'auto' | 'madmom' | 'beat-transformer', chordDetector as ChordDetectorType, videoId, diagnosticSessionId)
+        : await analyzeAudioWithRateLimit(audioUrl, beatDetector as 'auto' | 'madmom' | 'beat-transformer', chordDetector as ChordDetectorType, videoId);
       const normalizedAnalysisResults = {
         ...analysisResults,
         beatModel: analysisResults.beatModel || beatDetector,
         chordModel: analysisResults.chordModel || chordDetector,
       };
 
-      // Cache the results (note: enharmonic correction data will be added later via updateTranscriptionWithKey)
+      // A session that died while inference was in flight must not open a new
+      // Firestore write. If saveTranscription's promise is already running,
+      // this check cannot delete or roll back that remote document.
+      if (!allowPersist()) {
+        return normalizedAnalysisResults;
+      }
+
       const transcriptionData = {
         videoId,
         title: resolvedTitle, // Include video title for proper display in RecentVideos
@@ -257,7 +281,7 @@ export class AudioProcessingService {
       };
 
       const saveSucceeded = await saveTranscription(transcriptionData);
-      if (saveSucceeded) {
+      if (saveSucceeded && allowPersist()) {
         options?.onTranscriptionSaved?.(transcriptionData);
       }
 

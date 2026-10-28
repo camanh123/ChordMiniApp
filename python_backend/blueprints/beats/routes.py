@@ -5,7 +5,6 @@ This module provides all beat detection related endpoints including
 main detection, Firebase integration, testing, and model information.
 """
 
-import os
 import traceback
 import requests
 from flask import Blueprint, jsonify, current_app
@@ -14,25 +13,20 @@ from config import get_config
 from .validators import (
     validate_firebase_beat_detection_request,
 )
-from services.audio.tempfiles import temporary_file
 from utils.logging import log_info, log_error, log_debug
 from security.inference_guard import handle_beat_upload
+from security.offload_audio import OffloadRejected, execute_offload
+
+
+def _requests_client_for_security_tests():
+    """Kept so localhost security tests can patch this module's requests client."""
+    return requests
 
 # Create blueprint
 beats_bp = Blueprint('beats', __name__)
 
 # Get configuration for rate limits
 config = get_config()
-
-
-def _download_remote_audio_to_temp_path(file_url: str, temp_path: str, timeout_seconds: int = 300) -> None:
-    """Stream a remote audio file into a temporary path."""
-    with requests.get(file_url, stream=True, timeout=(30, timeout_seconds)) as response:
-        response.raise_for_status()
-        with open(temp_path, 'wb') as file_handle:
-            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    file_handle.write(chunk)
 
 
 @beats_bp.route('/api/detect-beats', methods=['POST'])
@@ -66,49 +60,48 @@ def detect_beats_firebase():
     - JSON with beat and downbeat information
     """
     try:
-        # Validate request
-        is_valid, error_msg, params = validate_firebase_beat_detection_request()
+        is_valid, _error_msg, params = validate_firebase_beat_detection_request()
         if not is_valid:
-            return jsonify({"error": error_msg}), 400
-
-        # Get beat detection service
-        beat_service = current_app.extensions['services']['beat_detection']
-
-        # Download file from Firebase
-        try:
-            # Create temporary file
-            with temporary_file(suffix='.mp3') as temp_path:
-                _download_remote_audio_to_temp_path(params['firebase_url'], temp_path)
-
-                log_info(f"Downloaded Firebase file to: {temp_path}")
-                log_info(f"File size: {os.path.getsize(temp_path) / (1024 * 1024):.1f}MB")
-
-                # Run beat detection
-                result = beat_service.detect_beats(
-                    file_path=temp_path,
-                    detector=params['detector'],
-                    force=False  # Firebase files use auto size handling
-                )
-
-                # Return result
-                if result.get('success'):
-                    return jsonify(result)
-                else:
-                    return jsonify(result), 500
-
-        except requests.RequestException as e:
-            log_error(f"Failed to download Firebase file: {e}")
             return jsonify({
                 "success": False,
-                "error": f"Failed to download file from Firebase: {str(e)}"
+                "error": "The offload request was rejected.",
+                "code": "BAD_REQUEST",
             }), 400
 
-    except Exception as e:
-        log_error(f"Unexpected error in detect_beats_firebase: {e}")
-        log_error(traceback.format_exc())
+        beat_service = current_app.extensions['services']['beat_detection']
+        try:
+            available = beat_service.get_available_detectors()
+        except Exception:
+            log_error("Offload beat detectors could not be listed")
+            return jsonify({
+                "success": False,
+                "error": "No detector can accept this audio.",
+                "code": "NO_ELIGIBLE_DETECTOR",
+            }), 503
+
+        def infer(path: str, detector: str):
+            return beat_service.detect_beats(file_path=path, detector=detector, force=False)
+
+        result = execute_offload(
+            params["firebase_url"],
+            family="beat",
+            requested=params["detector"],
+            available=available,
+            infer=infer,
+        )
+        log_info("Offload beat detection finished")
+        if result.get("success"):
+            return jsonify(result)
+        return jsonify(result), 500
+    except OffloadRejected as rejected:
+        log_info(f"Offload beat detection rejected code={rejected.code}")
+        return jsonify(rejected.body()), rejected.status
+    except Exception:
+        log_error("Unexpected error in detect_beats_firebase")
         return jsonify({
             "success": False,
-            "error": "Internal server error"
+            "error": "Internal server error",
+            "code": "OFFLOAD_FAILED",
         }), 500
 
 

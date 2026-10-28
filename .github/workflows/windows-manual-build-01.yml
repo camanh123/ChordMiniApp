@@ -1,0 +1,104 @@
+# Isolated Windows x64 unpacked test build.
+# Push to cursor/windows-manual-build-01-393f only. This file is not on main.
+# It does not build NSIS, install the app, publish a release, or enable updates.
+
+name: Windows manual unpacked build 01
+
+on:
+  push:
+    branches:
+      - cursor/windows-manual-build-01-393f
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  windows-unpacked:
+    name: Windows x64 unpacked
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # next/font 16.2.12 crashes when Google Fonts returns an extensionless
+      # /l/font?kit= URL. That response is intermittent, so retry this step
+      # inside the one workflow run. Application fonts stay unchanged.
+      - name: Build Next.js standalone server
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          for ($attempt = 1; $attempt -le 5; $attempt++) {
+            if (Test-Path .next) { Remove-Item -Recurse -Force .next }
+            Write-Host "NEXT_BUILD_ATTEMPT=$attempt"
+            npm run build
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Write-Host "NEXT_BUILD_ATTEMPT_FAILED=$attempt exit=$LASTEXITCODE"
+          }
+          exit 1
+
+      - name: Compile and stage the desktop app
+        run: npm run desktop:pack:prepare
+
+      - name: Package the unpacked Windows app
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npx electron-builder --win dir --x64 --publish never
+
+      - name: Reject installers and record package evidence
+        shell: pwsh
+        run: node scripts/record-unpacked-windows-build.mjs
+
+      # upload-artifact skips every file and directory whose name starts with
+      # "." unless hidden files are included. The production build is
+      # resources/standalone/.next, so the default upload drops it.
+      - name: Upload unpacked Windows app
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChordMini-Windows-x64-unpacked
+          path: desktop-dist/win-unpacked
+          retention-days: 14
+          if-no-files-found: error
+          include-hidden-files: true
+
+      - name: Upload checksum and inclusion report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChordMini-Windows-x64-unpacked-manifest
+          path: windows-unpacked-artifacts
+          retention-days: 14
+          if-no-files-found: error
+          include-hidden-files: true
+
+  verify-uploaded-artifact:
+    name: Verify uploaded Next runtime
+    needs: windows-unpacked
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download the unpacked app
+        uses: actions/download-artifact@v4
+        with:
+          name: ChordMini-Windows-x64-unpacked
+          path: uploaded-win-unpacked
+
+      - name: Require production runtime files in the uploaded app
+        env:
+          CHORDMINI_UNPACKED_DIR: uploaded-win-unpacked
+          CHORDMINI_UNPACKED_REPORT_DIR: uploaded-win-unpacked-report
+        run: node scripts/record-unpacked-windows-build.mjs

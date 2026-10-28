@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirebaseAdminAuth, getFirebaseAdminStorageBucket } from '@/utils/firebaseAdmin';
+import { desktopExtractionDenied } from '@/server/desktopExtractionGuard';
 import { verifyAppCheckRequest } from '@/utils/serverAppCheck';
 import {
   BROWSER_YTDLP_CANDIDATE_PATH_PATTERN,
@@ -30,6 +31,8 @@ function buildFirebaseDownloadUrl(bucketName: string, objectPath: string, token:
 }
 
 export async function POST(request: NextRequest) {
+  const denied = desktopExtractionDenied();
+  if (denied) return denied;
   const appCheck = await verifyAppCheckRequest(request);
   if (!appCheck.ok) {
     return NextResponse.json({ success: false, error: appCheck.error }, { status: appCheck.status || 403 });

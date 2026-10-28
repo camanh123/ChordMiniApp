@@ -150,4 +150,115 @@ describe('offload BFF routes', () => {
     expect(mockDeleteOffloadUrl).toHaveBeenCalledWith(firebaseUrl);
     await expect(response.json()).resolves.toEqual({ success: true, chords: [{ chord: 'C:maj', start: 0, end: 1 }] });
   });
+
+  it('rejects a supplied duration over 12 minutes before calling the backend', async () => {
+    const formData = new FormData();
+    formData.append('offload_url', firebaseUrl);
+    formData.append('audio_duration', '721');
+
+    const response = await detectBeatsOffload(makeRequest(formData));
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe('DURATION_REJECTED');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('forwards a Firebase URL when duration was not supplied', async () => {
+    const formData = new FormData();
+    formData.append('offload_url', firebaseUrl);
+    formData.append('detector', 'madmom');
+    fetchMock.mockResolvedValue(makeResponse({ success: true, beats: [] }));
+
+    const response = await detectBeatsOffload(makeRequest(formData));
+    const forwardedBody = fetchMock.mock.calls[0][1].body as FormData;
+
+    expect(response.status).toBe(200);
+    expect(forwardedBody.get('firebase_url')).toBe(firebaseUrl);
+    expect(forwardedBody.get('audio_duration')).toBeNull();
+    expect(mockCreateSafeTimeoutSignal).toHaveBeenCalledWith(290000);
+  });
+
+  it('strips signed query text from backend beat errors', async () => {
+    const formData = new FormData();
+    formData.append('offload_url', firebaseUrl);
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      text: async () => `download failed ${firebaseUrl} token=signed-token-value`,
+      json: async () => ({}),
+    });
+
+    const response = await detectBeatsOffload(makeRequest(formData));
+    const text = JSON.stringify(await response.json());
+
+    expect(response.status).toBe(400);
+    expect(text).not.toContain('token=');
+    expect(text).not.toContain('signed-token-value');
+    expect(text).not.toContain('alt=media');
+  });
+
+  it('does not return HTTP 200 when the backend body says inference failed', async () => {
+    const formData = new FormData();
+    formData.append('offload_url', firebaseUrl);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: async () => '',
+      json: async () => ({ success: false, error: 'Madmom is not available', code: 'INFERENCE_FAILED' }),
+    });
+
+    const beats = await detectBeatsOffload(makeRequest(formData));
+    const beatBody = await beats.json();
+    expect(beats.status).toBe(500);
+    expect(beatBody.success).toBe(false);
+    expect(beatBody.code).toBe('INFERENCE_FAILED');
+    expect(mockDeleteOffloadUrl).not.toHaveBeenCalled();
+
+    const chordForm = new FormData();
+    chordForm.append('offload_url', firebaseUrl);
+    chordForm.append('model', 'chord-cnn-lstm');
+    const chords = await recognizeChordsOffload(makeRequest(chordForm));
+    const chordBody = await chords.json();
+    expect(chords.status).toBe(500);
+    expect(chordBody.success).toBe(false);
+    expect(chordBody.error).toBe('Madmom is not available');
+  });
+
+  it('surfaces a backend format rejection instead of hiding it', async () => {
+    const formData = new FormData();
+    formData.append('offload_url', firebaseUrl);
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      text: async () => JSON.stringify({
+        success: false,
+        error: 'Firebase offload accepts WAV and MP3. This file is FLAC.',
+        code: 'UNSUPPORTED_OFFLOAD_FORMAT',
+      }),
+      json: async () => ({}),
+    });
+
+    const response = await recognizeChordsOffload(makeRequest(formData));
+    const body = await response.json();
+    expect(response.status).toBe(400);
+    expect(body.success).toBe(false);
+    expect(body.code).toBe('UNSUPPORTED_OFFLOAD_FORMAT');
+    expect(body.error).toContain('WAV and MP3');
+    expect(body.error).toContain('FLAC');
+  });
+
+  it('rejects an ineligible chord duration before calling the backend', async () => {
+    const formData = new FormData();
+    formData.append('offload_url', firebaseUrl);
+    formData.append('audio_duration', '0');
+
+    const response = await recognizeChordsOffload(makeRequest(formData));
+
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

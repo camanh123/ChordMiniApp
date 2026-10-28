@@ -1,4 +1,5 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
+import type { AuthorizedRunRequest, AuthorizedRunResult } from '@/hooks/youtube/useAuthorizedYouTubeFile';
 import type { AudioPlayerState } from '@/hooks/chord-playback/useAudioPlayer';
 import type { BeatDetectorType, ChordDetectorType } from '@/hooks/chord-analysis/useModelState';
 import type { SongContext } from '@/types/chatbotTypes';
@@ -65,6 +66,7 @@ export interface AnalyzeControlsPropsGroup {
   cacheCheckCompleted?: boolean;
   actionDisabledReason?: string | null;
   hidden?: boolean;
+  desktopAudioBlocked?: boolean;
 }
 
 export interface AnalyzeResultsPaneProps {
@@ -213,6 +215,14 @@ export interface AnalyzePageViewModel {
   resultsPaneProps: AnalyzeResultsPaneProps;
   sidePanelsProps: AnalyzeSidePanelsProps;
   floatingDockProps: AnalyzeFloatingDockSectionProps;
+  linkedSource: {
+    videoId: string;
+    videoTitle: string;
+    videoDurationSeconds: number | null;
+    currentTimeSeconds: number;
+    run: (request: AuthorizedRunRequest) => Promise<AuthorizedRunResult>;
+    publish: (offsetSeconds: number, syncAllowed: boolean) => void;
+  } | null;
   utilityBarProps: {
     isFollowModeEnabled: boolean;
     chordPlayback: UseChordPlaybackReturn;

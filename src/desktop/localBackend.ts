@@ -342,6 +342,7 @@ export function nextChildBackendEnv(input: {
   statusKey: string;
   retryToken: string;
   allowLegacy: boolean;
+  historyDir: string;
 }): NodeJS.ProcessEnv {
   // NODE_ENV is intentionally absent. This object is spread over the Next
   // process, and a NODE_ENV key here would replace the server's own value.
@@ -365,7 +366,18 @@ export function nextChildBackendEnv(input: {
   if (input.nonce) {
     env.CHORDMINI_BACKEND_NONCE = input.nonce;
   }
+  if (approvedHistoryDir(input.historyDir)) {
+    env.CHORDMINI_ANALYSIS_HISTORY_DIR = input.historyDir;
+  }
   return env;
+}
+
+function approvedHistoryDir(value: string): boolean {
+  return typeof value === 'string'
+    && value.length > 0
+    && !value.includes('\0')
+    && path.isAbsolute(value)
+    && !value.split(/[\\/]+/).includes('..');
 }
 
 export function classifyOwnedHealth(body: unknown, nonce: string, challenge: string): 'owned' | 'mismatch' {

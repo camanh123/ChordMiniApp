@@ -5,15 +5,19 @@ This module provides all chord recognition endpoints including model testing
 and information endpoints.
 """
 
-import os
 import traceback
 import requests
 from flask import Blueprint, jsonify, current_app
 from config import get_config
 from extensions import limiter
 from utils.logging import log_info, log_error, log_debug
-from services.audio.tempfiles import temporary_file
 from security.inference_guard import handle_chord_upload
+from security.offload_audio import OffloadRejected, execute_offload
+
+
+def _requests_client_for_security_tests():
+    """Kept so localhost security tests can patch this module's requests client."""
+    return requests
 from .validators import (
     validate_firebase_chord_recognition_request,
     get_detector_display_name
@@ -24,16 +28,6 @@ chords_bp = Blueprint('chords', __name__)
 
 # Get configuration
 config = get_config()
-
-
-def _download_remote_audio_to_temp_path(file_url: str, temp_path: str, timeout_seconds: int = 300) -> None:
-    """Stream a remote audio file into a temporary path."""
-    with requests.get(file_url, stream=True, timeout=(30, timeout_seconds)) as response:
-        response.raise_for_status()
-        with open(temp_path, 'wb') as file_handle:
-            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    file_handle.write(chunk)
 
 
 @chords_bp.route('/api/recognize-chords', methods=['POST'])
@@ -69,68 +63,58 @@ def recognize_chords_firebase():
     Returns:
     - JSON with chord recognition results
     """
-    temp_file_path = None
     try:
-        # Validate request
-        is_valid, error_msg, params = validate_firebase_chord_recognition_request()
+        is_valid, _error_msg, params = validate_firebase_chord_recognition_request()
         if not is_valid:
-            return jsonify({"error": error_msg}), 400
+            return jsonify({
+                "success": False,
+                "error": "The offload request was rejected.",
+                "code": "BAD_REQUEST",
+            }), 400
 
-        firebase_url = params['firebase_url']
-        detector = params['detector']
+        chord_service = current_app.extensions['services']['chord_recognition']
+        try:
+            available = chord_service.get_available_detectors()
+        except Exception:
+            log_error("Offload chord detectors could not be listed")
+            return jsonify({
+                "success": False,
+                "error": "No detector can accept this audio.",
+                "code": "NO_ELIGIBLE_DETECTOR",
+            }), 503
+
         chord_dict = params['chord_dict']
 
-        log_info(f"Processing Firebase chord recognition: {firebase_url[:100]}... "
-                f"with detector={detector}")
-
-        # Download file from Firebase Storage
-        log_info("Downloading file from Firebase Storage...")
-        with temporary_file(suffix='.mp3') as temp_file_path:
-            _download_remote_audio_to_temp_path(firebase_url, temp_file_path)
-
-            log_info(f"Downloaded file to: {temp_file_path}")
-            log_info(f"File size: {os.path.getsize(temp_file_path) / (1024 * 1024):.1f}MB")
-
-            # Get chord recognition service
-            chord_service = current_app.extensions['services']['chord_recognition']
-
-            # Run chord recognition
-            result = chord_service.recognize_chords(
-                file_path=temp_file_path,
+        def infer(path: str, detector: str):
+            return chord_service.recognize_chords(
+                file_path=path,
                 detector=detector,
                 chord_dict=chord_dict,
-                force=False,  # Don't force for Firebase requests
-                use_spleeter=False  # Don't use Spleeter for Firebase requests
+                force=False,
+                use_spleeter=False,
             )
 
-        if result.get('success'):
-            log_info(f"Firebase chord recognition successful: {result['total_chords']} chords detected")
-        else:
-            log_error(f"Firebase chord recognition failed: {result.get('error', 'Unknown error')}")
-
-        return jsonify(result)
-
-    except requests.exceptions.RequestException as e:
-        error_msg = f"Failed to download file from Firebase Storage: {str(e)}"
-        log_error(error_msg)
-        return jsonify({"error": error_msg}), 400
-    except Exception as e:
-        error_msg = f"Firebase chord recognition error: {str(e)}"
-        log_error(error_msg)
-        log_error(traceback.format_exc())
+        result = execute_offload(
+            params["firebase_url"],
+            family="chord",
+            requested=params["detector"],
+            available=available,
+            infer=infer,
+        )
+        log_info("Offload chord recognition finished")
+        if result.get("success"):
+            return jsonify(result)
+        return jsonify(result), 500
+    except OffloadRejected as rejected:
+        log_info(f"Offload chord recognition rejected code={rejected.code}")
+        return jsonify(rejected.body()), rejected.status
+    except Exception:
+        log_error("Unexpected error in recognize_chords_firebase")
         return jsonify({
             "success": False,
-            "error": error_msg,
-            "traceback": traceback.format_exc() if not config.PRODUCTION_MODE else None
+            "error": "Internal server error",
+            "code": "OFFLOAD_FAILED",
         }), 500
-    finally:
-        # Clean up temporary file
-        if temp_file_path and os.path.exists(temp_file_path):
-            try:
-                os.unlink(temp_file_path)
-                log_debug(f"Cleaned up temporary file: {temp_file_path}")
-            except Exception as cleanup_error:
-                log_error(f"Failed to clean up temporary file {temp_file_path}: {cleanup_error}")
 
 
 @chords_bp.route('/api/chord-model-info', methods=['GET'])

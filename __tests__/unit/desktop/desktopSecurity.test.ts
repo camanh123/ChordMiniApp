@@ -61,6 +61,10 @@ describe('desktop request gate', () => {
       secFetchSite: null,
     })).toEqual({ action: 'allow' });
     expect(request({ cookieToken: null })).toMatchObject({ reason: 'missing-desktop-cookie' });
+    expect(request({
+      pathname: '/api/desktop/backend-status',
+      cookieToken: null,
+    })).toMatchObject({ reason: 'missing-desktop-cookie' });
     expect(request({ origin })).toEqual({ action: 'allow' });
   });
 

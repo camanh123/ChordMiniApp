@@ -7,6 +7,7 @@ import {
   desktopPythonPolicyResponse,
 } from '@/server/analysisServiceAvailability';
 import { requirePythonBackendResponse } from '@/server/desktopLoopback';
+import { durationEligibility, MAX_ANALYSIS_DURATION_SECONDS } from '@/utils/analysisDurationLimit';
 
 export const maxDuration = 300;
 
@@ -18,11 +19,38 @@ function calculateProcessingTimeout(audioDuration: number): number {
   return Math.max(minTimeout, Math.min(maxTimeout, baseTimeout + processingTime));
 }
 
-function parseRequestedAudioDuration(formData: FormData): number | null {
+function parseRequestedAudioDuration(formData: FormData): number | null | 'reject' {
   const raw = formData.get('audio_duration');
-  if (typeof raw !== 'string') return null;
-  const value = Number.parseFloat(raw);
-  return Number.isFinite(value) && value > 0 ? value : null;
+  if (typeof raw !== 'string' || raw.trim() === '') return null;
+  const decision = durationEligibility(Number.parseFloat(raw));
+  return decision.eligible ? decision.seconds : 'reject';
+}
+
+function redactOffloadDetail(details: string, offloadUrl: string): string {
+  const queryStart = offloadUrl.indexOf('?');
+  const query = queryStart >= 0 ? offloadUrl.slice(queryStart) : '';
+  let text = query ? details.split(query).join('') : details;
+  text = text.split(offloadUrl).join('[offload-url]');
+  return text.replace(/(?:token|signature|X-Goog-Signature|X-Goog-Credential)=[^&\s]*/gi, '');
+}
+
+function failedOffloadBody(raw: string, offloadUrl: string, status: number, statusText: string) {
+  const details = redactOffloadDetail(raw, offloadUrl);
+  let parsed: { success?: unknown; error?: unknown; code?: unknown } | null = null;
+  try {
+    const value = JSON.parse(details) as { success?: unknown; error?: unknown; code?: unknown };
+    if (value && typeof value === 'object') parsed = value;
+  } catch {
+    parsed = null;
+  }
+  const backendError = typeof parsed?.error === 'string' && parsed.error.trim() ? parsed.error : '';
+  const code = typeof parsed?.code === 'string' ? parsed.code : undefined;
+  return {
+    success: false as const,
+    error: backendError || `Backend processing failed: ${status} ${statusText}`,
+    ...(code ? { code } : {}),
+    details,
+  };
 }
 
 function shouldDeleteOffloadAfterProcessing(formData: FormData): boolean {
@@ -60,8 +88,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: (err as Error).message }, { status: 400 });
     }
 
-    const requestedAudioDuration = parseRequestedAudioDuration(formData) ?? 180;
-    const timeoutValue = calculateProcessingTimeout(requestedAudioDuration);
+    const requestedAudioDuration = parseRequestedAudioDuration(formData);
+    if (requestedAudioDuration === 'reject') {
+      return NextResponse.json(
+        { success: false, error: 'Audio duration is not eligible for analysis.', code: 'DURATION_REJECTED' },
+        { status: 400 },
+      );
+    }
+    const timeoutValue = requestedAudioDuration === null
+      ? calculateProcessingTimeout(MAX_ANALYSIS_DURATION_SECONDS)
+      : calculateProcessingTimeout(requestedAudioDuration);
     const detector = (formData.get('detector') as string) || 'madmom';
     const force = formData.get('force') as string | null;
     const abortSignal = createSafeTimeoutSignal(timeoutValue);
@@ -88,18 +124,35 @@ export async function POST(request: NextRequest) {
       const isCheckpointError = errorText.includes("Can't load save_path") || errorText.includes('Beat Transformer is not available');
       if (detector === 'beat-transformer' && isCheckpointError) {
         response = await callBackend('madmom');
+      } else {
+        return NextResponse.json(
+          failedOffloadBody(errorText, offloadUrl, response.status, response.statusText),
+          { status: response.status },
+        );
       }
 
       if (!response.ok) {
-        const details = await response.text();
+        const failureText = await response.text();
         return NextResponse.json(
-          { error: `Backend processing failed: ${response.status} ${response.statusText}`, details },
+          failedOffloadBody(failureText, offloadUrl, response.status, response.statusText),
           { status: response.status },
         );
       }
     }
 
-    const result = await response.json();
+    const result = await response.json() as { success?: boolean; error?: unknown; code?: unknown };
+    if (result?.success === false) {
+      const error = typeof result.error === 'string' ? result.error : 'Offload processing failed';
+      const code = typeof result.code === 'string' ? result.code : undefined;
+      return NextResponse.json(
+        {
+          success: false,
+          error: redactOffloadDetail(error, offloadUrl),
+          ...(code ? { code } : {}),
+        },
+        { status: 500 },
+      );
+    }
 
     if (shouldDeleteOffload && shouldAttemptDeletion) {
       try {
@@ -123,8 +176,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const message = error instanceof Error ? error.message : 'Unknown error occurred during offload beat detection';
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error occurred during offload beat detection' },
+      { error: redactOffloadDetail(message, '') },
       { status: 500 },
     );
   }

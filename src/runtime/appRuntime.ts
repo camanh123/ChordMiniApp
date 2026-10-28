@@ -45,15 +45,44 @@ export function parseAppRuntime(value: string | undefined | null): AppRuntime | 
 /**
  * Explicit Electron or PWA selection. `web` and missing/invalid values stay
  * unpinned so one hosted build can refine to an installed PWA after hydration.
+ *
+ * `NEXT_PUBLIC_APP_RUNTIME` is compiled into the client bundle. Setting it on
+ * the standalone process after `next build` does not change that bundle.
+ * Desktop mode therefore also uses the server process flag
+ * `CHORDMINI_DESKTOP_MODE` and the matching document marker below.
  */
+export const DESKTOP_RUNTIME_MARKER = 'data-chordmini-runtime';
+
 export function getPinnedAppRuntime(env: NodeJS.ProcessEnv = process.env): AppRuntime | null {
   const parsed = parseAppRuntime(env.NEXT_PUBLIC_APP_RUNTIME);
   return parsed === 'electron' || parsed === 'pwa' ? parsed : null;
 }
 
+/** Value rendered on `<html>` when this Node process is the desktop server. */
+export function desktopDocumentMarkerValue(
+  env: NodeJS.ProcessEnv = process.env,
+): 'electron' | undefined {
+  return env.CHORDMINI_DESKTOP_MODE === '1' ? 'electron' : undefined;
+}
+
+function readDesktopDocumentMarker(): boolean {
+  if (typeof document === 'undefined') return false;
+  return document.documentElement?.getAttribute(DESKTOP_RUNTIME_MARKER) === 'electron';
+}
+
+/**
+ * Desktop shell signal that does not depend on a public env var baked into
+ * the client bundle. The server reads `CHORDMINI_DESKTOP_MODE`. The client
+ * reads the marker that same server wrote into the document.
+ */
+export function desktopShellRequested(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (env.CHORDMINI_DESKTOP_MODE === '1') return true;
+  return env === process.env && readDesktopDocumentMarker();
+}
+
 /** Value that is identical on the server and during the first client render. */
 export function getHydrationSafeRuntime(env: NodeJS.ProcessEnv = process.env): AppRuntime {
-  return getPinnedAppRuntime(env) ?? 'web';
+  return getPinnedAppRuntime(env) ?? (desktopShellRequested(env) ? 'electron' : 'web');
 }
 
 export function readDisplayMode(host: RuntimeHost | null | undefined): DisplayMode {
@@ -106,6 +135,10 @@ export function resolveRuntimeAfterHydration(
 
   if (pinned) {
     return { runtime: pinned, source: 'configured', displayMode };
+  }
+
+  if (desktopShellRequested(env)) {
+    return { runtime: 'electron', source: 'configured', displayMode };
   }
 
   if (!host) {

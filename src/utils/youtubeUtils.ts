@@ -4,6 +4,8 @@
  * This file contains utility functions for working with YouTube URLs and embeds.
  */
 
+import { extractYouTubeVideoId } from '@/utils/youtubeLink';
+
 /**
  * Converts a standard YouTube URL to a privacy-enhanced URL
  * This helps reduce tracking and CORS errors
@@ -51,14 +53,4 @@ export const isYouTubeUrl = (str: string): boolean => {
  * @param url The YouTube URL
  * @returns The video ID or null if not found
  */
-export const extractVideoId = (url: string): string | null => {
-  // Handle youtu.be format
-  if (url.includes('youtu.be')) {
-    const id = url.split('/').pop();
-    return id || null;
-  }
-
-  // Handle youtube.com format
-  const urlParams = new URLSearchParams(url.split('?')[1]);
-  return urlParams.get('v');
-};
+export const extractVideoId = (url: string): string | null => extractYouTubeVideoId(url);

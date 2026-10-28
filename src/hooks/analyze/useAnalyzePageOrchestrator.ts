@@ -16,6 +16,13 @@ import type { AudioFileData } from '@/services/firebase/firebaseStorageService';
 import { ProcessingStage } from '@/contexts/ProcessingContext';
 import { LyricsData } from '@/types/musicAiTypes';
 import { useCachedLyricsQuery } from '@/hooks/query/useCachedLyricsQuery';
+import { getHydrationSafeRuntime } from '@/runtime/appRuntime';
+import { youtubeAudioExtractionAllowed } from '@/services/youtube/linkedAnalysisSession';
+import { createYouTubeAnalysisSession } from '@/services/youtube/youtubeAnalysisSession';
+import {
+  useAnalysisInputSource,
+  useAnalysisInputSourceStore,
+} from '@/stores/analysisInputSourceStore';
 
 type BeatDetectorType = 'auto' | 'madmom' | 'beat-transformer';
 type ChordDetectorType = 'chord-cnn-lstm' | 'btc-sl' | 'btc-pl';
@@ -290,6 +297,30 @@ export function useAnalyzePageOrchestrator({
   const [showCorrectedChords, setShowCorrectedChords] = useState(false);
   const [sequenceCorrections, setSequenceCorrections] = useState<SequenceCorrections>(null);
   const [hasAutoEnabledCorrections, setHasAutoEnabledCorrections] = useState(false);
+  const [trackedVideoId, setTrackedVideoId] = useState(videoId);
+  if (trackedVideoId !== videoId) {
+    setTrackedVideoId(videoId);
+    setInitialCacheCheckDone(skipInitialCacheBootstrap);
+    setCacheAvailable(false);
+    setCacheCheckCompleted(false);
+    setCacheCheckInProgress(false);
+    setKeySignature(null);
+    setKeyDetectionAttempted(false);
+    setIsDetectingKey(false);
+    setAnalysisResults(null);
+  }
+
+  const source = useAnalysisInputSource();
+  const youtubeSessionRef = useRef<ReturnType<typeof createYouTubeAnalysisSession> | null>(null);
+  if (youtubeSessionRef.current === null) {
+    youtubeSessionRef.current = createYouTubeAnalysisSession({ videoId, source });
+  }
+  const youtubeSession = youtubeSessionRef.current;
+  const seenIdentityRef = useRef({ videoId, source });
+  if (seenIdentityRef.current.videoId !== videoId || seenIdentityRef.current.source !== source) {
+    seenIdentityRef.current = { videoId, source };
+    youtubeSession.adopt(videoId, source);
+  }
 
   const extractionLockRef = useRef(false);
   const latestRequestIdRef = useRef<string | null>(null);
@@ -478,10 +509,38 @@ export function useAnalyzePageOrchestrator({
   }, [activeTranscriptionDocId]);
 
   useEffect(() => {
+    youtubeSession.setMounted(true);
     return () => {
       audioExtractionAbortControllerRef.current?.abort();
+      youtubeSession.setMounted(false);
+      setStage('idle');
+      setProgress(0);
+      setStatusMessage('');
     };
-  }, []);
+  }, [setProgress, setStage, setStatusMessage, youtubeSession]);
+
+  const shownIdentityRef = useRef({ videoId, source });
+  useEffect(() => {
+    if (shownIdentityRef.current.videoId === videoId && shownIdentityRef.current.source === source) return;
+    shownIdentityRef.current = { videoId, source };
+    setStage('idle');
+    setProgress(0);
+    setStatusMessage('');
+  }, [setProgress, setStage, setStatusMessage, source, videoId]);
+
+  useEffect(() => {
+    if (source === 'youtube') return;
+    setIsDetectingKey(false);
+    setAudioProcessingState((prev) => {
+      if (!prev.isAnalyzing && !prev.isExtracting && !prev.isDownloading) return prev;
+      return {
+        ...prev,
+        isAnalyzing: false,
+        isExtracting: false,
+        isDownloading: false,
+      };
+    });
+  }, [setAudioProcessingState, source]);
 
   useEffect(() => {
     if (sequenceCorrections && sequenceCorrections.correctedSequence.length > 0 && !showCorrectedChords && !hasAutoEnabledCorrections) {
@@ -590,6 +649,7 @@ export function useAnalyzePageOrchestrator({
   ]);
 
   const handleAudioAnalysis = useCallback(async () => {
+    const lease = youtubeSession.start(videoId, useAnalysisInputSourceStore.getState().source);
     const deps = {
       setAudioProcessingState: (updater: (prev: AudioProcessingState) => AudioProcessingState) => setAudioProcessingState(updater),
       setAnalysisResults,
@@ -629,8 +689,8 @@ export function useAnalyzePageOrchestrator({
       chordDetector,
       progress: 0,
       lyrics,
-      requestId: `analysis-${videoId}`,
-      isRequestStillCurrent: () => true,
+      requestId: `analysis-${videoId}-${lease.generation}`,
+      isRequestStillCurrent: () => youtubeSession.isCurrent(lease),
       loadTranscriptionSnapshot,
       setTranscriptionSnapshot,
     };
@@ -664,19 +724,23 @@ export function useAnalyzePageOrchestrator({
     thumbnailFromSearch,
     titleFromSearch,
     videoId,
+    youtubeSession,
   ]);
 
   const checkCacheBeforeExtraction = useCallback(async () => {
     if (!firebaseReady || initialCacheCheckDone) {
       return;
     }
+    const lease = youtubeSession.observe();
+    const stillHere = () => youtubeSession.isCurrent(lease);
 
     const applyCachedTranscriptionIfAvailable = async () => {
+      if (!stillHere()) return false;
       const cachedTranscription = await loadTranscriptionSnapshot(beatDetector, chordDetector).catch((error) => {
         console.warn('Cached analysis lookup failed before extraction fallback:', error);
         return null;
       });
-      if (!cachedTranscription) {
+      if (!stillHere() || !cachedTranscription) {
         return false;
       }
 
@@ -735,6 +799,7 @@ export function useAnalyzePageOrchestrator({
       await ensureFirebaseInitialized();
 
       const cachedAudio = await loadCachedAudioFile();
+      if (!stillHere()) return;
 
       if (cachedAudio) {
         setStage('idle');
@@ -778,6 +843,8 @@ export function useAnalyzePageOrchestrator({
       shouldExtractAudio = true;
     }
 
+    if (!stillHere()) return;
+
     if (shouldExtractAudio) {
       try {
         const extractionResult = await extractAudioFromYouTube(false);
@@ -804,10 +871,12 @@ export function useAnalyzePageOrchestrator({
     setVideoTitle,
     titleFromSearch,
     videoId,
+    youtubeSession,
   ]);
   useEffect(() => {
     const checkAnalysisCache = async () => {
       if (
+        source !== 'youtube' ||
         audioProcessingState.isAnalyzed ||
         audioProcessingState.isAnalyzing ||
         !modelsInitialized ||
@@ -817,6 +886,7 @@ export function useAnalyzePageOrchestrator({
         return;
       }
 
+      const lease = youtubeSession.observe();
       try {
         setCacheCheckInProgress(true);
         const { withFirebaseConnectionCheck } = await import('@/utils/firebaseConnectionManager');
@@ -824,15 +894,17 @@ export function useAnalyzePageOrchestrator({
           () => loadTranscriptionSnapshot(beatDetector, chordDetector),
           'analysis cache check'
         );
+        if (!youtubeSession.isCurrent(lease)) return;
 
         setCacheAvailable(!!cachedData);
         setCacheCheckCompleted(true);
       } catch (error) {
+        if (!youtubeSession.isCurrent(lease)) return;
         console.error('Error checking cached analysis:', error);
         setCacheAvailable(false);
         setCacheCheckCompleted(true);
       } finally {
-        setCacheCheckInProgress(false);
+        if (youtubeSession.isCurrent(lease)) setCacheCheckInProgress(false);
       }
     };
 
@@ -846,6 +918,8 @@ export function useAnalyzePageOrchestrator({
     chordDetector,
     loadTranscriptionSnapshot,
     modelsInitialized,
+    source,
+    youtubeSession,
   ]);
 
   useEffect(() => {
@@ -862,6 +936,7 @@ export function useAnalyzePageOrchestrator({
 
   useEffect(() => {
     const loadCachedEnharmonicData = async () => {
+      const lease = youtubeSession.observe();
       const hasSequenceCorrections = (sequenceCorrections?.correctedSequence?.length ?? 0) > 0;
       const hasRomanNumeralData = (sequenceCorrections?.romanNumerals?.analysis?.length ?? 0) > 0;
 
@@ -874,7 +949,7 @@ export function useAnalyzePageOrchestrator({
 
       try {
         const cachedTranscription = await loadTranscriptionSnapshot(beatDetector, chordDetector);
-        if (!cachedTranscription) {
+        if (!youtubeSession.isCurrent(lease) || !cachedTranscription) {
           return;
         }
 
@@ -904,7 +979,7 @@ export function useAnalyzePageOrchestrator({
     };
 
     void loadCachedEnharmonicData();
-  }, [analysisResults?.chords, beatDetector, chordCorrections, chordDetector, keySignature, loadTranscriptionSnapshot, sequenceCorrections, showRomanNumerals, syncChordCorrections, syncKeySignature, syncRomanNumeralData, syncSequenceCorrections]);
+  }, [analysisResults?.chords, beatDetector, chordCorrections, chordDetector, keySignature, loadTranscriptionSnapshot, sequenceCorrections, showRomanNumerals, syncChordCorrections, syncKeySignature, syncRomanNumeralData, syncSequenceCorrections, youtubeSession]);
 
   useEffect(() => {
     const needsInitialDetection = !!analysisResults?.chords?.length && !isDetectingKey && !keyDetectionAttempted;
@@ -919,6 +994,8 @@ export function useAnalyzePageOrchestrator({
     }
 
     const runKeyDetection = async () => {
+      const lease = youtubeSession.observe();
+      const stillAnnotation = () => youtubeSession.isCurrent(lease);
       setIsDetectingKey(true);
       if (needsInitialDetection) {
         setKeyDetectionAttempted(true);
@@ -938,6 +1015,7 @@ export function useAnalyzePageOrchestrator({
 
       try {
         const cachedTranscription = await loadTranscriptionSnapshot(beatDetector, chordDetector);
+        if (!stillAnnotation()) return;
         const cachedRomanNumerals = cachedTranscription?.romanNumerals ?? null;
         const cachedSequenceCorrections = cachedTranscription?.sequenceCorrections ?? null;
         const nextCachedSequenceCorrections = withRomanNumerals(cachedSequenceCorrections, cachedRomanNumerals);
@@ -991,7 +1069,9 @@ export function useAnalyzePageOrchestrator({
         const romanNumeralChordData = chordData;
 
         const { detectKey } = await import('@/services/audio/keyDetectionService');
+        if (!stillAnnotation()) return;
         const result = await detectKey(romanNumeralChordData, true, false, includeRomanNumeralsInDetection);
+        if (!stillAnnotation()) return;
 
         syncKeySignature(
           result.primaryKey && result.primaryKey !== 'Unknown'
@@ -1022,7 +1102,9 @@ export function useAnalyzePageOrchestrator({
         syncRomanNumeralData(result.romanNumerals || null);
 
         if (result.primaryKey && result.primaryKey !== 'Unknown' && !result.fromHeuristicFallback) {
+          if (!stillAnnotation()) return;
           const cachedTranscription = await loadTranscriptionSnapshot(beatDetector, chordDetector);
+          if (!stillAnnotation()) return;
           if (cachedTranscription) {
             const updateSucceeded = await updateTranscriptionEnrichment(
               videoId,
@@ -1039,7 +1121,7 @@ export function useAnalyzePageOrchestrator({
               }
             );
 
-            if (updateSucceeded) {
+            if (updateSucceeded && stillAnnotation()) {
               setTranscriptionSnapshot({
                 ...cachedTranscription,
                 keySignature: result.primaryKey,
@@ -1056,7 +1138,7 @@ export function useAnalyzePageOrchestrator({
       } catch (error) {
         console.error('Failed to detect key:', error);
       } finally {
-        setIsDetectingKey(false);
+        if (stillAnnotation()) setIsDetectingKey(false);
       }
     };
 
@@ -1079,10 +1161,23 @@ export function useAnalyzePageOrchestrator({
     syncRomanNumeralData,
     syncSequenceCorrections,
     videoId,
+    youtubeSession,
   ]);
 
   useEffect(() => {
-    if (!videoId || !firebaseReady || audioProcessingState.isExtracting || extractionLockRef.current || initialCacheCheckDone) {
+    if (!videoId || audioProcessingState.isExtracting || extractionLockRef.current || initialCacheCheckDone) {
+      return;
+    }
+
+    if (!youtubeAudioExtractionAllowed(getHydrationSafeRuntime())) {
+      setInitialCacheCheckDone(true);
+      setStage('idle');
+      setProgress(0);
+      setStatusMessage('');
+      return;
+    }
+
+    if (!firebaseReady) {
       return;
     }
 

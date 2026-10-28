@@ -15,6 +15,11 @@ import AnalyzeFloatingDockSection from './_components/AnalyzeFloatingDockSection
 import { useAnalyzePageViewModel } from './_hooks/useAnalyzePageViewModel';
 import dynamic from 'next/dynamic';
 import { AnalysisControlsSkeleton } from '@/components/common/SkeletonLoaders';
+import YouTubeAuthorizedSourcePanel from '@/components/analysis/YouTubeAuthorizedSourcePanel';
+import AnalysisSourceSelector from '@/components/analysis/AnalysisSourceSelector';
+import AnalysisDiagnosticsPanel from '@/components/analysis/AnalysisDiagnosticsPanel';
+import AnalysisSourceDetail from '@/components/analysis/AnalysisSourceDetail';
+import { applyRouteIntent } from '@/stores/analysisInputSourceStore';
 
 const DynamicAnalysisControls = dynamic(
   () => import('@/components/analysis/AnalysisControls').then(mod => ({ default: mod.AnalysisControls })),
@@ -29,6 +34,7 @@ export default function YouTubeVideoAnalyzePage() {
   const searchParams = useSearchParams();
   const videoId = params?.videoId as string;
   const routeParams = readAnalyzeRouteParams(searchParams);
+  if (videoId) applyRouteIntent(`video:${videoId}`, 'youtube');
   const viewModel = useAnalyzePageViewModel({ videoId, routeParams });
 
   return (
@@ -74,7 +80,15 @@ export default function YouTubeVideoAnalyzePage() {
                   <div className="px-4 pt-2 pb-1">
                     <div suppressHydrationWarning>
                       {/* suppressHydrationWarning keeps the shell stable while dynamic controls hydrate */}
+                      <AnalysisSourceSelector context="results" />
+                      <AnalysisDiagnosticsPanel />
                       <DynamicAnalysisControls {...viewModel.controlsProps} />
+                      <AnalysisSourceDetail
+                        context="results"
+                        youtube={viewModel.linkedSource ? (
+                          <YouTubeAuthorizedSourcePanel key={viewModel.linkedSource.videoId} {...viewModel.linkedSource} />
+                        ) : null}
+                      />
                     </div>
                   </div>
 

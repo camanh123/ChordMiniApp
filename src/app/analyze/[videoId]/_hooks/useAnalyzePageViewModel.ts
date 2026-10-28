@@ -38,18 +38,25 @@ import { buildAnalyzePageUrl, type AnalyzeRouteParams } from '@/utils/analyzeRou
 import { consumeAnalyzeSessionHandoff } from '@/utils/analyzeSessionHandoff';
 import {
   MAX_ANALYSIS_DURATION_MINUTES,
-  getAnalysisDurationLimitReason,
+  durationEligibility,
+  durationLimitMessage,
   parseAnalysisDurationSeconds,
 } from '@/utils/analysisDurationLimit';
+import { beginDiagnosticSession } from '@/services/audio/analysisDiagnostics';
 import { requestSheetSageTranscription } from '@/services/sheetsage/sheetSageTranscriptionClient';
 import { getCachedSheetSageMelody } from '@/services/sheetsage/sheetSageCacheClient';
 import { useFirebaseReadiness } from '@/hooks/firebase/useFirebaseReadiness';
 import { useYouTubeSetup } from '@/hooks/youtube/useYouTubeSetup';
+import { useAuthorizedYouTubeFile } from '@/hooks/youtube/useAuthorizedYouTubeFile';
+import { getHydrationSafeRuntime } from '@/runtime/appRuntime';
+import { loadOfficialYouTubeMetadata } from '@/services/youtube/officialYouTubeMetadata';
+import { readPlayerDuration, youtubeAudioExtractionAllowed } from '@/services/youtube/linkedAnalysisSession';
 import { useSegmentationState } from '@/hooks/lyrics/useSegmentationState';
 import { useTabsAndEditing } from '@/hooks/ui/useTabsAndEditing';
 import { useLyricsState } from '@/hooks/lyrics/useLyricsState';
 import { useAnalysisStore } from '@/stores/analysisStore';
 import { useUIStore } from '@/stores/uiStore';
+import { startYouTubeAnalysisAllowed, useAnalysisInputSource } from '@/stores/analysisInputSourceStore';
 import { useIsLoopEnabled, useLoopEndBeat, useLoopStartBeat, useIsPitchShiftEnabled, useIsPitchShiftReady } from '@/stores/uiStore';
 import { usePlaybackStore, useIsVideoMinimized } from '@/stores/playbackStore';
 import { getPitchShiftService } from '@/services/audio/pitchShiftServiceInstance';
@@ -201,7 +208,81 @@ export function useAnalyzePageViewModel({
 
   const { firebaseReady } = useFirebaseReadiness();
   const { isPlaying, currentTime, duration, playbackRate } = audioPlayerState;
-  const effectiveAnalysisDuration = duration > 0 ? duration : parseAnalysisDurationSeconds(durationFromSearch);
+  const playerDurationRef = useRef(duration);
+  playerDurationRef.current = duration;
+  const durationEpochRef = useRef(0);
+  const lastPlayerDurationRef = useRef(duration);
+  const [durationVideoId, setDurationVideoId] = useState(videoId);
+  const [videoDurationSeconds, setVideoDurationSeconds] = useState<number | null>(null);
+  const [gateEpoch, setGateEpoch] = useState(0);
+  const [gateSeconds, setGateSeconds] = useState<number | null>(() => {
+    if (initialAnalyzeHandoff?.videoId === videoId && initialAnalyzeHandoff.duration > 0) {
+      return initialAnalyzeHandoff.duration;
+    }
+    return parseAnalysisDurationSeconds(durationFromSearch);
+  });
+  if (durationVideoId !== videoId) {
+    durationEpochRef.current += 1;
+    lastPlayerDurationRef.current = duration;
+    setDurationVideoId(videoId);
+    setGateEpoch(durationEpochRef.current);
+    setVideoDurationSeconds(null);
+    const handoffSeconds = initialAnalyzeHandoff?.videoId === videoId && initialAnalyzeHandoff.duration > 0
+      ? initialAnalyzeHandoff.duration
+      : null;
+    setGateSeconds(handoffSeconds ?? parseAnalysisDurationSeconds(durationFromSearch));
+  }
+  const desktopPlayback = !youtubeAudioExtractionAllowed(getHydrationSafeRuntime());
+  const authorizedFile = useAuthorizedYouTubeFile({
+    videoId,
+    beatDetector,
+    chordDetector,
+    setAnalysisResults,
+    setAudioProcessingState,
+  });
+
+  useEffect(() => {
+    if (!desktopPlayback) return;
+    let cancelled = false;
+    void loadOfficialYouTubeMetadata(videoId, fetch).then((loaded) => {
+      if (cancelled || !loaded.ok) return;
+      setVideoTitle(loaded.metadata.title);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [desktopPlayback, setVideoTitle, videoId]);
+
+  useEffect(() => {
+    if (duration === lastPlayerDurationRef.current) return;
+    lastPlayerDurationRef.current = duration;
+    if (!(duration > 0)) return;
+    setGateEpoch(durationEpochRef.current);
+    setGateSeconds(duration);
+  }, [duration]);
+
+  useEffect(() => {
+    if (!desktopPlayback) return;
+    const epoch = durationEpochRef.current;
+    const stale = playerDurationRef.current;
+    const read = () => {
+      if (epoch !== durationEpochRef.current) return;
+      const next = readPlayerDuration(youtubePlayer);
+      if (next === null || !(next > 0)) return;
+      if (stale > 0 && next === stale) return;
+      setVideoDurationSeconds(next);
+      setGateEpoch(epoch);
+      setGateSeconds(next);
+    };
+    read();
+    if (readPlayerDuration(youtubePlayer) !== null && !(stale > 0 && readPlayerDuration(youtubePlayer) === stale)) return;
+    const timer = window.setInterval(read, 500);
+    const stop = window.setTimeout(() => window.clearInterval(timer), 8000);
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(stop);
+    };
+  }, [desktopPlayback, youtubePlayer, videoId]);
 
   const setIsPlaying = useCallback((playing: boolean) => {
     setAudioPlayerState(prev => ({ ...prev, isPlaying: playing }));
@@ -238,6 +319,8 @@ export function useAnalyzePageViewModel({
     setIsTranscribingLyrics,
     setLyricsError,
   } = useLyricsState();
+
+  const inputSource = useAnalysisInputSource();
 
   const {
     cacheAvailable,
@@ -302,11 +385,14 @@ export function useAnalyzePageViewModel({
     onUsageCountIncrement: incrementActiveTranscriptionUsageCount,
   });
 
-  const analysisDurationLimitReason = useMemo(
-    () => getAnalysisDurationLimitReason(effectiveAnalysisDuration),
-    [effectiveAnalysisDuration],
-  );
-  const analysisActionDisabledReason = !cacheAvailable ? analysisDurationLimitReason : null;
+  const ownedAnalysisSeconds = gateEpoch === durationEpochRef.current ? gateSeconds : null;
+  const durationDecision = durationEligibility(ownedAnalysisSeconds);
+  const analysisDurationLimitReason = !durationDecision.eligible && durationDecision.reason === 'exceeded'
+    ? durationLimitMessage(durationDecision)
+    : null;
+  const analysisActionDisabledReason = cacheAvailable || durationDecision.eligible
+    ? null
+    : durationLimitMessage(durationDecision);
 
   useEffect(() => {
     return () => {
@@ -322,7 +408,7 @@ export function useAnalyzePageViewModel({
   }, []);
 
   useEffect(() => {
-    if (analysisActionDisabledReason && !durationLimitToastShownRef.current) {
+    if (analysisDurationLimitReason && !durationLimitToastShownRef.current) {
       durationLimitToastShownRef.current = true;
       addToast({
         title: 'Audio is too long for analysis',
@@ -338,10 +424,10 @@ export function useAnalyzePageViewModel({
       return;
     }
 
-    if (!analysisActionDisabledReason) {
+    if (!analysisDurationLimitReason) {
       durationLimitToastShownRef.current = false;
     }
-  }, [analysisActionDisabledReason]);
+  }, [analysisDurationLimitReason]);
 
   useEffect(() => {
     const cachePromptId = `${videoId}:${beatDetector}:${chordDetector}`;
@@ -417,6 +503,7 @@ export function useAnalyzePageViewModel({
   ]);
 
   const handleStartAnalysis = useCallback(() => {
+    if (!startYouTubeAnalysisAllowed()) return;
     if (analysisActionDisabledReason) {
       setAudioProcessingState(prev => ({
         ...prev,
@@ -425,6 +512,7 @@ export function useAnalyzePageViewModel({
       return;
     }
 
+    beginDiagnosticSession();
     void handleAudioAnalysis();
   }, [analysisActionDisabledReason, handleAudioAnalysis, setAudioProcessingState]);
 
@@ -1245,6 +1333,7 @@ export function useAnalyzePageViewModel({
   }, []);
 
   const handleRefreshExtraction = useCallback(() => {
+    if (!youtubeAudioExtractionAllowed(getHydrationSafeRuntime())) return;
     extractAudioFromYouTube(true);
   }, [extractAudioFromYouTube]);
 
@@ -1319,7 +1408,8 @@ export function useAnalyzePageViewModel({
     cacheAvailable,
     cacheCheckCompleted,
     actionDisabledReason: analysisActionDisabledReason,
-    hidden: hideInitialAnalysisControls,
+    hidden: hideInitialAnalysisControls || inputSource !== 'youtube',
+    desktopAudioBlocked: desktopPlayback,
   };
 
   const resultsPaneProps = {
@@ -1596,7 +1686,10 @@ export function useAnalyzePageViewModel({
       error: audioProcessingState.error || null,
       suggestion: audioProcessingState.suggestion || undefined,
       onTryAnotherVideo: handleTryAnotherVideo,
-      onRetry: () => extractAudioFromYouTube(false),
+      onRetry: () => {
+        if (!youtubeAudioExtractionAllowed(getHydrationSafeRuntime())) return;
+        extractAudioFromYouTube(false);
+      },
     },
     melodyToastProps: {
       isComputing: isComputingSheetSage,
@@ -1635,5 +1728,13 @@ export function useAnalyzePageViewModel({
     sidePanelsProps,
     floatingDockProps,
     utilityBarProps,
+    linkedSource: desktopPlayback ? {
+      videoId,
+      videoTitle,
+      videoDurationSeconds,
+      currentTimeSeconds: currentTime,
+      run: authorizedFile.run,
+      publish: authorizedFile.publish,
+    } : null,
   };
 }

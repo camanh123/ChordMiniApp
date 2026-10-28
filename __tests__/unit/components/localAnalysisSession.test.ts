@@ -175,7 +175,7 @@ describe('local analysis session', () => {
       'utf8',
     );
     expect(page).toContain('runGuardedAnalysis(');
-    expect(page).toContain('analyzeAudioWithRateLimit(audioFile, beatDetector, chordDetector)');
+    expect(page).toContain('analyzeAudioWithRateLimit(selectedFile, beatDetector, chordDetector)');
     expect(page).toContain('analysisSessionRef.current.invalidate()');
     expect(page).toContain('session.invalidate()');
     expect(page).toContain('if (!session.isCurrent(token)) return;');

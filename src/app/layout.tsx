@@ -17,6 +17,7 @@ import CorsErrorSuppression from '@/components/layout/CorsErrorSuppression';
 import DevIndicatorHider from '@/components/layout/DevIndicatorHider';
 import { getFrontendBaseUrl } from '@/config/serverBackend';
 import { getRequestLocale } from '@/i18n/requestLocale';
+import { DESKTOP_RUNTIME_MARKER, desktopDocumentMarkerValue } from '@/runtime/appRuntime';
 
 // Configure Google Fonts
 const robotoMono = Roboto_Mono({
@@ -149,9 +150,16 @@ export default async function RootLayout({
 }) {
   const locale = await getRequestLocale();
   const showWebsiteFooter = shouldRenderWebsiteFooter();
+  const desktopRuntime = desktopDocumentMarkerValue();
 
   return (
-    <html lang={locale} data-locale={locale} className={`${robotoMono.variable} ${dmSans.variable} ${varelaRound.variable}`} suppressHydrationWarning>
+    <html
+      lang={locale}
+      data-locale={locale}
+      {...(desktopRuntime ? { [DESKTOP_RUNTIME_MARKER]: desktopRuntime } : {})}
+      className={`${robotoMono.variable} ${dmSans.variable} ${varelaRound.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {/* Blocking script: apply dark class BEFORE first paint to prevent theme flash */}
         <script

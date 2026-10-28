@@ -11,6 +11,7 @@ const ANALYSIS_SERVICE_CODES = new Set<string>([
 export interface AnalysisServiceFailure {
   code: string;
   message: string;
+  reason: string | null;
 }
 
 export function redactDiagnosticsText(value: string): string {
@@ -30,15 +31,18 @@ export function readAnalysisServiceFailure(payload: unknown): AnalysisServiceFai
   }
   const error = typeof record.error === 'string' ? record.error : 'Analysis service unavailable';
   const suggestion = typeof record.suggestion === 'string' ? record.suggestion : '';
+  const reason = record.reason === 'MODEL_UNAVAILABLE' ? 'MODEL_UNAVAILABLE' : null;
   return {
     code,
     message: redactDiagnosticsText([error, suggestion].filter(Boolean).join(' ')),
+    reason,
   };
 }
 
-export function analysisServiceError(failure: AnalysisServiceFailure): Error & { code: string } {
-  const error = new Error(failure.message) as Error & { code: string };
+export function analysisServiceError(failure: AnalysisServiceFailure): Error & { code: string; reason: string | null } {
+  const error = new Error(failure.message) as Error & { code: string; reason: string | null };
   error.code = failure.code;
+  error.reason = failure.reason;
   return error;
 }
 

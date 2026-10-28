@@ -6,6 +6,7 @@ import {
   ErrorWithSuggestion,
 } from '@/services/audio/audioProcessingService';
 import { AnalysisResult } from '@/services/chord-analysis/chordRecognitionService';
+import { startYouTubeAnalysisAllowed } from '@/stores/analysisInputSourceStore';
 
 interface UseAudioProcessingOptions {
   initialState?: AudioProcessingState | null;
@@ -77,11 +78,26 @@ export const useAudioProcessing = (videoId: string, options: UseAudioProcessingO
         options
       );
       const fromFirestoreCache = false; // This would be determined by the service
+      if (options?.persistAllowed && !options.persistAllowed()) {
+        return results;
+      }
+      if (!startYouTubeAnalysisAllowed()) {
+        setState((prev) => ({
+          ...prev,
+          isAnalyzing: false,
+          isExtracting: false,
+          isDownloading: false,
+        }));
+        return results;
+      }
 
       setState(prev => service.updateStateForAnalysisSuccess(prev, fromFirestoreCache));
       setAnalysisResults(results);
       return results;
     } catch (error: unknown) {
+      if (options?.persistAllowed && !options.persistAllowed()) {
+        throw error;
+      }
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       let suggestion: string | undefined;
 
@@ -103,6 +119,14 @@ export const useAudioProcessing = (videoId: string, options: UseAudioProcessingO
       setVideoTitle('Unknown Title');
     }
   }, [videoId, service]);
+
+  const [trackedVideoId, setTrackedVideoId] = useState(videoId);
+  if (trackedVideoId !== videoId) {
+    setTrackedVideoId(videoId);
+    setState(service.createInitialState());
+    setAnalysisResults(null);
+    setVideoTitle('');
+  }
 
   const resetState = useCallback(() => {
     setState(service.createInitialState());

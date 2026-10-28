@@ -253,6 +253,8 @@ test_*.py
 !python_backend/tests/test_backend_04k_metrics.py
 !python_backend/tests/test_backend_04l_gate.py
 !python_backend/tests/test_backend_04n_gate.py
+!python_backend/tests/test_offload_audio_limits.py
+!python_backend/tests/test_offload_flask_dispatch.py
 **/test_output/
 **/test_results/
 task.md
@@ -316,6 +318,7 @@ scripts/*
 !scripts/windows-packaged-acceptance.mjs
 !scripts/verify-packaged-standalone.mjs
 !scripts/write-integration-03-summary.mjs
+!scripts/record-unpacked-windows-build.mjs
 
 __tests__/
 __tests__/*

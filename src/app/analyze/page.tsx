@@ -9,6 +9,14 @@ import Navigation from '@/components/common/Navigation';
 import { useI18n } from '@/i18n/I18nProvider';
 import { analyzeAudioWithRateLimit, AnalysisResult } from '@/services/chord-analysis/chordRecognitionService';
 import { createAnalysisSessionController, runGuardedAnalysis } from '@/components/analysis/localAnalysisSession';
+import {
+  createHistoryKeyGate,
+  keyFactFromDetection,
+  saveCompletedLocalAnalysis,
+} from '@/services/audio/localAnalysisHistory';
+import type { HistorySaveOutcome } from '@/services/audio/localAnalysisHistory';
+import { deleteLyricHistory, saveLyricHistory } from '@/services/audio/lyricHistoryClient';
+import { resolveRuntimeAfterHydration } from '@/runtime/appRuntime';
 import { ProcessingStatusSkeleton } from '@/components/common/SkeletonLoaders';
 import {
   getChordGridData as getChordGridDataService
@@ -77,6 +85,14 @@ import BeatTimeline from '@/components/analysis/BeatTimeline';
 import { simplifyChordArray } from '@/utils/chordSimplification';
 import { useUIStore, useIsLoopEnabled, useLoopStartBeat, useLoopEndBeat, useIsPitchShiftEnabled, useIsPitchShiftReady } from '@/stores/uiStore';
 import LocalPracticeEntry from '@/components/analysis/LocalPracticeEntry';
+import AnalysisSourceSelector from '@/components/analysis/AnalysisSourceSelector';
+import AnalysisSourceDetail from '@/components/analysis/AnalysisSourceDetail';
+import {
+  applyRouteIntent,
+  capturePublicationSnapshot,
+  publishLocalAnalysisAllowed,
+  useAnalysisInputSource,
+} from '@/stores/analysisInputSourceStore';
 
 import { useMetronomeSync } from '@/hooks/chord-playback/useMetronomeSync';
 import { useMelodicTranscriptionPlayback } from '@/hooks/chord-playback/useMelodicTranscriptionPlayback';
@@ -98,11 +114,32 @@ import { usePitchShiftAudio } from '@/hooks/chord-playback/usePitchShiftAudio';
 import ResultsTabs from '@/components/homepage/ResultsTabs';
 import type { TabKey } from '@/components/homepage/ResultsTabs';
 import { searchLyricsWithFallback } from '@/services/lyrics/lyricsService';
+import { synchronizedLyricsData } from '@/services/lyrics/lyricChordAlignment';
+import LyricChordSyncPanel from '@/components/lyrics/LyricChordSyncPanel';
 import type { LyricsData } from '@/types/musicAiTypes';
 import { requestSheetSageTranscription } from '@/services/sheetsage/sheetSageTranscriptionClient';
 import { useSheetSageBackendAvailability } from '@/hooks/sheetsage/useSheetSageBackendAvailability';
 import { getSafeBeatModel, getSafeChordModel } from '@/utils/modelFiltering';
-import { MAX_ANALYSIS_DURATION_MINUTES, getAnalysisDurationLimitReason } from '@/utils/analysisDurationLimit';
+import {
+  MAX_ANALYSIS_DURATION_MINUTES,
+  durationGateDecision,
+  durationLimitMessage,
+  isDurationGateError,
+  localFileSourceId,
+  observeLocalFileDuration,
+  type DurationObservation,
+} from '@/utils/analysisDurationLimit';
+import { getAudioDurationFromFile } from '@/utils/audioDurationUtils';
+import {
+  abandonDiagnosticSession,
+  bindDiagnosticSession,
+  noteAnalysisCompleted,
+  noteAnalysisFailed,
+  noteAudioRejected,
+  observeHistorySave,
+} from '@/services/audio/analysisDiagnostics';
+import { requestBackendRetryAndObserve } from '@/services/audio/backendReadiness';
+import AnalysisDiagnosticsPanel from '@/components/analysis/AnalysisDiagnosticsPanel';
 import {
   analysisServiceCodeFrom,
   buildPrivacySafeDiagnostics,
@@ -110,7 +147,9 @@ import {
 import MelodyTranscriptionStatusToast from '@/components/analysis/MelodyTranscriptionStatusToast';
 
 export default function LocalAudioAnalyzePage() {
+  applyRouteIntent('analyze', 'local-audio');
   const { t } = useI18n();
+  const inputSource = useAnalysisInputSource();
   const showSheetSage = true;
   useSheetSageBackendAvailability(showSheetSage);
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -129,13 +168,20 @@ export default function LocalAudioAnalyzePage() {
   const durationLimitToastShownRef = useRef(false);
 
   const { lyrics, completeLyricsTranscription } = useLyricsState();
-  const analysisDurationLimitReason = useMemo(
-    () => getAnalysisDurationLimitReason(duration),
-    [duration],
-  );
+  const [fileDuration, setFileDuration] = useState<DurationObservation | null>(null);
+  const fileDurationRef = useRef<DurationObservation | null>(null);
+  const activeFileId = audioFile ? localFileSourceId(audioFile) : '';
+  const fileDurationDecision = durationGateDecision(fileDuration, activeFileId);
+  const analysisDurationLimitReason = audioFile && !fileDurationDecision.eligible
+    ? durationLimitMessage(fileDurationDecision)
+    : null;
+  const durationBannerReason = !fileDurationDecision.eligible && fileDurationDecision.reason !== 'missing'
+    ? durationLimitMessage(fileDurationDecision)
+    : null;
 
   useEffect(() => {
-    if (analysisDurationLimitReason && !durationLimitToastShownRef.current) {
+    const durationExceeded = Boolean(audioFile) && !fileDurationDecision.eligible && fileDurationDecision.reason === 'exceeded';
+    if (durationExceeded && !durationLimitToastShownRef.current) {
       durationLimitToastShownRef.current = true;
       addToast({
         title: t('analyze.tooLongTitle'),
@@ -151,10 +197,10 @@ export default function LocalAudioAnalyzePage() {
       return;
     }
 
-    if (!analysisDurationLimitReason) {
+    if (!durationExceeded) {
       durationLimitToastShownRef.current = false;
     }
-  }, [analysisDurationLimitReason, t]);
+  }, [audioFile, fileDurationDecision, t]);
   const {
     segmentationData,
     showSegmentation,
@@ -174,34 +220,8 @@ export default function LocalAudioAnalyzePage() {
     };
   }, []);
 
-  type LyricsAPIResp = {
-    success?: boolean;
-    synchronized_lyrics?: Array<{ time: number; text: string }>;
-    plain_lyrics?: string;
-  };
-
   const normalizeLyricsResponse = useCallback((resp: unknown): LyricsData | null => {
-    const r = resp as LyricsAPIResp | null | undefined;
-    if (!r || r.success === false) return null;
-    if (Array.isArray(r.synchronized_lyrics) && r.synchronized_lyrics.length) {
-      const lines = r.synchronized_lyrics.map((l: { time: number; text: string }, idx: number, arr: Array<{ time: number; text: string }>) => {
-        const start = typeof l.time === 'number' ? l.time : 0;
-        const next = arr[idx + 1]?.time;
-        const end = typeof next === 'number' && next > start ? next : start + 2;
-        return { startTime: start, endTime: end, text: l.text };
-      });
-      return { lines };
-    }
-    if (typeof r.plain_lyrics === 'string' && r.plain_lyrics.trim().length) {
-      const parts = r.plain_lyrics.split(/\r?\n/).filter((t: string) => t.trim().length);
-      const lines = parts.map((text: string, idx: number) => ({
-        startTime: idx * 2,
-        endTime: idx * 2 + 2,
-        text,
-      }));
-      return { lines };
-    }
-    return null;
+    return synchronizedLyricsData(resp);
   }, []);
 
   const handleManualLyricsSearch = useCallback(async () => {
@@ -471,15 +491,25 @@ export default function LocalAudioAnalyzePage() {
 
   // Get state from Zustand stores (only what's actually used in this page)
 
-  // Track transient stage timeout for analysis status so we can clean it up on unmount
-  const stageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const analysisSessionRef = useRef(createAnalysisSessionController());
   const [analysisSessionId, setAnalysisSessionId] = useState(0);
+  const audioFileRef = useRef<File | null>(audioFile);
+  audioFileRef.current = audioFile;
+  const mountedRef = useRef(true);
+  const historyKeyGateRef = useRef(createHistoryKeyGate());
+  const historyRetryRef = useRef<(() => void) | null>(null);
+  const activeAnalysisTokenRef = useRef(0);
+  const [historyNotice, setHistoryNotice] = useState<'saved' | 'failed' | null>(null);
+  const [historyAnchor, setHistoryAnchor] = useState<{ id: string; resultSha256: string } | null>(null);
 
   useEffect(() => {
+    mountedRef.current = true;
     const session = analysisSessionRef.current;
+    const gate = historyKeyGateRef.current;
     return () => {
+      mountedRef.current = false;
       session.invalidate();
+      gate.abandon();
     };
   }, []);
 
@@ -584,11 +614,14 @@ export default function LocalAudioAnalyzePage() {
   // Handle file upload. Playback uses the file immediately; analysis stays opt-in.
   const applySelectedAudioFile = (file: File) => {
     const nextSession = analysisSessionRef.current.invalidate();
+    historyKeyGateRef.current.abandon();
+    historyRetryRef.current = null;
+    setHistoryNotice(null);
+    setHistoryAnchor(null);
     setAnalysisSessionId(nextSession);
-    if (stageTimeoutRef.current) {
-      clearTimeout(stageTimeoutRef.current);
-      stageTimeoutRef.current = null;
-    }
+    abandonDiagnosticSession();
+    fileDurationRef.current = null;
+    setFileDuration(null);
     resetProcessing();
     setAudioFile(file);
 
@@ -621,36 +654,54 @@ export default function LocalAudioAnalyzePage() {
       audioRef.current.src = u;
       audioRef.current.load();
     }
+
+    const sourceId = localFileSourceId(file);
+    void observeLocalFileDuration(file, () => getAudioDurationFromFile(file)).then((observation) => {
+      if (audioFileRef.current !== file || localFileSourceId(audioFileRef.current) !== sourceId) return;
+      fileDurationRef.current = observation;
+      setFileDuration(observation);
+    });
   };
 
   // Process and analyze the audio file
-  const processAudioFile = async () => {
-    if (!audioFile) return;
-    if (analysisDurationLimitReason) {
+  const processAudioFile = async (override?: File) => {
+    const selectedFile = override ?? audioFile;
+    if (!selectedFile) return;
+    const publication = capturePublicationSnapshot();
+    if (!publishLocalAnalysisAllowed(publication)) return;
+    audioFileRef.current = selectedFile;
+    const sourceId = localFileSourceId(selectedFile);
+    const measured = fileDurationRef.current?.sourceId === sourceId
+      ? fileDurationRef.current
+      : await observeLocalFileDuration(selectedFile, () => getAudioDurationFromFile(selectedFile));
+    if (!publishLocalAnalysisAllowed(publication) || audioFileRef.current !== selectedFile) return;
+    fileDurationRef.current = measured;
+    setFileDuration(measured);
+    const decision = durationGateDecision(measured, sourceId);
+
+    const session = analysisSessionRef.current;
+    const token = session.start();
+    const diagnosticSessionId = bindDiagnosticSession(token);
+    setAnalysisSessionId(token);
+    setHistoryNotice(null);
+    setHistoryAnchor(null);
+
+    if (!decision.eligible) {
+      noteAudioRejected(diagnosticSessionId, decision);
       setAudioProcessingState(prev => ({
         ...prev,
-        error: analysisDurationLimitReason,
+        error: durationLimitMessage(decision),
         isExtracting: false,
         isAnalyzing: false,
       }));
       return;
     }
 
-    const session = analysisSessionRef.current;
-    const token = session.start();
-    setAnalysisSessionId(token);
-    if (stageTimeoutRef.current) {
-      clearTimeout(stageTimeoutRef.current);
-      stageTimeoutRef.current = null;
-    }
-
     const reportFailure = (error: unknown) => {
       if (!session.isCurrent(token)) return;
       console.error('Error in audio processing:', error);
-
-      if (stageTimeoutRef.current) {
-        clearTimeout(stageTimeoutRef.current);
-        stageTimeoutRef.current = null;
+      if (!isDurationGateError(error)) {
+        noteAnalysisFailed(diagnosticSessionId, analysisServiceCodeFrom(error));
       }
 
       let errorMessage = t('analyze.unknown');
@@ -690,7 +741,7 @@ export default function LocalAudioAnalyzePage() {
           try { URL.revokeObjectURL(objectUrlRef.current); } catch {}
           objectUrlRef.current = null;
         }
-        const u = URL.createObjectURL(audioFile);
+        const u = URL.createObjectURL(selectedFile);
         objectUrlRef.current = u;
         audioUrl = u;
       }
@@ -702,17 +753,9 @@ export default function LocalAudioAnalyzePage() {
         audioUrl,
       }));
 
-      // Get duration from audio element for progress calculation
       if (audioRef.current && audioRef.current.duration && duration === 0) {
         setDuration(audioRef.current.duration);
       }
-
-      // Update to beat detection stage after duration is available
-      stageTimeoutRef.current = setTimeout(() => {
-        if (!session.isCurrent(token)) return;
-        setStage('beat-detection');
-        setStatusMessage('Analyzing beat patterns and timing...');
-      }, 500); // Reduced delay since we now have duration
 
       setAudioProcessingState(prev => ({
         ...prev,
@@ -728,14 +771,23 @@ export default function LocalAudioAnalyzePage() {
       await runGuardedAnalysis(
         session,
         token,
-        analyzeAudioWithRateLimit(audioFile, beatDetector, chordDetector),
+        analyzeAudioWithRateLimit(selectedFile, beatDetector, chordDetector),
         (results) => {
-          if (stageTimeoutRef.current) {
-            clearTimeout(stageTimeoutRef.current);
-            stageTimeoutRef.current = null;
+          if (!publishLocalAnalysisAllowed(publication)) {
+            setAudioProcessingState(prev => ({
+              ...prev,
+              isExtracting: false,
+              isAnalyzing: false,
+            }));
+            resetProcessing();
+            return;
           }
 
+          setKeyDetectionAttempted(false);
+          setIsDetectingKey(false);
+          noteAnalysisCompleted(diagnosticSessionId);
           setAnalysisResults(results);
+          activeAnalysisTokenRef.current = token;
 
           if (results.audioDuration && results.audioDuration > 0) {
             setDuration(results.audioDuration);
@@ -752,6 +804,43 @@ export default function LocalAudioAnalyzePage() {
           setProgress(100);
           setStatusMessage(t('analyze.complete'));
           completeProcessing();
+          const runtime = resolveRuntimeAfterHydration({
+            matchMedia: (query) => window.matchMedia(query),
+            navigator: window.navigator,
+          }).runtime;
+          if (runtime !== 'electron') return;
+          const keyObservation = results.chords.length > 0
+            ? historyKeyGateRef.current.arm(token)
+            : Promise.resolve(null);
+          const analyzedFile = selectedFile;
+          const publish = (outcome: HistorySaveOutcome) => {
+            if (!session.isCurrent(token) || !mountedRef.current) return;
+            if (outcome.state === 'saved' && outcome.visible) {
+              setHistoryNotice('saved');
+              if (outcome.resultSha256 && /^[0-9a-f]{64}$/.test(outcome.resultSha256)) {
+                setHistoryAnchor({ id: outcome.id, resultSha256: outcome.resultSha256 });
+              } else {
+                setHistoryAnchor(null);
+              }
+            }
+            if (outcome.state === 'failed' && outcome.visible) setHistoryNotice('failed');
+          };
+          const runSave = () => observeHistorySave(diagnosticSessionId, () => saveCompletedLocalAnalysis({
+            token,
+            file: analyzedFile,
+            isCurrent: (value) => session.isCurrent(value),
+            isMounted: () => mountedRef.current,
+            activeFile: () => audioFileRef.current,
+            result: results,
+            keyObservation,
+            runtime: 'electron',
+            analyzedAt: new Date().toISOString(),
+          }));
+          historyRetryRef.current = () => {
+            if (!session.isCurrent(token) || !mountedRef.current) return;
+            void runSave().then(publish);
+          };
+          void runSave().then(publish);
         },
         reportFailure,
       );
@@ -886,6 +975,7 @@ export default function LocalAudioAnalyzePage() {
   // Key detection effect - automatically detect key after chord analysis
   useEffect(() => {
     if (analysisResults?.chords && analysisResults.chords.length > 0 && !isDetectingKey && !keyDetectionAttempted) {
+      const token = activeAnalysisTokenRef.current;
       setIsDetectingKey(true);
       setKeyDetectionAttempted(true);
 
@@ -915,9 +1005,16 @@ export default function LocalAudioAnalyzePage() {
 
       // Import and call key detection service with enharmonic correction and Roman numerals
       import('@/services/audio/keyDetectionService').then(({ detectKey }) => {
-        // Use cache for sequence corrections (no bypass); request Roman numerals
+        // Use cache for sequence corrections (no bypass); request Roman numerals.
+        // History persistence observes this same request. It does not call detectKey again.
         detectKey(chordData, true, false, true)
           .then(result => {
+            const fact = keyFactFromDetection(result);
+            if (!analysisSessionRef.current.isCurrent(token)) {
+              historyKeyGateRef.current.provide(token, null);
+              return;
+            }
+            historyKeyGateRef.current.provide(token, fact);
             setKeySignature(
               result.primaryKey && result.primaryKey !== 'Unknown'
                 ? result.primaryKey
@@ -930,6 +1027,8 @@ export default function LocalAudioAnalyzePage() {
             } catch {}
           })
           .catch(error => {
+            historyKeyGateRef.current.provide(token, null);
+            if (!analysisSessionRef.current.isCurrent(token)) return;
             console.error('Failed to detect key:', error);
             setSequenceCorrections(null);
             try { useUIStore.getState().updateRomanNumeralData(null); } catch {}
@@ -937,6 +1036,9 @@ export default function LocalAudioAnalyzePage() {
           .finally(() => {
             setIsDetectingKey(false);
           });
+      }).catch(() => {
+        historyKeyGateRef.current.provide(token, null);
+        setIsDetectingKey(false);
       });
     }
   }, [analysisResults?.chords, isDetectingKey, keyDetectionAttempted]);
@@ -1117,11 +1219,6 @@ const simplifiedChordGridData = useMemo(() => {
     return () => {
       // Abort any active countdown interval
       cancelCountdown();
-      // Clear any pending stage timeout
-      if (stageTimeoutRef.current) {
-        clearTimeout(stageTimeoutRef.current);
-        stageTimeoutRef.current = null;
-      }
 
       useUIStore.getState().resetAnalysisUtilityBarState();
       usePlaybackStore.getState().setIsFollowModeEnabled(true);
@@ -1202,6 +1299,16 @@ const simplifiedChordGridData = useMemo(() => {
             <div className="p-6 h-full transition-colors duration-300">
               {/* Hidden audio element */}
               <audio ref={audioRef} className="hidden" controls={false} />
+              <AnalysisSourceSelector context="input" />
+              <AnalysisDiagnosticsPanel />
+              <AnalysisSourceDetail
+                context="input"
+                onAnalyzeRecording={(file) => {
+                  audioFileRef.current = file;
+                  applySelectedAudioFile(file);
+                  void processAudioFile(file);
+                }}
+                localPractice={(
               <LocalPracticeEntry
                 file={audioFile}
                 onFileSelected={applySelectedAudioFile}
@@ -1237,23 +1344,31 @@ const simplifiedChordGridData = useMemo(() => {
                   </div>
                 )}
               </LocalPracticeEntry>
+                )}
+              />
               <div className="flex flex-wrap items-center gap-4 md:gap-6 mb-4">
+                {analysisResults ? (
+                  <div className="w-full">
+                    <AnalysisSourceSelector context="results" />
+                  </div>
+                ) : null}
                 {/* LEFT: Tabs inline (wraps on small screens) */}
                 {analysisResults && (
                   <div className="flex-1 min-w-[260px] md:min-w-[420px]">
                     <ResultsTabs
                       activeTab={activeTab}
                       setActiveTab={setActiveTab}
-                      showLyrics={false}
+                      showLyrics
                       hasCachedLyrics={false}
                     />
                   </div>
                 )}
 
                 {/* RIGHT: File upload and Analyze controls */}
+                {inputSource === 'local-audio' ? (
                 <div className="flex flex-row gap-2 items-center ml-auto pl-2 md:pl-6">
                   <Button
-                    onClick={processAudioFile}
+                    onClick={() => { void processAudioFile(); }}
                     disabled={!audioFile || audioProcessingState.isExtracting || audioProcessingState.isAnalyzing || !!analysisDurationLimitReason}
                     color="primary"
                     variant="solid"
@@ -1263,16 +1378,38 @@ const simplifiedChordGridData = useMemo(() => {
                     {audioProcessingState.isExtracting ? t('analyze.processing') : t('analyze.analyze')}
                   </Button>
                 </div>
+                ) : null}
               </div>
 
-              {analysisDurationLimitReason && (
+              {durationBannerReason && (
                 <div className="mb-4 rounded-md border border-warning-200 bg-warning-50 px-3 py-2 text-sm text-warning-800">
-                  {t('analyze.tooLongTitle')}. {t('analyze.tooLongBody', { minutes: MAX_ANALYSIS_DURATION_MINUTES })}
+                  {!fileDurationDecision.eligible && fileDurationDecision.reason === 'exceeded'
+                    ? `${t('analyze.tooLongTitle')}. ${t('analyze.tooLongBody', { minutes: MAX_ANALYSIS_DURATION_MINUTES })}`
+                    : !fileDurationDecision.eligible && fileDurationDecision.reason === 'failed'
+                      ? t('analyze.durationFailed')
+                      : t('analyze.durationInvalid')}
+                </div>
+              )}
+              {historyNotice === 'saved' && (
+                <p className="mb-4 text-sm text-green-700 dark:text-green-400" role="status">
+                  {t('analyze.historySaved')}
+                </p>
+              )}
+              {historyNotice === 'failed' && (
+                <div className="mb-4 text-sm text-amber-800 dark:text-amber-300" role="status">
+                  <p>{t('analyze.historyFailed')}</p>
+                  <button
+                    type="button"
+                    className="mt-1 underline"
+                    onClick={() => historyRetryRef.current?.()}
+                  >
+                    {t('analyze.historyRetry')}
+                  </button>
                 </div>
               )}
 
               {/* Model Selectors - Hide when analysis is complete */}
-              {!analysisResults && (
+              {!analysisResults && inputSource === 'local-audio' && (
                 <div className="flex flex-col md:flex-row gap-4 mb-4">
                   <HeroUIBeatModelSelector
                     onChange={setBeatDetector}
@@ -1326,7 +1463,7 @@ const simplifiedChordGridData = useMemo(() => {
                               type="button"
                               className="mt-2 text-xs font-medium text-gray-700 underline dark:text-gray-200"
                               onClick={() => {
-                                void fetch('/api/desktop/backend-retry', { method: 'POST' }).catch(() => undefined);
+                                void requestBackendRetryAndObserve();
                               }}
                             >
                               {t('analyze.retryBackend')}
@@ -1509,6 +1646,32 @@ const simplifiedChordGridData = useMemo(() => {
                         audioUrl={audioProcessingState.audioUrl || null}
                       />
                     )}
+
+                    <div hidden={activeTab !== 'lyricsChords'}>
+                      <LyricChordSyncPanel
+                        key={`${audioFile ? `${audioFile.name}:${audioFile.size}:${audioFile.lastModified}` : ''}:${analysisSessionId}`}
+                        chords={analysisResults.chords}
+                        currentTime={currentTime}
+                        audioDuration={duration}
+                        fileKey={audioFile ? `${audioFile.name}:${audioFile.size}:${audioFile.lastModified}` : ''}
+                        sessionId={analysisSessionId}
+                        historyResultSha256={historyAnchor?.resultSha256 ?? null}
+                        onPersistLyrics={historyAnchor ? async (draft) => {
+                          const outcome = await saveLyricHistory(historyAnchor.id, draft);
+                          return outcome.ok ? { ok: true } : { ok: false, reason: outcome.reason };
+                        } : undefined}
+                        onDeleteLyrics={historyAnchor ? async () => {
+                          const outcome = await deleteLyricHistory(historyAnchor.id);
+                          return { ok: outcome.ok };
+                        } : undefined}
+                        onSeek={(time) => {
+                          if (audioRef.current) {
+                            try { audioRef.current.currentTime = time; } catch { /* clock not ready */ }
+                          }
+                          setCurrentTime(time);
+                        }}
+                      />
+                    </div>
 
                     {/* Piano Visualizer Tab */}
                     {activeTab === 'pianoVisualizer' && (

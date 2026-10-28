@@ -196,6 +196,8 @@ describe('owned local backend startup', () => {
     expect(tools.childEnv[0].PORT).toBeUndefined();
     expect(tools.childEnv[0].CHORDMINI_INFERENCE_AUTH).toBe('local');
     expect(handle.nextEnv.PYTHON_API_URL).toBe('http://127.0.0.1:5001');
+    expect(handle.nextEnv.CHORDMINI_ANALYSIS_HISTORY_DIR).toBe(path.join(userDataDir, 'analysis-history'));
+    expect(handle.nextEnv.NEXT_PUBLIC_ANALYSIS_HISTORY_DIR).toBeUndefined();
     expect(handle.nextEnv.CHORDMINI_BACKEND_SUPERVISED).toBe('1');
     expect(handle.nextEnv.CHORDMINI_BACKEND_STATUS_KEY).toBe(handle.statusKey);
     expect(handle.nextEnv.NEXT_PUBLIC_PYTHON_API_URL).toBeUndefined();

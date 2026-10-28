@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { apiPost } from '@/config/api';
 import { buildAnalyzePageUrl } from '@/utils/analyzeRouteUtils';
 import { normalizeThumbnailUrl, pickPreferredChannelTitle } from '@/utils/youtubeMetadata';
+import { parseYouTubeLink } from '@/utils/youtubeLink';
+import { useI18n } from '@/i18n/I18nProvider';
 
 // YouTube search result interface
 interface YouTubeSearchResult {
@@ -26,27 +28,11 @@ export const useSharedSearchState = () => {
   const [searchError, setSearchError] = useState<string | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
+  const { t } = useI18n();
 
-  // Extract video ID from URL or direct ID
   const extractVideoId = useCallback((url: string): string | null => {
-    const regexPatterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/watch\?.*v=)([^&?/]+)/,
-      /youtube\.com\/watch\?.*v=([^&]+)/,
-      /youtube\.com\/shorts\/([^?&/]+)/
-    ];
-
-    for (const regex of regexPatterns) {
-      const match = url.match(regex);
-      if (match && match[1]) {
-        return match[1];
-      }
-    }
-
-    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
-      return url;
-    }
-
-    return null;
+    const parsed = parseYouTubeLink(url);
+    return parsed.ok ? parsed.videoId : null;
   }, []);
 
   // Debounced search function for continuous searching
@@ -128,7 +114,13 @@ export const useSharedSearchState = () => {
     if (!searchQuery.trim()) return;
 
     // Check if it's a direct YouTube URL or video ID
-    const videoId = extractVideoId(searchQuery);
+    const parsedLink = parseYouTubeLink(searchQuery);
+    if (!parsedLink.ok && parsedLink.reason === 'playlist-only') {
+      setSearchError(t('ytlink.playlistUnsupported'));
+      setSearchResults([]);
+      return;
+    }
+    const videoId = parsedLink.ok ? parsedLink.videoId : null;
     if (videoId) {
       setIsSearching(true);
       setSearchError(null);
@@ -137,13 +129,13 @@ export const useSharedSearchState = () => {
         // FIXED: Fetch video metadata for direct URLs before navigation
         console.log(`🔍 Fetching metadata for direct URL: ${videoId}`);
 
-        const response = await fetch(`/api/youtube/info?videoId=${videoId}`);
+        const response = await fetch(`/api/youtube/official-metadata?videoId=${encodeURIComponent(videoId)}`);
         const data = await response.json();
 
         if (data.success && data.title) {
           router.push(buildAnalyzePageUrl(videoId, {
             title: data.title,
-            channel: data.uploader || null,
+            channel: data.author || null,
             thumbnail: data.thumbnail || null,
           }));
           console.log(`✅ Direct URL metadata fetched: "${data.title}"`);
@@ -163,7 +155,7 @@ export const useSharedSearchState = () => {
 
     // For search queries, perform the search
     await performSearch(searchQuery);
-  }, [searchQuery, extractVideoId, router, performSearch, setIsSearching, setSearchError]);
+  }, [searchQuery, router, performSearch, setIsSearching, setSearchError, t]);
 
   // Handle video selection from search results
   const handleVideoSelect = useCallback((videoId: string, title?: string, metadata?: YouTubeSearchResult) => {

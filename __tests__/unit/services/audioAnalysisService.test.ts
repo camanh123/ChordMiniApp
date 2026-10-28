@@ -13,10 +13,6 @@ jest.mock('@/utils/audioDurationUtils', () => ({
   getAudioDurationFromFile: jest.fn(),
 }));
 
-jest.mock('@/utils/analysisDurationLimit', () => ({
-  getAnalysisDurationLimitReason: jest.fn(() => null),
-}));
-
 jest.mock('@/services/storage/offloadUploadService', () => ({
   offloadUploadService: {
     uploadToOffload: jest.fn(),
@@ -158,5 +154,36 @@ describe('audioAnalysisService universal offload orchestration', () => {
     expect(offloadUploadService.deleteOffload).toHaveBeenCalledWith(
       'https://firebasestorage.googleapis.com/test-audio'
     );
+  });
+
+  it('rejects a chord body that reports failure even when the wrapper succeeded', async () => {
+    (isLocalBackend as jest.Mock).mockReturnValue(false);
+    (offloadUploadService.recognizeChordsFromOffloadUrl as jest.Mock).mockResolvedValue({
+      success: true,
+      data: {
+        success: false,
+        error: 'Firebase offload accepts WAV and MP3. This file is FLAC.',
+        chords: [{ start: 0, end: 1, chord: 'C', confidence: 0.9 }],
+      },
+    });
+
+    await expect(analyzeAudioWithRateLimit(makeFile(), 'madmom', 'chord-cnn-lstm'))
+      .rejects.toThrow('FLAC');
+  });
+
+  it('does not keep beat times from a failed beat body', async () => {
+    (isLocalBackend as jest.Mock).mockReturnValue(false);
+    (offloadUploadService.detectBeatsFromOffloadUrl as jest.Mock).mockResolvedValue({
+      success: true,
+      data: {
+        success: false,
+        error: 'Madmom is not available',
+        beats: [9, 9],
+        bpm: 999,
+      },
+    });
+
+    const result = await analyzeAudioWithRateLimit(makeFile(), 'madmom', 'chord-cnn-lstm');
+    expect(result.beats).toEqual([]);
   });
 });

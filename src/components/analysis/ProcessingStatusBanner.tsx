@@ -59,6 +59,7 @@ const ProcessingStatusBanner: React.FC<ProcessingStatusBannerProps> = React.memo
   const { t } = useI18n();
   const chordToastKeyRef = useRef<string | null>(null);
   const beatToastKeyRef = useRef<string | null>(null);
+  const cacheToastKeyRef = useRef<string | null>(null);
   const prevStageRef = useRef<string>('idle');
   const seenAudioUrlRef = useRef(audioUrl);
   const progressAudioRef = useRef<string | null>(null);
@@ -73,6 +74,10 @@ const ProcessingStatusBanner: React.FC<ProcessingStatusBannerProps> = React.memo
     if (beatToastKeyRef.current) {
       closeToast(beatToastKeyRef.current);
       beatToastKeyRef.current = null;
+    }
+    if (cacheToastKeyRef.current) {
+      closeToast(cacheToastKeyRef.current);
+      cacheToastKeyRef.current = null;
     }
   }, []);
 
@@ -141,6 +146,53 @@ const ProcessingStatusBanner: React.FC<ProcessingStatusBannerProps> = React.memo
           title: 'text-primary-600 dark:text-blue-400',
         }),
       });
+    }
+
+    if (stage === 'cache-loading' && prevStage !== 'cache-loading') {
+      if (cacheToastKeyRef.current) {
+        closeToast(cacheToastKeyRef.current);
+        cacheToastKeyRef.current = null;
+      }
+      bindProgressOwner();
+      cacheToastKeyRef.current = addToast({
+        title: t('analyze.cacheLoadingTitle'),
+        description: t('analyze.cacheLoading'),
+        color: 'default',
+        timeout: 0,
+        hideCloseButton: true,
+        endContent: createIndeterminateProgressBar('cache'),
+        classNames: mergeToastClassNames({
+          base: 'relative overflow-hidden',
+          icon: 'text-primary-500',
+          title: 'text-primary-600 dark:text-blue-400',
+        }),
+      });
+    }
+
+    const savedResultsLoaded = stage === 'cache-loaded'
+      || (stage === 'complete' && prevStage === 'cache-loading');
+    if (savedResultsLoaded && prevStage !== 'cache-loaded') {
+      const dismissed = progressDismissedRef.current;
+      const audioMismatch = Boolean(progressAudioRef.current) && progressAudioRef.current !== audioUrl;
+      const sessionMismatch = analysisSessionId !== undefined
+        && progressSessionRef.current !== analysisSessionId;
+      closeProgressToasts();
+      progressDismissedRef.current = false;
+      progressAudioRef.current = null;
+      progressSessionRef.current = undefined;
+      if (!dismissed && !audioMismatch && !sessionMismatch) {
+        addToast({
+          title: t('analyze.savedResultsLoadedTitle'),
+          description: t('analyze.savedResultsLoadedDetail'),
+          color: 'default',
+          timeout: 5000,
+          shouldShowTimeoutProgress: true,
+          classNames: mergeToastClassNames({
+            icon: 'text-success-500',
+            title: 'text-success-600 dark:text-success-400',
+          }),
+        });
+      }
     }
 
     if (stage === 'complete' && (prevStage === 'beat-detection' || prevStage === 'chord-recognition')) {

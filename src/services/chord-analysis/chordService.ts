@@ -11,6 +11,14 @@ import { offloadUploadService } from '@/services/storage/offloadUploadService';
 import type { ChordDetectorType, ChordDetectionResult, ChordRecognitionBackendResponse } from '@/types/audioAnalysis';
 import { analysisServiceError, readAnalysisServiceFailure } from '@/utils/analysisServiceError';
 import { inferenceAuthorizationHeader } from '@/services/audio/inferenceUserToken';
+import { rememberChordRun, rememberModelConfidence } from '@/services/audio/analysisHistoryFacts';
+import { DIRECT_UPLOAD_MAX_BYTES } from '@/services/audio/directUploadPolicy';
+import {
+  currentDiagnosticSessionId,
+  noteChordRequestSent,
+  noteChordResponseReceived,
+  noteTransportFailure,
+} from '@/services/audio/analysisDiagnostics';
 
 /**
  * Recognize chords from a File with rate limiting.
@@ -20,14 +28,15 @@ export async function recognizeChordsWithRateLimit(
   audioFile: File,
   model: ChordDetectorType = 'chord-cnn-lstm'
 ): Promise<ChordDetectionResult[]> {
+  const diagnosticSessionId = currentDiagnosticSessionId();
   try {
     // Validate input file
     if (!audioFile || audioFile.size === 0) {
       throw new Error('Invalid audio file for chord recognition');
     }
 
-    if (audioFile.size > 100 * 1024 * 1024) { // 100MB limit
-      throw new Error('Audio file is too large for chord recognition (>100MB)');
+    if (audioFile.size > DIRECT_UPLOAD_MAX_BYTES) {
+      throw new Error('Audio file exceeds the 50 MB direct upload limit.');
     }
 
     // Endpoint selection helpers and safe model resolution first (we need it for form fields)
@@ -51,7 +60,8 @@ export async function recognizeChordsWithRateLimit(
     const timeoutValue = 800000; // 13+ minutes
     const abortSignal = createSafeTimeoutSignal(timeoutValue);
 
-    // Request
+    // Request submission is not evidence that model inference has started.
+    noteChordRequestSent(diagnosticSessionId, safeModel);
     const response = await fetch(endpoint, {
       method: 'POST',
       body: formData,
@@ -62,6 +72,7 @@ export async function recognizeChordsWithRateLimit(
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
       const availability = readAnalysisServiceFailure(errorData);
       if (availability) {
+        noteTransportFailure(diagnosticSessionId, availability);
         throw analysisServiceError(availability);
       }
       if (response.status === 403) {
@@ -109,8 +120,12 @@ export async function recognizeChordsWithRateLimit(
         console.warn(`Skipping chord at index ${i}: invalid chord name`);
         continue;
       }
-      chords.push({ start: chord.start, end: chord.end, time: chord.start, chord: chord.chord, confidence: chord.confidence || 0.8 });
+      const stored = { start: chord.start, end: chord.end, time: chord.start, chord: chord.chord, confidence: chord.confidence || 0.8 };
+      rememberModelConfidence(stored, chord.confidence);
+      chords.push(stored);
     }
+    rememberChordRun(chords, safeModel);
+    noteChordResponseReceived(diagnosticSessionId, safeModel);
     return chords;
   } catch (error) {
     console.error('Error in chord recognition with rate limiting:', error);
@@ -136,6 +151,9 @@ export async function recognizeChordsFromOffloadUrl(
     }
 
     const backendResponse = result.data as ChordRecognitionBackendResponse;
+    if (backendResponse.success === false) {
+      throw new Error(backendResponse.error || 'Offload chord processing failed');
+    }
     if (!backendResponse.chords || !Array.isArray(backendResponse.chords)) {
       throw new Error('Invalid chord recognition response: missing or invalid chords array');
     }

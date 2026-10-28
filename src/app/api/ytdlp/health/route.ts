@@ -6,12 +6,15 @@
 
 import { NextResponse } from 'next/server';
 import { spawn } from 'child_process';
+import { desktopExtractionDenied } from '@/server/desktopExtractionGuard';
 
 // Allow yt-dlp in production when explicitly configured via NEXT_PUBLIC_AUDIO_STRATEGY
 const isDevelopment = process.env.NODE_ENV === 'development';
 const allowYtDlpInProduction = process.env.NEXT_PUBLIC_AUDIO_STRATEGY === 'ytdlp';
 
 export async function GET() {
+  const denied = desktopExtractionDenied();
+  if (denied) return denied;
   // Block in production unless explicitly enabled
   if (!isDevelopment && !allowYtDlpInProduction) {
     return NextResponse.json(

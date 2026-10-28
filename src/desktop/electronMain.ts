@@ -1,7 +1,8 @@
-import { app, BrowserWindow, dialog, powerMonitor, shell } from 'electron';
+import { app, BrowserWindow, dialog, powerMonitor, session, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { sanitizeDiagnostic, secretsFromEnv } from './diagnostics';
+import { analysisHistoryDir } from './analysisHistory/location';
 import { consumeRetryRequest } from './localBackend';
 import { prepareOwnedBackend, type OwnedBackendHandle } from './ownedBackend';
 import { startOwnedServer, stopOwnedServer, type OwnedServer } from './ownedServer';
@@ -10,6 +11,8 @@ import { prepareStandalone } from './prepareStandalone';
 import {
   classifyNavigation,
   createBrowserWindowOptions,
+  microphonePermissionGranted,
+  nonMediaPermissionCheckAllowed,
   singleInstanceDecision,
   windowOpenDecision,
 } from './windowPolicy';
@@ -57,6 +60,29 @@ function showStartupFailure(error: unknown): void {
   dialog.showErrorBox('ChordMini could not start', safe);
 }
 
+function attachMicrophonePermission(appOrigin: string): void {
+  const current = session.defaultSession;
+  current.setPermissionRequestHandler((_webContents, permission, callback, details) => {
+    const mediaTypes = 'mediaTypes' in details ? details.mediaTypes : undefined;
+    callback(microphonePermissionGranted({
+      permission,
+      isMainFrame: details.isMainFrame,
+      mediaTypes,
+      requestingUrl: details.requestingUrl,
+    }, appOrigin));
+  });
+  current.setPermissionCheckHandler((_webContents, permission, requestingOrigin, details) => (
+    nonMediaPermissionCheckAllowed({
+      permission,
+      requestingOrigin,
+      isMainFrame: details.isMainFrame,
+    }, appOrigin)
+  ));
+  current.setDisplayMediaRequestHandler((_request, callback) => {
+    callback(null);
+  });
+}
+
 function attachNavigationGuards(window: BrowserWindow, appOrigin: string): void {
   const guard = (event: { preventDefault: () => void }, targetUrl: string) => {
     const decision = classifyNavigation(targetUrl, appOrigin);
@@ -92,9 +118,11 @@ async function openOwnedWindow(): Promise<void> {
   if (launch.prepareFromRepo) {
     prepareStandalone(repoRoot);
   }
+  const userDataDir = app.getPath('userData');
   backend = await prepareOwnedBackend({
     env: process.env,
-    userDataDir: app.getPath('userData'),
+    userDataDir,
+    historyDir: analysisHistoryDir(userDataDir),
     log: writeDiagnostic,
   });
   owned = await startOwnedServer({
@@ -119,6 +147,7 @@ async function openOwnedWindow(): Promise<void> {
   }
   const window = new BrowserWindow(createBrowserWindowOptions());
   attachNavigationGuards(window, owned.origin);
+  attachMicrophonePermission(owned.origin);
   window.once('ready-to-show', () => {
     window.show();
   });

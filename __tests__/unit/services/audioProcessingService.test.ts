@@ -129,4 +129,64 @@ describe('AudioProcessingService.analyzeAudioFile', () => {
       beatModel: 'madmom',
     }));
   });
+
+  it('does not start a Firestore write after the YouTube session is invalidated', async () => {
+    let allowed = true;
+    mockAnalyzeAudioWithRateLimit.mockImplementationOnce(async () => {
+      allowed = false;
+      return analysisResults;
+    });
+
+    const onTranscriptionSaved = jest.fn();
+    const result = await AudioProcessingService.getInstance().analyzeAudioFile(
+      'https://example.com/audio.mp3',
+      'video-A',
+      'beat-transformer',
+      'btc-sl',
+      'Song A',
+      {
+        prefetchedTranscription: null,
+        onTranscriptionSaved,
+        persistAllowed: () => allowed,
+      }
+    );
+
+    expect(result.chords).toEqual(analysisResults.chords);
+    expect(mockSaveTranscription).not.toHaveBeenCalled();
+    expect(mockUpdateTranscriptionEnrichment).not.toHaveBeenCalled();
+    expect(onTranscriptionSaved).not.toHaveBeenCalled();
+  });
+
+  it('cannot roll back a Firestore write that was already dispatched', async () => {
+    let releaseSave: (value: boolean) => void = () => {};
+    mockSaveTranscription.mockImplementationOnce(() => new Promise<boolean>((resolve) => {
+      releaseSave = resolve;
+    }));
+    let allowed = true;
+    const onTranscriptionSaved = jest.fn();
+
+    const pending = AudioProcessingService.getInstance().analyzeAudioFile(
+      'https://example.com/audio.mp3',
+      'video-A',
+      'beat-transformer',
+      'btc-sl',
+      'Song A',
+      {
+        prefetchedTranscription: null,
+        onTranscriptionSaved,
+        persistAllowed: () => allowed,
+      }
+    );
+
+    for (let attempt = 0; attempt < 20 && mockSaveTranscription.mock.calls.length === 0; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(mockSaveTranscription).toHaveBeenCalledTimes(1);
+    allowed = false;
+    releaseSave(true);
+    await pending;
+
+    expect(mockSaveTranscription).toHaveBeenCalledTimes(1);
+    expect(onTranscriptionSaved).not.toHaveBeenCalled();
+  });
 });

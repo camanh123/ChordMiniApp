@@ -10,6 +10,7 @@
 
 import { spawn } from 'child_process';
 import path from 'path';
+import { analysisHistoryDir } from './analysisHistory/location';
 import { signalOwnedPid, type OwnedChild } from './ownedServer';
 import { createDesktopSecret } from './readyProof';
 import {
@@ -57,6 +58,7 @@ export interface OwnedBackendHandle {
 interface SupervisorOptions {
   env: NodeJS.ProcessEnv;
   userDataDir: string;
+  historyDir?: string;
   platform?: NodeJS.Platform;
   fetchImpl?: typeof fetch;
   spawnImpl?: typeof spawn;
@@ -163,6 +165,8 @@ export async function prepareOwnedBackend(options: SupervisorOptions): Promise<O
   const origin = loopbackOrigin(port);
   const statusFile = path.join(options.userDataDir, BACKEND_STATUS_FILE_NAME);
   const retryFile = path.join(options.userDataDir, BACKEND_RETRY_FILE_NAME);
+  const derivedHistoryDir = analysisHistoryDir(options.userDataDir);
+  const historyDir = options.historyDir === derivedHistoryDir ? options.historyDir : derivedHistoryDir;
   const resolved = resolveLocalBackendConfig({
     env: options.env,
     userDataDir: options.userDataDir,
@@ -504,6 +508,7 @@ export async function prepareOwnedBackend(options: SupervisorOptions): Promise<O
       statusKey,
       retryToken,
       allowLegacy,
+      historyDir,
     }),
     retryFile,
     retryToken,

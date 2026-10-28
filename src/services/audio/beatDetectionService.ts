@@ -10,6 +10,14 @@ import {
 } from '@/services/query/modelInfo';
 import { analysisServiceError, readAnalysisServiceFailure } from '@/utils/analysisServiceError';
 import { inferenceAuthorizationHeader } from '@/services/audio/inferenceUserToken';
+import { publishedDetectorBpm, rememberBeatMeasurement } from '@/services/audio/analysisHistoryFacts';
+import { DIRECT_UPLOAD_MAX_BYTES } from '@/services/audio/directUploadPolicy';
+import {
+  currentDiagnosticSessionId,
+  noteBeatRequestSent,
+  noteBeatResponseReceived,
+  noteTransportFailure,
+} from '@/services/audio/analysisDiagnostics';
 
 // Interface for Python backend beat detection response
 export interface BeatDetectionBackendResponse {
@@ -82,7 +90,7 @@ export interface BeatDetectionResult {
   success: boolean;
   beats: number[];            // Array of beat timestamps in seconds (pure model output)
   downbeats?: number[];       // Array of downbeat timestamps (only for Beat-Transformer)
-  bpm: number;                // Beats per minute
+  bpm?: number;               // Measured beats per minute. Absent when the detector omitted it.
   total_beats: number;
   total_downbeats?: number;   // Only for Beat-Transformer
   duration: number;           // Duration of the audio in seconds
@@ -140,14 +148,15 @@ export async function detectBeatsWithRateLimit(
   audioFile: File,
   detector: 'auto' | 'madmom' | 'beat-transformer' = 'beat-transformer'
 ): Promise<BeatDetectionResult> {
+  const diagnosticSessionId = currentDiagnosticSessionId();
   try {
     // Enhanced input validation
     if (!audioFile || audioFile.size === 0) {
       throw new Error('Invalid audio file for beat detection');
     }
 
-    if (audioFile.size > 100 * 1024 * 1024) { // 100MB limit
-      throw new Error('Audio file is too large for beat detection (>100MB)');
+    if (audioFile.size > DIRECT_UPLOAD_MAX_BYTES) {
+      throw new Error('Audio file exceeds the 50 MB direct upload limit.');
     }
 
     // Log audio duration for debugging before sending to ML service
@@ -182,6 +191,7 @@ export async function detectBeatsWithRateLimit(
       headers['X-Firebase-AppCheck'] = appCheckToken;
     }
 
+    noteBeatRequestSent(diagnosticSessionId, detector);
     const response = await fetch('/api/detect-beats', {
       method: 'POST',
       body: formData,
@@ -193,6 +203,7 @@ export async function detectBeatsWithRateLimit(
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
       const availability = readAnalysisServiceFailure(errorData);
       if (availability) {
+        noteTransportFailure(diagnosticSessionId, availability);
         throw analysisServiceError(availability);
       }
 
@@ -240,12 +251,20 @@ export async function detectBeatsWithRateLimit(
       // Pass through optional dual-candidate downbeats when present (Madmom)
       downbeat_candidates: backendData.downbeat_candidates,
       downbeat_candidates_meta: backendData.downbeat_candidates_meta,
-      bpm: (data.BPM as number) || (data.bpm as number) || 120,
+      bpm: publishedDetectorBpm(data.BPM, data.bpm),
       total_beats: (data.beats as number[]).length,
       duration: (data.duration as number) || 0,
       time_signature: parseTimeSignature(data.time_signature),
       model: (data.model_used as string) || detector
     };
+    rememberBeatMeasurement(normalized, {
+      requestedDetector: detector,
+      reportedModel: data.model_used ?? data.model,
+      bpm: data.bpm,
+      upperCaseBpm: data.BPM,
+      downbeats: data.downbeats,
+    });
+    noteBeatResponseReceived(diagnosticSessionId, detector);
     return normalized;
 
   } catch (error) {
@@ -272,8 +291,8 @@ export async function detectBeatsFromFile(
       throw new Error('Invalid audio file for beat detection');
     }
 
-    if (audioFile.size > 100 * 1024 * 1024) {
-      throw new Error('Audio file is too large for beat detection (>100MB)');
+    if (audioFile.size > DIRECT_UPLOAD_MAX_BYTES) {
+      throw new Error('Audio file exceeds the 50 MB direct upload limit.');
     }
 
     const validDetectors = ['auto', 'madmom', 'beat-transformer'];
@@ -321,13 +340,16 @@ export async function detectBeatsFromFirebaseUrl(
     }
 
     const backendResponse = result.data as BeatDetectionBackendResponse;
+    if (backendResponse.success === false) {
+      throw new Error(backendResponse.error || 'Beat detection failed');
+    }
     const normalized: BeatDetectionResult & Partial<BeatDetectionBackendResponse> = {
       success: true,
       beats: backendResponse.beats || [],
       downbeats: backendResponse.downbeats || [],
       downbeat_candidates: backendResponse.downbeat_candidates,
       downbeat_candidates_meta: backendResponse.downbeat_candidates_meta,
-      bpm: backendResponse.BPM || backendResponse.bpm || 120,
+      bpm: publishedDetectorBpm(backendResponse.BPM, backendResponse.bpm),
       total_beats: (backendResponse.beats || []).length,
       duration: backendResponse.duration || 0,
       time_signature: parseTimeSignature(backendResponse.time_signature),
@@ -435,7 +457,7 @@ export async function detectBeatsFromPath(
         // Pass through optional dual-candidate downbeats when present (Madmom)
         downbeat_candidates: backendData.downbeat_candidates,
         downbeat_candidates_meta: backendData.downbeat_candidates_meta,
-        bpm: (backendData.BPM as number) || (backendData.bpm as number) || 120,
+        bpm: publishedDetectorBpm(backendData.BPM, backendData.bpm),
         total_beats: (backendData.beats || []).length,
         duration: (backendData.duration as number) || 0,
         time_signature: parseTimeSignature(backendData.time_signature),
