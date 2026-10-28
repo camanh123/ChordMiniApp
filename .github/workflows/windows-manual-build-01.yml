@@ -31,8 +31,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # next/font 16.2.12 crashes when Google Fonts returns an extensionless
+      # /l/font?kit= URL. That response is intermittent, so retry this step
+      # inside the one workflow run. Application fonts stay unchanged.
       - name: Build Next.js standalone server
-        run: npm run build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          for ($attempt = 1; $attempt -le 5; $attempt++) {
+            if (Test-Path .next) { Remove-Item -Recurse -Force .next }
+            Write-Host "NEXT_BUILD_ATTEMPT=$attempt"
+            npm run build
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Write-Host "NEXT_BUILD_ATTEMPT_FAILED=$attempt exit=$LASTEXITCODE"
+          }
+          exit 1
 
       - name: Compile and stage the desktop app
         run: npm run desktop:pack:prepare
