@@ -2,12 +2,21 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
+function monotonicNow(): number {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now();
+  }
+  return 0;
+}
+
 export type ProcessingStage =
   | 'idle'
   | 'downloading'
   | 'extracting'
   | 'beat-detection'
   | 'chord-recognition'
+  | 'cache-loading'
+  | 'cache-loaded'
   | 'complete'
   | 'error';
 
@@ -68,14 +77,14 @@ export const ProcessingProvider: React.FC<ProcessingProviderProps> = ({ children
     }
 
     // Reset timer state
-    const now = Date.now();
+    const now = monotonicNow();
     setStartTime(now);
     setElapsedTime(0);
 
-    // Create a new timer interval
+    // Create a new timer interval. The value is elapsed time, not a percentage.
     const interval = setInterval(() => {
-      setElapsedTime(Date.now() - now);
-    }, 100); // Update every 100ms for better performance
+      setElapsedTime(monotonicNow() - now);
+    }, 100);
 
     setTimerInterval(interval);
   };
@@ -90,7 +99,7 @@ export const ProcessingProvider: React.FC<ProcessingProviderProps> = ({ children
 
       // Calculate and freeze the final elapsed time
       if (startTime !== null) {
-        const finalElapsedTime = Date.now() - startTime;
+        const finalElapsedTime = monotonicNow() - startTime;
         setElapsedTime(finalElapsedTime);
       }
 
@@ -151,7 +160,7 @@ export const ProcessingProvider: React.FC<ProcessingProviderProps> = ({ children
 
       // Calculate and freeze the final elapsed time
       if (startTime !== null) {
-        const finalElapsedTime = Date.now() - startTime;
+        const finalElapsedTime = monotonicNow() - startTime;
         setElapsedTime(finalElapsedTime);
       }
 

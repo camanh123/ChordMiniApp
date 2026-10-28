@@ -1,4 +1,10 @@
 import { AnalyzeAudioFileOptions } from '@/services/audio/audioProcessingService';
+import {
+  currentDiagnosticSessionId,
+  noteAnalysisCompleted,
+  noteAnalysisFailed,
+} from '@/services/audio/analysisDiagnostics';
+import { isDurationGateError } from '@/utils/analysisDurationLimit';
 import { getTranscription, TranscriptionData } from '@/services/firebase/firestoreService';
 import { apiPost } from '@/config/api';
 import { LyricsData } from '@/types/musicAiTypes';
@@ -136,6 +142,10 @@ export const handleAudioAnalysis = async (deps: AudioProcessingServiceDependenci
     thumbnailFromSearch,
   } = deps;
 
+  // Capture the diagnostic session before the cache read so a later source switch
+  // cannot retag this request as the new session.
+  const diagnosticSessionId = currentDiagnosticSessionId();
+  const stillCurrent = () => deps.isRequestStillCurrent(deps.requestId);
   // Get current model values from refs to ensure we have the latest values
   const currentBeatDetector = beatDetectorRef.current;
   const currentChordDetector = chordDetectorRef.current;
@@ -152,15 +162,16 @@ export const handleAudioAnalysis = async (deps: AudioProcessingServiceDependenci
       ? await deps.loadTranscriptionSnapshot(currentBeatDetector, currentChordDetector)
       : await getTranscription(videoId, currentBeatDetector, currentChordDetector);
 
-    if (cachedData) {
-      deps.setTranscriptionSnapshot?.(cachedData);
-      // Found cached results, loading...
+    if (!stillCurrent()) return undefined;
 
-      // Start processing context for loading cached data
-      processingContext.startProcessing();
-      processingContext.setStage('beat-detection');
-      processingContext.setProgress(50);
-      processingContext.setStatusMessage('Loading cached analysis results...');
+    if (cachedData) {
+      // A saved transcription is not a beat or chord inference request.
+      if (!stillCurrent()) return undefined;
+      processingContext.setStage('cache-loading');
+      processingContext.setStatusMessage('Loading saved analysis results');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (!stillCurrent()) return undefined;
+      deps.setTranscriptionSnapshot?.(cachedData);
 
       // Convert cached data to AnalysisResult format
       const analysisResult: AnalysisResult = {
@@ -189,6 +200,8 @@ export const handleAudioAnalysis = async (deps: AudioProcessingServiceDependenci
         }
       };
 
+      if (!stillCurrent()) return undefined;
+
       // Update state to reflect cached analysis is loaded
       setAudioProcessingState(prev => ({
         ...prev,
@@ -203,48 +216,38 @@ export const handleAudioAnalysis = async (deps: AudioProcessingServiceDependenci
       // Update duration if available
       if (cachedData.audioDuration && cachedData.audioDuration > 0) {
         setDuration(cachedData.audioDuration);
-        // console.log(`🎵 Updated duration from cached analysis: ${cachedData.audioDuration.toFixed(1)} seconds`);
       }
 
-      // Complete processing context
-      processingContext.completeProcessing();
-      processingContext.setStage('complete');
+      processingContext.setStage('cache-loaded');
       processingContext.setProgress(100);
-      processingContext.setStatusMessage('Cached analysis loaded successfully');
+      processingContext.setStatusMessage('Saved analysis results loaded');
 
       return analysisResult;
     } else {
       // console.log(`❌ No cached results found for ${currentBeatDetector} + ${currentChordDetector}, running new analysis...`);
     }
   } catch (cacheError) {
+    if (!stillCurrent()) return undefined;
     console.warn('Cache check failed, proceeding with new analysis:', cacheError);
   }
+
+  if (!stillCurrent()) return undefined;
 
   if (!audioProcessingState.audioUrl) {
     console.error('No audio URL available for analysis');
     return;
   }
 
-  // No cached results found, proceed with new analysis
-  // console.log('🔄 Starting new audio analysis...');
-
-  let stageTimeout: NodeJS.Timeout | null = null;
+  // No cached results found, proceed with new analysis.
+  // The chord-recognition label means the combined request was submitted.
+  // It does not mean a beat model has started, and it is not a percentage.
 
   try {
-    // Start processing context for new analysis
     processingContext.startProcessing();
     processingContext.setStage('chord-recognition');
     processingContext.setProgress(0);
-    processingContext.setStatusMessage('Recognizing chords and synchronizing with beats...');
+    processingContext.setStatusMessage('Chord and beat analysis was submitted. Elapsed time is not a completion percentage.');
 
-    // Update to beat detection stage after a brief delay
-    stageTimeout = setTimeout(() => {
-      processingContext.setStage('beat-detection');
-      processingContext.setProgress(50);
-      processingContext.setStatusMessage('Analyzing beat patterns and timing...');
-    }, 1000);
-
-    // Call the audio processing service with current model values
     const results = await analyzeAudioFromService(
       audioProcessingState.audioUrl,
       currentBeatDetector,
@@ -259,37 +262,35 @@ export const handleAudioAnalysis = async (deps: AudioProcessingServiceDependenci
           channelTitle: channelFromSearch,
           thumbnail: thumbnailFromSearch,
         },
+        diagnosticSessionId,
+        persistAllowed: stillCurrent,
       }
     );
 
-    // Update duration from analysis results if available
+    if (!stillCurrent()) return undefined;
+
     if (results.audioDuration && results.audioDuration > 0) {
       setDuration(results.audioDuration);
-      // console.log(`🎵 Updated duration from analysis results: ${results.audioDuration.toFixed(1)} seconds`);
     }
 
-    // FIXED: Clear the stage timeout to prevent it from overriding completion
-    if (stageTimeout) {
-      clearTimeout(stageTimeout);
-      stageTimeout = null;
-    }
+    if (!stillCurrent()) return undefined;
 
-    // Update processing context for completion
     processingContext.completeProcessing();
+    noteAnalysisCompleted(diagnosticSessionId);
 
     return results;
   } catch (error) {
+    if (!stillCurrent()) return undefined;
     console.error('Audio analysis failed:', error);
 
-    // Clear timeout on error too
-    if (stageTimeout) {
-      clearTimeout(stageTimeout);
-      stageTimeout = null;
-    }
-
-    // Update processing context for error
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     processingContext.failProcessing(errorMessage);
+    if (!isDurationGateError(error)) {
+      const code = typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code?: unknown }).code ?? '')
+        : '';
+      noteAnalysisFailed(diagnosticSessionId, code);
+    }
 
     throw error;
   }

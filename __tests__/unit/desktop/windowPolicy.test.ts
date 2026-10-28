@@ -1,9 +1,13 @@
 /**
  * @jest-environment node
  */
+import fs from 'fs';
+import path from 'path';
 import {
   classifyNavigation,
   createBrowserWindowOptions,
+  microphonePermissionGranted,
+  nonMediaPermissionCheckAllowed,
   singleInstanceDecision,
   windowOpenDecision,
 } from '@/desktop/windowPolicy';
@@ -48,5 +52,78 @@ describe('desktop window policy', () => {
   it('quits a second process when the instance lock is already held', () => {
     expect(singleInstanceDecision(true)).toBe('continue');
     expect(singleInstanceDecision(false)).toBe('quit');
+  });
+
+  it('grants microphone audio only for the owned main frame', () => {
+    const allowed = {
+      permission: 'media',
+      isMainFrame: true,
+      mediaTypes: ['audio'],
+      requestingUrl: `${origin}/analyze`,
+    };
+    expect(microphonePermissionGranted(allowed, origin)).toBe(true);
+    expect(microphonePermissionGranted({ ...allowed, mediaTypes: ['video'] }, origin)).toBe(false);
+    expect(microphonePermissionGranted({ ...allowed, mediaTypes: ['audio', 'video'] }, origin)).toBe(false);
+    expect(microphonePermissionGranted({ ...allowed, mediaTypes: undefined }, origin)).toBe(false);
+    expect(microphonePermissionGranted({ ...allowed, permission: 'display-capture' }, origin)).toBe(false);
+    expect(microphonePermissionGranted({ ...allowed, isMainFrame: false }, origin)).toBe(false);
+    expect(microphonePermissionGranted({ ...allowed, requestingUrl: 'https://127.0.0.1/analyze' }, origin)).toBe(false);
+    expect(microphonePermissionGranted({ ...allowed, requestingUrl: 'http://localhost:4312/analyze' }, origin)).toBe(false);
+    expect(microphonePermissionGranted({ ...allowed, requestingUrl: 'http://127.0.0.1:9999/analyze' }, origin)).toBe(false);
+    expect(microphonePermissionGranted({ ...allowed, requestingUrl: undefined }, origin)).toBe(false);
+  });
+
+  it('does not pre-grant media or display capture', () => {
+    expect(nonMediaPermissionCheckAllowed({
+      permission: 'media',
+      requestingOrigin: origin,
+      isMainFrame: true,
+    }, origin)).toBe(false);
+    expect(nonMediaPermissionCheckAllowed({
+      permission: 'display-capture',
+      requestingOrigin: origin,
+      isMainFrame: true,
+    }, origin)).toBe(false);
+    expect(nonMediaPermissionCheckAllowed({
+      permission: 'notifications',
+      requestingOrigin: origin,
+      isMainFrame: true,
+    }, origin)).toBe(true);
+    expect(nonMediaPermissionCheckAllowed({
+      permission: 'geolocation',
+      requestingOrigin: 'https://evil.test',
+      isMainFrame: true,
+    }, origin)).toBe(false);
+    expect(nonMediaPermissionCheckAllowed({
+      permission: 'notifications',
+      requestingOrigin: 'http://localhost:4312',
+      isMainFrame: true,
+    }, origin)).toBe(false);
+    expect(nonMediaPermissionCheckAllowed({
+      permission: 'notifications',
+      requestingOrigin: origin,
+      isMainFrame: false,
+    }, origin)).toBe(false);
+    expect(nonMediaPermissionCheckAllowed({
+      permission: 'notifications',
+      requestingOrigin: '',
+      isMainFrame: true,
+    }, origin)).toBe(false);
+  });
+
+  it('installs microphone permission handlers before the window loads', () => {
+    const main = fs.readFileSync(path.join(process.cwd(), 'src/desktop/electronMain.ts'), 'utf8');
+    const policy = fs.readFileSync(path.join(process.cwd(), 'src/desktop/windowPolicy.ts'), 'utf8');
+    const attach = main.indexOf('attachMicrophonePermission(owned.origin)');
+    const load = main.indexOf('window.loadURL');
+    expect(attach).toBeGreaterThan(0);
+    expect(attach).toBeLessThan(load);
+    expect(main).toContain('setPermissionRequestHandler');
+    expect(main).toContain('setPermissionCheckHandler');
+    expect(main).toContain('setDisplayMediaRequestHandler');
+    expect(main).toContain('callback(null)');
+    expect(main).not.toMatch(/preload|contextBridge/);
+    expect(policy).not.toMatch(/preload|contextBridge/);
+    expect(createBrowserWindowOptions().webPreferences.sandbox).toBe(true);
   });
 });

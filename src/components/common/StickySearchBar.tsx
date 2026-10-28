@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSharedSearchState } from '@/hooks/search/useSharedSearchState';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useI18n } from '@/i18n/I18nProvider';
+import { useAnalysisInputSourceStore } from '@/stores/analysisInputSourceStore';
 
 interface StickySearchBarProps {
   isVisible: boolean;
@@ -95,6 +96,7 @@ const StickySearchBar: React.FC<StickySearchBarProps> = ({
         {showUpload && (
           <Link
             href="/analyze"
+            onClick={() => useAnalysisInputSourceStore.getState().setSource('local-audio')}
             className="font-medium py-1 xl:py-1.5 px-2 xl:px-3 rounded-lg transition-all duration-200 whitespace-nowrap flex items-center gap-1 text-xs xl:text-sm xl:gap-2 bg-default-100 dark:bg-gray-800/40 border border-default-300 dark:border-gray-700 text-foreground hover:bg-default-200 dark:hover:bg-gray-700/50"
             aria-label={t('home.uploadAria')}
           >

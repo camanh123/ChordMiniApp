@@ -5,6 +5,13 @@ import Link from 'next/link';
 import { HiUpload } from 'react-icons/hi';
 import { Tooltip } from '@heroui/react';
 import { useI18n } from '@/i18n/I18nProvider';
+import AnalysisSourceSelector from '@/components/analysis/AnalysisSourceSelector';
+import AnalysisSourceDetail from '@/components/analysis/AnalysisSourceDetail';
+import {
+  applyRouteIntent,
+  useAnalysisInputSource,
+  useAnalysisInputSourceStore,
+} from '@/stores/analysisInputSourceStore';
 
 interface YouTubeSearchResult {
   id: string;
@@ -45,7 +52,10 @@ const IntegratedSearchContainer: React.FC<IntegratedSearchContainerProps> = ({
   handleVideoSelect,
   containerRef
 }) => {
+  applyRouteIntent('home', 'youtube');
   const { t } = useI18n();
+  const source = useAnalysisInputSource();
+  const setSource = useAnalysisInputSourceStore((state) => state.setSource);
   const [visibleResults, setVisibleResults] = useState(5);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const resultsEndRef = useRef<HTMLDivElement>(null);
@@ -108,7 +118,10 @@ const IntegratedSearchContainer: React.FC<IntegratedSearchContainerProps> = ({
   const hasMoreResults = visibleResults < searchResults.length;
 
   return (
-    <div ref={containerRef} className="w-full">
+    <div ref={containerRef} className="w-full space-y-3">
+      <AnalysisSourceSelector context="input" />
+      {source === 'youtube' ? (
+      <>
       {/* Clean Search Form - No Containers */}
       <form onSubmit={handleSearch}>
         {/* Search Input Row */}
@@ -154,6 +167,7 @@ const IntegratedSearchContainer: React.FC<IntegratedSearchContainerProps> = ({
             >
               <Link
               href="/analyze"
+              onClick={() => setSource('local-audio')}
               className="font-medium py-3 px-4 rounded-lg transition-all duration-200 whitespace-nowrap flex items-center gap-2 bg-default-100 dark:bg-gray-800/40 border border-default-300 dark:border-gray-700 text-foreground hover:bg-default-200 dark:hover:bg-gray-700/50"
               aria-label={t('home.uploadAria')}
               >
@@ -248,6 +262,10 @@ const IntegratedSearchContainer: React.FC<IntegratedSearchContainerProps> = ({
             </>
           )}
         </div>
+      )}
+      </>
+      ) : (
+        <AnalysisSourceDetail context="input" />
       )}
     </div>
   );

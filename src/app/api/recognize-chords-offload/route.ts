@@ -7,6 +7,7 @@ import {
   desktopPythonPolicyResponse,
 } from '@/server/analysisServiceAvailability';
 import { requirePythonBackendResponse } from '@/server/desktopLoopback';
+import { durationEligibility } from '@/utils/analysisDurationLimit';
 
 export const maxDuration = 300;
 
@@ -15,6 +16,39 @@ function shouldDeleteOffloadAfterProcessing(formData: FormData): boolean {
   if (typeof raw !== 'string') return true;
   const normalized = raw.trim().toLowerCase();
   return !(normalized === '0' || normalized === 'false' || normalized === 'no');
+}
+
+function suppliedDurationRejected(formData: FormData): boolean {
+  const raw = formData.get('audio_duration');
+  if (typeof raw !== 'string' || raw.trim() === '') return false;
+  return !durationEligibility(Number.parseFloat(raw)).eligible;
+}
+
+function redactOffloadDetail(details: string, offloadUrl: string): string {
+  const queryStart = offloadUrl.indexOf('?');
+  const query = queryStart >= 0 ? offloadUrl.slice(queryStart) : '';
+  let text = query ? details.split(query).join('') : details;
+  text = text.split(offloadUrl).join('[offload-url]');
+  return text.replace(/(?:token|signature|X-Goog-Signature|X-Goog-Credential)=[^&\s]*/gi, '');
+}
+
+function failedOffloadBody(raw: string, offloadUrl: string, status: number, statusText: string) {
+  const details = redactOffloadDetail(raw, offloadUrl);
+  let parsed: { error?: unknown; code?: unknown } | null = null;
+  try {
+    const value = JSON.parse(details) as { error?: unknown; code?: unknown };
+    if (value && typeof value === 'object') parsed = value;
+  } catch {
+    parsed = null;
+  }
+  const backendError = typeof parsed?.error === 'string' && parsed.error.trim() ? parsed.error : '';
+  const code = typeof parsed?.code === 'string' ? parsed.code : undefined;
+  return {
+    success: false as const,
+    error: backendError || `Backend processing failed: ${status} ${statusText}`,
+    ...(code ? { code } : {}),
+    details,
+  };
 }
 
 function getRequestedOffloadUrl(formData: FormData): string | null {
@@ -45,6 +79,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: (err as Error).message }, { status: 400 });
     }
 
+    if (suppliedDurationRejected(formData)) {
+      return NextResponse.json(
+        { success: false, error: 'Audio duration is not eligible for analysis.', code: 'DURATION_REJECTED' },
+        { status: 400 },
+      );
+    }
+
     const model = formData.get('model') as string | null;
     const detector = (formData.get('detector') as string | null) || model || null;
     const chordDict = (model === 'btc-sl' || model === 'btc-pl') ? 'large_voca' : 'full';
@@ -61,14 +102,26 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      const details = await response.text();
+      const failureText = await response.text();
       return NextResponse.json(
-        { error: `Backend processing failed: ${response.status} ${response.statusText}`, details },
+        failedOffloadBody(failureText, offloadUrl, response.status, response.statusText),
         { status: response.status },
       );
     }
 
-    const result = await response.json();
+    const result = await response.json() as { success?: boolean; error?: unknown; code?: unknown };
+    if (result?.success === false) {
+      const error = typeof result.error === 'string' ? result.error : 'Offload processing failed';
+      const code = typeof result.code === 'string' ? result.code : undefined;
+      return NextResponse.json(
+        {
+          success: false,
+          error: redactOffloadDetail(error, offloadUrl),
+          ...(code ? { code } : {}),
+        },
+        { status: 500 },
+      );
+    }
     if (shouldDeleteOffload) {
       try {
         await deleteOffloadUrl(offloadUrl);
@@ -91,8 +144,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const message = error instanceof Error ? error.message : 'Unknown error occurred during offload chord recognition';
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error occurred during offload chord recognition' },
+      { error: redactOffloadDetail(message, '') },
       { status: 500 },
     );
   }

@@ -12,10 +12,6 @@ jest.mock('@/utils/audioDurationUtils', () => ({
   getAudioDurationFromFile: jest.fn(),
 }));
 
-jest.mock('@/utils/analysisDurationLimit', () => ({
-  getAnalysisDurationLimitReason: jest.fn(() => null),
-}));
-
 jest.mock('@/services/storage/offloadUploadService', () => ({
   offloadUploadService: {
     uploadToOffload: jest.fn(),

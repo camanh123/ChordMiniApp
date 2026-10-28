@@ -45,6 +45,7 @@ interface AnalysisControlsProps {
   cacheCheckCompleted?: boolean;
   actionDisabledReason?: string | null;
   hidden?: boolean;
+  desktopAudioBlocked?: boolean;
 }
 
 export const AnalysisControls: React.FC<AnalysisControlsProps> = ({
@@ -62,6 +63,7 @@ export const AnalysisControls: React.FC<AnalysisControlsProps> = ({
   cacheCheckCompleted = false,
   actionDisabledReason = null,
   hidden = false,
+  desktopAudioBlocked = false,
 }) => {
   const { t } = useI18n();
   // PERFORMANCE FIX: Always show model selection UI, regardless of extraction state
@@ -73,9 +75,10 @@ export const AnalysisControls: React.FC<AnalysisControlsProps> = ({
 
   const canOpenCachedResults = cacheCheckCompleted && cacheAvailable;
 
+  const desktopBlocked = desktopAudioBlocked && !canOpenCachedResults;
   const actionLabel = isAnalyzing
     ? t('analyze.actionAnalyzing')
-    : actionDisabledReason
+    : actionDisabledReason || desktopBlocked
       ? t('analyze.actionUnavailable')
       : canOpenCachedResults
         ? t('analyze.actionCached')
@@ -113,6 +116,8 @@ export const AnalysisControls: React.FC<AnalysisControlsProps> = ({
     ? t('analyze.unavailableTrack')
     : canOpenCachedResults
       ? t('analyze.cacheReady')
+      : desktopBlocked
+        ? t('ytlink.desktopBlockedStatus')
       : !isExtracted
         ? t('analyze.preparing')
         : !cacheCheckCompleted
@@ -123,6 +128,8 @@ export const AnalysisControls: React.FC<AnalysisControlsProps> = ({
     ? actionDisabledReason
     : canOpenCachedResults
       ? t('analyze.cacheFound', { beat: BEAT_MODEL_LABELS[beatDetector], chord: CHORD_MODEL_LABELS[chordDetector] })
+      : desktopBlocked
+        ? t('ytlink.desktopBlockedDetail')
       : !isExtracted
         ? t('analyze.preparingBody')
         : !cacheCheckCompleted

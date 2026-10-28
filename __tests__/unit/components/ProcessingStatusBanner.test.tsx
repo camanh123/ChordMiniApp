@@ -90,9 +90,9 @@ describe('ProcessingStatusBanner lifecycle', () => {
 
   it('shows the Vietnamese beat and chord progress copy without estimated dismiss timers', () => {
     const view = renderBanner('chord-recognition', 'blob:chord');
-    expect(titles()).toEqual(['Đang nhận hợp âm']);
+    expect(titles()).toEqual(['Đã gửi yêu cầu phân tích']);
     expect(mockAddToast.mock.calls[0][0]).toEqual(expect.objectContaining({
-      description: 'Đang nhận hợp âm và khớp với nhịp...',
+      description: 'Đã gửi phân tích hợp âm và nhịp. Thời gian đã trôi không phải phần trăm hoàn thành.',
       timeout: 0,
       hideCloseButton: true,
     }));
@@ -105,7 +105,7 @@ describe('ProcessingStatusBanner lifecycle', () => {
       </I18nProvider>,
     );
 
-    expect(titles()).toEqual(['Đang nhận hợp âm', 'Đang nhận nhịp']);
+    expect(titles()).toEqual(['Đã gửi yêu cầu phân tích', 'Đang nhận nhịp']);
     expect(mockAddToast.mock.calls[1][0]).toEqual(expect.objectContaining({
       description: 'Đang phân tích nhịp và thời gian...',
       timeout: 0,
@@ -206,7 +206,7 @@ describe('ProcessingStatusBanner lifecycle', () => {
         </ProcessingProvider>
       </I18nProvider>,
     );
-    expect(titles()).toEqual(['Đang nhận hợp âm', 'Đang nhận nhịp']);
+    expect(titles()).toEqual(['Đã gửi yêu cầu phân tích', 'Đang nhận nhịp']);
   });
 
   it('drops progress toasts when the selected file is cleared and does not recreate them', () => {
@@ -256,6 +256,23 @@ describe('ProcessingStatusBanner lifecycle', () => {
     rerenderBanner(view, 'complete', 'blob:b', 2);
     expect(titles()).not.toContain('Đã phân tích xong');
     expect(mockAddToast).not.toHaveBeenCalled();
+  });
+
+  it('uses saved-result wording for a cache load and does not claim inference', () => {
+    const view = renderBanner('cache-loading', 'blob:cache');
+    expect(titles()).toEqual(['Đang tải kết quả đã lưu']);
+    expect(mockAddToast.mock.calls[0][0]).toEqual(expect.objectContaining({
+      description: 'Đang đọc bản ghi đã lưu. Chưa yêu cầu suy luận nhịp hay hợp âm.',
+    }));
+    expect(titles().join(' ')).not.toContain('Đang nhận nhịp');
+    expect(titles().join(' ')).not.toContain('Đã phân tích nhịp và hợp âm');
+
+    rerenderBanner(view, 'cache-loaded', 'blob:cache');
+    expect(titles()).toContain('Đã tải kết quả đã lưu');
+    const loaded = mockAddToast.mock.calls.map((call) => call[0] as { title: string; description: string });
+    expect(loaded.some((toast) => toast.description.includes('Không chạy suy luận nhịp hay hợp âm mới.'))).toBe(true);
+    expect(loaded.some((toast) => toast.description.includes('Đã phân tích nhịp và hợp âm'))).toBe(false);
+    expect(loaded.some((toast) => toast.title === 'Đang nhận nhịp')).toBe(false);
   });
 
   it('does not show a success toast when a newer session owns the stage transition', () => {

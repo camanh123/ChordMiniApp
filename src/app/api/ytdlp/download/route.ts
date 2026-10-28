@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'child_process';
+import { desktopExtractionDenied } from '@/server/desktopExtractionGuard';
 import path from 'path';
 import { promises as fs } from 'fs';
 import {
@@ -23,6 +24,8 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 const allowYtDlpInProduction = process.env.NEXT_PUBLIC_AUDIO_STRATEGY === 'ytdlp';
 
 export async function POST(request: NextRequest) {
+  const denied = desktopExtractionDenied();
+  if (denied) return denied;
   // Block in production unless explicitly enabled
   if (!isDevelopment && !allowYtDlpInProduction) {
     return NextResponse.json(

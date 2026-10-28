@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import ThemeToggle from './ThemeToggle';
 import { useI18n } from '@/i18n/I18nProvider';
+import { useAnalysisInputSourceStore } from '@/stores/analysisInputSourceStore';
 import type { MessageKey } from '@/i18n/catalog';
 
 import StickySearchBar from '@/components/common/StickySearchBar';
@@ -105,6 +106,9 @@ const Navigation: React.FC<NavigationProps> = ({ className = '', showStickySearc
   };
 
   const handleNavClick = (href: string, isScroll?: boolean) => {
+    if (href === '/analyze') {
+      useAnalysisInputSourceStore.getState().setSource('local-audio');
+    }
     if (isScroll && href === '/#features') {
       // If we're not on the home page, navigate there first
       if (pathname !== '/') {

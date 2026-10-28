@@ -68,28 +68,14 @@ const EnhancedLyricsDisplay: React.FC<EnhancedLyricsDisplayProps> = ({
   // Calculate chord positions based on word positions
   const getChordPositions = (line: LyricLine) => {
     try {
-      // If line doesn't have chords property or it's empty, return sample chord
       if (!line.chords || !Array.isArray(line.chords) || line.chords.length === 0) {
-        // For testing, create a sample chord at the beginning of the line
-        return [{
-          time: line.startTime,
-          chord: "C",
-          wordIndex: 0,
-          position: 0,
-          word: line.text.split(' ')[0] || ""
-        }];
+        return [];
       }
 
       // Split the line text into words
       const words = line.text.split(' ');
       if (!words.length) {
-        return [{
-          time: line.startTime,
-          chord: "C",
-          wordIndex: 0,
-          position: 0,
-          word: ""
-        }];
+        return [];
       }
 
       const wordPositions: { word: string; start: number; end: number }[] = [];
@@ -129,13 +115,7 @@ const EnhancedLyricsDisplay: React.FC<EnhancedLyricsDisplayProps> = ({
       });
     } catch (error) {
       console.error('Error in getChordPositions:', error);
-      return [{
-        time: line.startTime,
-        chord: "C",
-        wordIndex: 0,
-        position: 0,
-        word: line.text.split(' ')[0] || ""
-      }];
+      return [];
     }
   };
 

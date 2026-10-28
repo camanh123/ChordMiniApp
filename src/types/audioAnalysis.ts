@@ -7,6 +7,7 @@ import type {
   DownbeatInfo,
   // BeatDetectionBackendResponse, // type re-export only; avoid local unused import
 } from '@/services/audio/beatDetectionService';
+import type { DesktopHistoryFacts } from '@/services/audio/analysisHistoryFacts';
 
 // Re-export beat detection types for convenience
 export type {
@@ -55,6 +56,11 @@ export interface AnalysisResult {
   beatModel?: string;    // Which model was used for beat detection
   chordModel?: string;   // Which model was used for chord detection
   audioDuration?: number; // Audio duration in seconds
+  /**
+   * Measurements taken from the backend payload before UI defaults.
+   * Absent on website and offload results, which are not local history.
+   */
+  desktopHistory?: DesktopHistoryFacts;
   beatDetectionResult?: {
     time_signature?: number; // Time signature (beats per measure)
     bpm?: number;           // Beats per minute

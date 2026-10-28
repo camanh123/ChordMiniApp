@@ -9,6 +9,7 @@ from typing import Tuple, Optional, Dict, Any
 from flask import request
 from werkzeug.datastructures import FileStorage
 from utils.chord_mappings import get_supported_chord_dicts, get_default_chord_dict
+from security.offload_audio import public_url_problem
 
 
 def validate_chord_recognition_request() -> Tuple[bool, Optional[str], Optional[FileStorage], Dict[str, Any]]:
@@ -94,10 +95,8 @@ def validate_firebase_chord_recognition_request() -> Tuple[bool, Optional[str], 
     firebase_url = request.form.get('firebase_url')
     if not firebase_url:
         return False, "No Firebase URL provided", {}
-
-    # Validate Firebase URL
-    if 'firebasestorage.googleapis.com' not in firebase_url and 'storage.googleapis.com' not in firebase_url:
-        return False, "Invalid Firebase Storage URL", {}
+    if public_url_problem(firebase_url):
+        return False, "The storage URL was rejected.", {}
 
     # Validate detector parameter
     detector = request.form.get('detector', 'auto').lower()

@@ -8,6 +8,7 @@ including file validation, parameter validation, and error handling.
 from typing import Tuple, Optional, Dict, Any
 from flask import request
 from werkzeug.datastructures import FileStorage
+from security.offload_audio import public_url_problem
 
 
 def validate_beat_detection_request() -> Tuple[bool, Optional[str], Optional[FileStorage], Dict[str, Any]]:
@@ -68,6 +69,8 @@ def validate_firebase_beat_detection_request() -> Tuple[bool, Optional[str], Dic
     firebase_url = request.form.get('firebase_url')
     if not firebase_url:
         return False, "No Firebase URL provided", {}
+    if public_url_problem(firebase_url):
+        return False, "The storage URL was rejected.", {}
 
     # Validate detector parameter
     detector = request.form.get('detector', 'auto').lower()

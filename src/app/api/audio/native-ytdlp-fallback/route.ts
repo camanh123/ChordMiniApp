@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { BROWSER_YTDLP_MAX_FINAL_BYTES } from '@/services/audio/browserYtDlpConfig';
 import { getFirebaseAdminAuth, getFirebaseAdminStorageBucket } from '@/utils/firebaseAdmin';
 import { validateBrowserAudioCandidate, YOUTUBE_VIDEO_ID_PATTERN, sha256Hex } from '@/utils/browserAudioValidation';
+import { desktopExtractionDenied } from '@/server/desktopExtractionGuard';
 import { verifyAppCheckRequest } from '@/utils/serverAppCheck';
 
 export const runtime = 'nodejs';
@@ -236,6 +237,8 @@ async function convertToMediumMp3(sourcePath: string, outputPath: string): Promi
 }
 
 export async function POST(request: NextRequest) {
+  const denied = desktopExtractionDenied();
+  if (denied) return denied;
   const appCheck = await verifyAppCheckRequest(request);
   if (!appCheck.ok) {
     return NextResponse.json({ success: false, error: appCheck.error }, { status: appCheck.status || 403 });

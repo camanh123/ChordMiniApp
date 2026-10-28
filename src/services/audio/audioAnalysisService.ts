@@ -6,7 +6,24 @@
  */
 
 import { getAudioDurationFromFile } from '@/utils/audioDurationUtils';
-import { getAnalysisDurationLimitReason } from '@/utils/analysisDurationLimit';
+import {
+  DurationGateError,
+  durationEligibility,
+} from '@/utils/analysisDurationLimit';
+import {
+  audioExtensionLabel,
+  currentDiagnosticSessionId,
+  noteAudioRejected,
+  noteAudioRejectedCode,
+  noteAudioValidated,
+  noteBeatRequestSent,
+  noteBeatResponseReceived,
+  noteChordRequestSent,
+  noteChordResponseReceived,
+  popDiagnosticScope,
+  pushDiagnosticScope,
+  uiDiagnosticSessionId,
+} from '@/services/audio/analysisDiagnostics';
 import { buildAudioProxyUrl } from '@/utils/audioProxyUrl';
 import { isFirebaseStorageUrl } from '@/utils/urlValidationUtils';
 
@@ -19,6 +36,24 @@ import type { AnalysisResult, BeatInfo, ChordDetectorType, ChordDetectionResult,
 import { beatGridDebugLog } from '@/utils/debug/beatGridDebug';
 
 import { getChordAnalysisWorker } from '@/workers/chordAnalysisClient';
+import { collectDesktopHistory, readChordRun, rememberChordRun, rememberSelectedMeter } from '@/services/audio/analysisHistoryFacts';
+import { DIRECT_UPLOAD_MAX_BYTES } from '@/services/audio/directUploadPolicy';
+
+async function measuredFileSeconds(audioFile: File, sessionId: string | null): Promise<number> {
+  let seconds: number | undefined;
+  let failed = false;
+  try {
+    seconds = await getAudioDurationFromFile(audioFile);
+  } catch {
+    failed = true;
+  }
+  const decision = durationEligibility(seconds, failed);
+  if (!decision.eligible) {
+    noteAudioRejected(sessionId, decision, audioExtensionLabel(audioFile.name));
+    throw new DurationGateError(decision);
+  }
+  return decision.seconds;
+}
 
 function toBeatInfo(beatResults: BeatDetectionBackendResponse): BeatInfo[] {
   const beats: BeatInfo[] = [];
@@ -152,6 +187,7 @@ async function handleOffloadPath(
   _videoId?: string
 ): Promise<AnalysisResult> {
   let offloadUrl: string | null = null;
+  const diagnosticSessionId = currentDiagnosticSessionId();
   const shouldDeleteOffloadUrl = typeof audioSource !== 'string';
   const fileSizeLabel = typeof audioSource === 'string'
     ? 'existing offload URL'
@@ -164,6 +200,7 @@ async function handleOffloadPath(
 
     const [chordOutcome, beatOutcome] = await Promise.allSettled([
       (async (): Promise<ChordDetectionResult[]> => {
+        noteChordRequestSent(diagnosticSessionId, chordDetector);
         const chordOffload = await offloadUploadService.recognizeChordsFromOffloadUrl(offloadUrl!, chordDetector, {
           deleteAfterProcessing: false,
         });
@@ -172,15 +209,20 @@ async function handleOffloadPath(
           throw new Error(`Offload chord processing failed (${fileSizeLabel}): ${err}. Please try again or check your internet connection.`);
         }
 
-        const chordResp = chordOffload.data as { success: boolean; chords?: ChordDetectionResult[] };
+        const chordResp = chordOffload.data as { success: boolean; error?: string; chords?: ChordDetectionResult[] };
+        if (chordResp.success === false) {
+          throw new Error(chordResp.error || 'Offload chord processing failed');
+        }
         if (!chordResp.chords || !Array.isArray(chordResp.chords)) {
           throw new Error('Invalid chord recognition response: chords array not found or not an array');
         }
 
+        noteChordResponseReceived(diagnosticSessionId, chordDetector);
         return chordResp.chords as ChordDetectionResult[];
       })(),
       (async (): Promise<BeatDetectionBackendResponse> => {
         try {
+          noteBeatRequestSent(diagnosticSessionId, beatDetector);
           const beatOffload = await offloadUploadService.detectBeatsFromOffloadUrl(offloadUrl!, beatDetector, {
             deleteAfterProcessing: false,
             audioDuration,
@@ -191,6 +233,10 @@ async function handleOffloadPath(
           }
 
           const normalizedBeatResults = beatOffload.data as BeatDetectionBackendResponse;
+          if (normalizedBeatResults.success === false) {
+            console.warn(`⚠️ Firebase offload beat detection failed: ${normalizedBeatResults.error || 'backend reported failure'}, using empty beats array`);
+            return { beats: [], bpm: undefined, time_signature: undefined, success: true } as BeatDetectionBackendResponse;
+          }
 
           // Normalize time_signature from string "6/4" to numeric 6 for production offload path
           const tsRaw = normalizedBeatResults.time_signature;
@@ -207,6 +253,7 @@ async function handleOffloadPath(
             return { beats: [], bpm: undefined, time_signature: undefined, success: true } as BeatDetectionBackendResponse;
           }
 
+          noteBeatResponseReceived(diagnosticSessionId, beatDetector);
           return normalizedBeatResults;
         } catch (e) {
           console.warn(`⚠️ Beat detection failed for offload upload: ${e}, using empty beats array`);
@@ -331,11 +378,16 @@ export async function analyzeAudioWithRateLimit(
   audioInput: File | AudioBuffer | string,
   beatDetector: 'auto' | 'madmom' | 'beat-transformer' = 'beat-transformer',
   chordDetector: ChordDetectorType = 'chord-cnn-lstm',
-  videoId?: string
+  videoId?: string,
+  diagnosticSessionId?: string | null,
 ): Promise<AnalysisResult> {
+  const sessionId = diagnosticSessionId === undefined ? uiDiagnosticSessionId() : diagnosticSessionId;
+  pushDiagnosticScope(sessionId);
+  try {
   const { isLocalBackend } = await import('@/utils/backendConfig');
   const isLocalhost = isLocalBackend();
 
+  // Storage URLs are not downloaded in the browser. Flask measures duration after a bounded fetch.
   if (!isLocalhost && typeof audioInput === 'string' && isFirebaseStorageUrl(audioInput)) {
     return handleOffloadPath(audioInput, beatDetector, chordDetector, undefined, videoId);
   }
@@ -344,17 +396,29 @@ export async function analyzeAudioWithRateLimit(
   let audioDuration: number | undefined;
 
   if (audioInput instanceof File) {
-    if (audioInput.size === 0) throw new Error('Audio file is empty or corrupted');
-    if (audioInput.size > 100 * 1024 * 1024) throw new Error('Audio file is too large (>100MB). Please use a smaller file.');
+    if (audioInput.size === 0) {
+      noteAudioRejectedCode(sessionId, 'empty');
+      throw new Error('Audio file is empty or corrupted');
+    }
+    if (audioInput.size > 100 * 1024 * 1024) {
+      noteAudioRejectedCode(sessionId, 'too-large');
+      throw new Error('Audio file is too large (>100MB). Please use a smaller file.');
+    }
     audioFile = audioInput;
-    try { audioDuration = await getAudioDurationFromFile(audioFile); } catch (e) { console.warn(`⚠️ Could not detect audio duration: ${e}`); }
+    audioDuration = await measuredFileSeconds(audioFile, sessionId);
   } else if (typeof audioInput === 'string') {
     audioFile = await fetchFileFromUrl(audioInput, videoId);
-    try { audioDuration = await getAudioDurationFromFile(audioFile); } catch (e) { console.warn(`⚠️ Could not detect audio duration: ${e}`); }
+    audioDuration = await measuredFileSeconds(audioFile, sessionId);
   } else if (audioInput instanceof AudioBuffer) {
     if (!audioInput || audioInput.length === 0) throw new Error('AudioBuffer is empty or invalid');
-    if (audioInput.duration === 0) throw new Error('AudioBuffer has zero duration');
-    if (audioInput.duration > 300) throw new Error('Audio duration exceeds maximum supported length (5 minutes).');
+    if (audioInput.duration === 0) {
+      noteAudioRejectedCode(sessionId, 'invalid');
+      throw new Error('AudioBuffer has zero duration');
+    }
+    if (audioInput.duration > 300) {
+      noteAudioRejectedCode(sessionId, 'exceeded');
+      throw new Error('Audio duration exceeds maximum supported length (5 minutes).');
+    }
     if (audioInput.sampleRate < 8000 || audioInput.sampleRate > 192000) throw new Error(`Unsupported sample rate: ${audioInput.sampleRate}Hz. Supported range: 8kHz-192kHz`);
     const { audioBufferToWav } = await import('@/utils/audioBufferUtils');
     const blob = await audioBufferToWav(audioInput);
@@ -364,14 +428,22 @@ export async function analyzeAudioWithRateLimit(
     throw new Error('Invalid audio input: must be either File object, AudioBuffer, or URL string');
   }
 
-  const analysisDurationLimitReason = getAnalysisDurationLimitReason(audioDuration);
-  if (analysisDurationLimitReason) {
-    throw new Error(analysisDurationLimitReason);
+  if (typeof audioDuration !== 'number') {
+    const decision = { eligible: false as const, reason: 'failed' as const, seconds: null };
+    noteAudioRejected(sessionId, decision, audioExtensionLabel(audioFile.name));
+    throw new DurationGateError(decision);
   }
 
   if (!isLocalhost) {
+    noteAudioValidated(sessionId, audioDuration, audioExtensionLabel(audioFile.name));
     return handleOffloadPath(audioFile, beatDetector, chordDetector, audioDuration, videoId);
   }
+
+  if (audioFile.size > DIRECT_UPLOAD_MAX_BYTES) {
+    noteAudioRejectedCode(sessionId, 'too-large');
+    throw new Error('Audio file exceeds the 50 MB direct upload limit.');
+  }
+  noteAudioValidated(sessionId, audioDuration, audioExtensionLabel(audioFile.name));
 
   // PERFORMANCE OPTIMIZATION: Parallelize beat detection and chord recognition
   // These operations are independent and can run simultaneously, reducing total processing time.
@@ -406,8 +478,10 @@ export async function analyzeAudioWithRateLimit(
     (async (): Promise<ChordDetectionResult[]> => {
       try {
         let results = await recognizeChordsWithRateLimit(audioFile, chordDetector);
+        const chordModelUsed = readChordRun(results);
         // filter invalid chords
         results = results.filter(c => c && typeof c.start === 'number' && typeof c.end === 'number' && !isNaN(c.start) && !isNaN(c.end) && c.start >= 0 && c.end >= 0 && c.start < c.end && c.end <= 3600);
+        if (chordModelUsed) rememberChordRun(results, chordModelUsed);
         return results;
       } catch (e) {
         console.error('Error in chord recognition with rate limiting:', e);
@@ -443,6 +517,7 @@ export async function analyzeAudioWithRateLimit(
           );
           beatResults.downbeats = result.downbeats;
           beatResults.time_signature = result.timeSignature;
+          rememberSelectedMeter(beatResults, result.timeSignature, result.downbeats);
           console.log(`Auto-selected meter (worker): → ${result.timeSignature}/4`);
           beatGridDebugLog('MeterSelection', 'Worker selected meter (rate-limit path)', {
             winner: result.timeSignature,
@@ -457,6 +532,7 @@ export async function analyzeAudioWithRateLimit(
           const winner: 3 | 4 = s3.score > s4.score ? 3 : 4;
           beatResults.downbeats = candidates[String(winner)] || beatResults.downbeats || [];
           beatResults.time_signature = winner;
+          rememberSelectedMeter(beatResults, winner, beatResults.downbeats);
           console.log(`Auto-selected meter (main thread fallback): → ${winner}/4`);
           beatGridDebugLog('MeterSelection', 'Main-thread fallback selected meter (rate-limit path)', {
             winner,
@@ -475,6 +551,7 @@ export async function analyzeAudioWithRateLimit(
         const winner: 3 | 4 = s3.score > s4.score ? 3 : 4;
         beatResults.downbeats = candidates[String(winner)] || beatResults.downbeats || [];
         beatResults.time_signature = winner;
+        rememberSelectedMeter(beatResults, winner, beatResults.downbeats);
         console.log(`Auto-selected meter (main thread fallback): → ${winner}/4`);
         beatGridDebugLog('MeterSelection', 'Fallback after worker error selected meter (rate-limit path)', {
           winner,
@@ -507,6 +584,7 @@ export async function analyzeAudioWithRateLimit(
 
   const reportedBeatModel = (beatResults as unknown as { model?: string }).model;
   const effectiveBeatModel = reportedBeatModel || beatDetector;
+  const desktopHistory = collectDesktopHistory(beatResults, chordResults);
 
   return {
     chords: chordResults,
@@ -516,13 +594,15 @@ export async function analyzeAudioWithRateLimit(
     beatModel: effectiveBeatModel,
     chordModel: chordDetector,
     audioDuration,
+    ...(desktopHistory ? { desktopHistory } : {}),
     beatDetectionResult: {
       time_signature: typeof beatResults.time_signature === 'number' ? beatResults.time_signature : undefined,
       bpm: beatResults.bpm
     }
   };
-
-
+  } finally {
+    popDiagnosticScope(sessionId);
+  }
 }
 
 export async function analyzeAudio(
@@ -531,9 +611,13 @@ export async function analyzeAudio(
   chordDetector: ChordDetectorType = 'chord-cnn-lstm',
   videoId?: string
 ): Promise<AnalysisResult> {
+  const sessionId = uiDiagnosticSessionId();
+  pushDiagnosticScope(sessionId);
+  try {
   const { isLocalBackend } = await import('@/utils/backendConfig');
   const isLocalhost = isLocalBackend();
 
+  // Storage URLs are not downloaded in the browser. Flask measures duration after a bounded fetch.
   if (!isLocalhost && typeof audioInput === 'string' && isFirebaseStorageUrl(audioInput)) {
     return handleOffloadPath(audioInput, beatDetector, chordDetector, undefined, videoId);
   }
@@ -543,18 +627,17 @@ export async function analyzeAudio(
 
   if (typeof audioInput === 'string') {
     audioFile = await fetchFileFromUrl(audioInput, videoId);
-    // Only detect duration client-side (browser) - server-side (Docker) doesn't have Audio API
-    if (typeof window !== 'undefined') {
-      try {
-        audioDuration = await getAudioDurationFromFile(audioFile);
-      } catch (e) {
-        console.debug(`Could not detect audio duration (client-side): ${e}`);
-      }
-    }
+    audioDuration = await measuredFileSeconds(audioFile, sessionId);
   } else if (audioInput instanceof AudioBuffer) {
     if (!audioInput || audioInput.length === 0) throw new Error('AudioBuffer is empty or invalid');
-    if (audioInput.duration === 0) throw new Error('AudioBuffer has zero duration');
-    if (audioInput.duration > 300) throw new Error('Audio duration exceeds maximum supported length (5 minutes).');
+    if (audioInput.duration === 0) {
+      noteAudioRejectedCode(sessionId, 'invalid');
+      throw new Error('AudioBuffer has zero duration');
+    }
+    if (audioInput.duration > 300) {
+      noteAudioRejectedCode(sessionId, 'exceeded');
+      throw new Error('Audio duration exceeds maximum supported length (5 minutes).');
+    }
     if (audioInput.sampleRate < 8000 || audioInput.sampleRate > 192000) throw new Error(`Unsupported sample rate: ${audioInput.sampleRate}Hz. Supported range: 8kHz-192kHz`);
     const { audioBufferToWav } = await import('@/utils/audioBufferUtils');
     const blob = await audioBufferToWav(audioInput);
@@ -563,6 +646,14 @@ export async function analyzeAudio(
   } else {
     throw new Error('Invalid audio input: must be either AudioBuffer or URL string');
   }
+
+  const durationDecision = durationEligibility(audioDuration);
+  if (!durationDecision.eligible) {
+    noteAudioRejected(sessionId, durationDecision, audioExtensionLabel(audioFile.name));
+    throw new DurationGateError(durationDecision);
+  }
+  noteAudioValidated(sessionId, durationDecision.seconds, audioExtensionLabel(audioFile.name));
+  audioDuration = durationDecision.seconds;
 
   if (!isLocalhost) {
     return handleOffloadPath(audioFile, beatDetector, chordDetector, audioDuration, videoId);
@@ -706,4 +797,7 @@ export async function analyzeAudio(
       bpm: beatResults.bpm
     }
   };
+  } finally {
+    popDiagnosticScope(sessionId);
+  }
 }

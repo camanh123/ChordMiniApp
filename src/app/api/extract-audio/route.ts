@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { desktopExtractionDenied } from '@/server/desktopExtractionGuard';
 import { audioExtractionServiceSimplified, YouTubeVideoMetadata } from '@/services/audio/audioExtractionSimplified';
 import { detectEnvironment } from '@/utils/environmentDetection';
 import { firebaseStorageSimplified } from '@/services/firebase/firebaseStorageSimplified';
@@ -77,6 +78,8 @@ async function getCachedBrowserExtractionResult(videoMetadata: YouTubeVideoMetad
 }
 
 export async function POST(request: NextRequest) {
+  const denied = desktopExtractionDenied();
+  if (denied) return denied;
   try {
     // Parse request body
     const data = await request.json();

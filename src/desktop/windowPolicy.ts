@@ -69,3 +69,55 @@ export function windowOpenDecision(
 export function singleInstanceDecision(lockGranted: boolean): 'continue' | 'quit' {
   return lockGranted ? 'continue' : 'quit';
 }
+
+export interface MicrophonePermissionRequest {
+  permission: string;
+  isMainFrame: boolean;
+  mediaTypes?: readonly string[];
+  requestingUrl?: string;
+}
+
+/**
+ * Grants only a main-frame microphone request from the owned loopback origin.
+ * Camera, display capture, and every other permission stay denied here.
+ */
+export function microphonePermissionGranted(
+  request: MicrophonePermissionRequest,
+  appOrigin: string,
+): boolean {
+  if (request.permission !== 'media' || !request.isMainFrame) return false;
+  if (!request.mediaTypes || request.mediaTypes.length !== 1 || request.mediaTypes[0] !== 'audio') return false;
+  if (!request.requestingUrl) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(request.requestingUrl);
+  } catch {
+    return false;
+  }
+  return parsed.origin === appOrigin && parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1';
+}
+
+export interface PermissionCheckRequest {
+  permission: string;
+  requestingOrigin?: string;
+  isMainFrame?: boolean;
+}
+
+/**
+ * Media and display capture are never pre-granted. A microphone request still
+ * has to pass microphonePermissionGranted. Other checks stay on the owned origin.
+ */
+export function nonMediaPermissionCheckAllowed(
+  request: PermissionCheckRequest,
+  appOrigin: string,
+): boolean {
+  if (request.permission === 'media' || request.permission === 'display-capture') return false;
+  if (!request.isMainFrame || !request.requestingOrigin) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(request.requestingOrigin);
+  } catch {
+    return false;
+  }
+  return parsed.origin === appOrigin && parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1';
+}

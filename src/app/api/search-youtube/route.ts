@@ -19,7 +19,7 @@ async function performEnvironmentAwareSearch(query: string, limit: number = 10):
 
   console.log(`🔧 Using ${env.strategy} strategy for search`);
 
-  if (env.strategy === 'ytdlp' && env.isDevelopment) {
+  if (env.strategy === 'ytdlp' && env.isDevelopment && process.env.CHORDMINI_DESKTOP_MODE !== '1') {
     // Use yt-dlp for localhost/development
     return await performYtDlpSearch(query, limit);
   } else {

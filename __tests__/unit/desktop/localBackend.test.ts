@@ -151,8 +151,12 @@ describe('local backend configuration', () => {
       statusKey: 'status-key',
       retryToken: 'r'.repeat(32),
       allowLegacy: false,
+      historyDir: path.join(temp, 'analysis-history'),
     });
     expect(env.PYTHON_API_URL).toBe('http://127.0.0.1:5001');
+    expect(env.CHORDMINI_ANALYSIS_HISTORY_DIR).toBe(path.join(temp, 'analysis-history'));
+    expect(env.NEXT_PUBLIC_ANALYSIS_HISTORY_DIR).toBeUndefined();
+    expect(Object.keys(env).join(' ')).not.toMatch(/NEXT_PUBLIC_/);
     expect(env.CHORDMINI_INFERENCE_AUTH).toBe('local');
     expect(env.CHORDMINI_BACKEND_NONCE).toBe('secret-nonce');
     expect(env.CHORDMINI_BACKEND_SUPERVISED).toBe('1');
@@ -162,6 +166,17 @@ describe('local backend configuration', () => {
     expect(env.CHORDMINI_ALLOW_LEGACY_BACKEND).toBeUndefined();
     expect(env.NEXT_PUBLIC_PYTHON_API_URL).toBeUndefined();
     expect(Object.keys(env).join(' ')).not.toMatch(/NEXT_PUBLIC_PYTHON_API_URL/);
+    const hidden = nextChildBackendEnv({
+      origin: null,
+      statusFile: path.join(temp, 'backend-status.json'),
+      retryFile: path.join(temp, 'backend-retry.json'),
+      nonce: null,
+      statusKey: 'status-key',
+      retryToken: 'r'.repeat(32),
+      allowLegacy: false,
+      historyDir: 'relative/history',
+    });
+    expect(hidden.CHORDMINI_ANALYSIS_HISTORY_DIR).toBeUndefined();
   });
 });
 

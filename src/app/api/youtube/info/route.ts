@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isDesktopExtractionBlocked } from '@/server/desktopExtractionGuard';
 import { decideDesktopLoopback, fetchPythonBackend } from '@/server/desktopLoopback';
 import { getPythonApiUrl } from '@/config/serverBackend';
 
@@ -45,7 +46,9 @@ export async function GET(request: NextRequest) {
     let data = null;
     let lastError = null;
 
-    const loopback = decideDesktopLoopback();
+    let loopback: ReturnType<typeof decideDesktopLoopback> | null = null;
+    if (!isDesktopExtractionBlocked()) {
+    loopback = decideDesktopLoopback();
     if (loopback.scope !== 'rejected') {
     const backendUrl = loopback.scope === 'passthrough' ? getPythonApiUrl() : loopback.origin;
 
@@ -91,6 +94,7 @@ export async function GET(request: NextRequest) {
       } else {
         console.log('⚠️ Python backend failed');
       }
+    }
     }
     }
 
@@ -147,7 +151,7 @@ export async function GET(request: NextRequest) {
           success: false,
           error: 'Failed to fetch video info from all sources',
           details: lastError
-            ? (loopback.scope === 'passthrough'
+            ? (loopback?.scope === 'passthrough'
               ? (lastError instanceof Error ? lastError.message : String(lastError))
               : 'Python backend request failed')
             : 'All extraction methods failed',
