@@ -10,14 +10,14 @@ import {
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-async function recordId(context: { params: Promise<{ id: string }> | { id: string } }): Promise<string> {
+async function recordId(context: { params: Promise<{ id: string }> }): Promise<string> {
   const params = await context.params;
   return params.id;
 }
 
 export async function GET(
   request: Request,
-  context: { params: Promise<{ id: string }> | { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   const id = await recordId(context);
   const denied = authorizeHistoryRequest(request, `/api/desktop/analysis-history/${id}`);
@@ -32,7 +32,7 @@ export async function GET(
 
 export async function DELETE(
   request: Request,
-  context: { params: Promise<{ id: string }> | { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   const id = await recordId(context);
   const denied = authorizeHistoryRequest(request, `/api/desktop/analysis-history/${id}`);

@@ -12,7 +12,7 @@ export const runtime = 'nodejs';
 
 export async function POST(
   request: Request,
-  context: { params: Promise<{ id: string }> | { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   const params = await context.params;
   const id = params.id;
